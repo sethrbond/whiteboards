@@ -1687,18 +1687,23 @@ let syncTimer = null;
 // --- Auth ---
 let authMode = 'login'; // 'login' | 'signup' | 'forgot'
 
+let authInitialized = false;
 async function initAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     currentUser = session.user;
     await loadFromCloud();
     showApp();
+    authInitialized = true;
   }
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' && session) {
+      if (authInitialized) return; // already loaded via getSession
+      authInitialized = true;
       currentUser = session.user;
       loadFromCloud().then(() => showApp());
     } else if (event === 'SIGNED_OUT') {
+      authInitialized = false;
       currentUser = null;
       document.getElementById('authScreen').style.display = 'flex';
       document.querySelector('.sidebar').style.display = '';
@@ -1805,8 +1810,10 @@ async function loadFromCloud() {
       if (row.projects && row.projects.length > 0) data.projects = row.projects;
       if (row.habits && row.habits.length > 0) data.habits = row.habits;
       if (row.ai_memory && row.ai_memory.length > 0) saveAIMemory(row.ai_memory);
-      if (row.settings && row.settings.apiKey) { settings = { ...settings, ...row.settings }; saveSettings(settings); }
+      if (row.settings && row.settings.apiKey) { settings = { ...settings, ...row.settings }; localStorage.setItem('wb_settings', JSON.stringify(settings)); }
+      _suppressCloudSync = true;
       saveData(data);
+      _suppressCloudSync = false;
       syncStatus = 'synced';
     } else {
       // First login — push local data up
@@ -1887,10 +1894,11 @@ function loadData() {
   } catch {}
   return { tasks: [], projects: [], habits: [] };
 }
+let _suppressCloudSync = false;
 function saveData(d) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
   catch (e) { showToast('Storage full — export your data from Settings', true); console.error('Save failed:', e); }
-  scheduleSyncToCloud();
+  if (!_suppressCloudSync) scheduleSyncToCloud();
 }
 
 let data = loadData();
@@ -2050,7 +2058,6 @@ function findSimilarTask(title, projectId) {
   return bestScore >= 0.6 ? best : null;
 }
 function findSimilarProject(name) {
-  const nn = normalizeTitle(name);
   let best = null, bestScore = 0;
   for (const p of data.projects) {
     const score = titleSimilarity(name, p.name);
@@ -2064,7 +2071,7 @@ function activeTasks(pid) { return (pid ? projectTasks(pid) : data.tasks).filter
 function doneTasks(pid) { return (pid ? projectTasks(pid) : data.tasks).filter(t => t.status === 'done'); }
 function urgentTasks() { return data.tasks.filter(t => t.status !== 'done' && (t.priority === 'urgent' || (t.dueDate && t.dueDate <= todayStr()))); }
 
-function todayStr() { return new Date().toISOString().slice(0,10); }
+function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
 function sortTasks(tasks) {
   const po = { urgent: 0, important: 1, normal: 2, low: 3 };
@@ -3271,7 +3278,7 @@ function executeAIActions(reply) {
           case 'create_task': {
             // Check for duplicate before creating
             const dupe = findSimilarTask(a.title, null);
-            if (dupe) { updated++; break; } // skip duplicate
+            if (dupe) { applied++; break; } // skip duplicate
             const projId = a.project ? (matchProject(a.project) || {}).id || '' : '';
             const st = (a.subtasks || []).map(s => ({ id: genId('st'), title: s, done: false }));
             addTask(createTask({ title: a.title, project: projId, priority: a.priority || 'normal', dueDate: a.dueDate || '', notes: a.notes || '', subtasks: st, recurrence: a.recurrence || '', phase: a.phase || '' }));
@@ -4004,7 +4011,7 @@ function getWeekDates(offset = 0) {
   return Array.from({ length: 7 }, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
 }
 
-function ds(d) { return d.toISOString().slice(0, 10); }
+function ds(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
 function renderHabits() {
   const habits = data.habits;
