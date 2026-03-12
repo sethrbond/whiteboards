@@ -3683,7 +3683,7 @@ function executeAIActions(reply) {
           case 'create_project': {
             const existingP = matchProject(a.name);
             if (existingP) break; // don't create duplicate project
-            addProject(createProject({ name: a.name, description: (a.description || '').slice(0, 100) }));
+            addProject(createProject({ name: a.name, description: enforceShortDesc(a.description || '') }));
             applied++;
             break;
           }
@@ -3873,9 +3873,11 @@ async function processDump() {
   const prompt = `You are the world's best executive assistant. You have been handed a brainstorm — it could be a stream of consciousness, a formal project document, meeting notes, a status update, or anything in between. Your job: extract EVERYTHING useful and organize it perfectly.
 
 ## YOUR EXTRACTION PHILOSOPHY
-- When in doubt, INCLUDE IT. It is far worse to miss something than to over-extract.
-- A 1-page dump should produce 5-15 items. A 10-page document should produce 40-80+ items.
-- Every bullet point, checkbox, action item, mention of something that needs doing, or record of something completed = a task.
+- Extract ACTIONABLE items — things someone needs to DO, DECIDE, or TRACK.
+- Do NOT create tasks for background info, context, history, mission statements, or descriptive text. That goes in the project background.
+- A 1-page dump should produce 3-10 tasks. A 10-page document should produce 15-30 tasks MAX.
+- Quality over quantity. Each task should be something the user would actually put on their to-do list.
+- If something is informational/context rather than actionable, put it in the project's background field, NOT as a task.
 - Background info, mission statements, team rosters, key decisions, context = project description updates.
 - You are not summarizing. You are CATALOGUING. Every discrete item gets its own task.
 
@@ -3922,8 +3924,8 @@ LOW — nice-to-have, future consideration, exploratory.
 - If items are random personal stuff (gym, errands, appointments, calls), assign to "${LIFE_PROJECT_NAME}".
 - Match existing project names FUZZILY — "Career Tracker" matches "Seth Bond Program Tracker & Career Vision".
 - CRITICAL — "description" vs "background":
-  - "description" = ONE sentence, max 15 words. Example: "Multi-path career exploration and educational planning." It is a SUBTITLE shown on project cards. NEVER put details, context, team, financials, phases, or anything else here. If it's longer than one sentence, it's WRONG.
-  - "background" = ALL detailed info using ## section headers (Origin, Where It's Going, Roadblocks, Next Steps, Notes). Mission, team, phase, decisions, context, financials — everything goes HERE. This lives in a collapsible dropdown.
+  - "description" = a SUBTITLE for the project card. MAXIMUM 12 WORDS. Example: "Nonprofit advancing immigration justice through trust-based philanthropy." NEVER include team names, financials, phases, dates, status updates, or any detail. If your description is longer than 12 words, it is WRONG. Rewrite it shorter.
+  - "background" = ALL detailed info using ## section headers (Origin, Where It's Going, Roadblocks, Next Steps, Notes). Mission, team roster, phase, decisions, context, financials, timelines, compliance — EVERYTHING detailed goes HERE. This is a collapsible dropdown, so be thorough.
 
 EXISTING TASKS (id|title|status|notes_preview):
 ${existingCompact || '(none)'}
@@ -3944,7 +3946,7 @@ TODAY: ${todayStr()}
     {
       "action": "create",
       "title": "Clear, specific task title",
-      "notes": "Relevant context, details, dependencies, who's responsible",
+      "notes": "One sentence of context. Max 20 words. No paragraphs.",
       "status": "done",
       "priority": "normal",
       "suggestedProject": "Project Name",
@@ -4019,31 +4021,30 @@ ${text}${dumpAttachments.length ? '\n\n--- ATTACHED DOCUMENTS ---\n' + dumpAttac
       const existing = findSimilarProject(pu.name);
       if (existing) {
         const updates = {};
-        // Description: enforce SHORT subtitle — max 100 chars
+        // Description: enforce SHORT subtitle — max 80 chars, first sentence only
         if (pu.description) {
-          const shortDesc = pu.description.split(/[.!?]\s/)[0].slice(0, 100);
-          if (!existing.description || existing.description.length > 100) {
+          const shortDesc = enforceShortDesc(pu.description);
+          if (!existing.description || existing.description.length > 80) {
             updates.description = shortDesc;
           }
         }
-        // Background: detailed info goes here — APPEND if existing, don't overwrite
+        // Background: detailed info goes here — overwrite with new if provided
         if (pu.background) {
           updates.background = pu.background;
         }
-        // Safety: if AI stuffed details into description, move overflow to background
-        if (pu.description && pu.description.length > 100 && !pu.background) {
-          updates.description = pu.description.split(/[.!?]\s/)[0].slice(0, 100);
+        // Safety: if AI stuffed details into description, rescue overflow to background
+        if (pu.description && pu.description.length > 80 && !pu.background) {
+          updates.description = enforceShortDesc(pu.description);
           updates.background = pu.description;
         }
         if (Object.keys(updates).length) updateProject(existing.id, updates);
         projectMap[pu.name] = existing.id;
         projectsUpdated++;
       } else if (pu.isNew !== false) {
-        // Force short description on new projects too
-        let desc = (pu.description || '').split(/[.!?]\s/)[0].slice(0, 100);
+        let desc = enforceShortDesc(pu.description || '');
         let bg = pu.background || '';
         // If AI dumped everything into description, rescue it to background
-        if ((pu.description || '').length > 100 && !bg) {
+        if ((pu.description || '').length > 80 && !bg) {
           bg = pu.description;
         }
         const p = createProject({ name: pu.name, description: desc, background: bg });
@@ -4108,8 +4109,10 @@ ${text}${dumpAttachments.length ? '\n\n--- ATTACHED DOCUMENTS ---\n' + dumpAttac
         } else {
           const taskStatus = item.status || 'todo';
           const st = (item.subtasks || []).map(s => ({ id: genId('st'), title: s, done: taskStatus === 'done' }));
+          // Enforce short notes: first sentence, max 120 chars
+          let taskNotes = (item.notes || '').split(/[.!?]\s/)[0].slice(0, 120);
           const t = createTask({
-            title: item.title, notes: item.notes || '',
+            title: item.title, notes: taskNotes,
             priority: item.priority || 'normal', horizon: item.horizon || 'short',
             dueDate: item.dueDate || '',
             project: projId, phase: item.phase || '',
@@ -4178,6 +4181,20 @@ ${text}${dumpAttachments.length ? '\n\n--- ATTACHED DOCUMENTS ---\n' + dumpAttac
 
 function cancelDump() {
   if (dumpAbort) dumpAbort.abort();
+}
+
+function enforceShortDesc(desc) {
+  if (!desc) return '';
+  // Take first sentence
+  let s = desc.split(/[.!?]\s/)[0];
+  // If still too long, truncate at word boundary
+  if (s.length > 80) {
+    s = s.slice(0, 80);
+    const lastSpace = s.lastIndexOf(' ');
+    if (lastSpace > 40) s = s.slice(0, lastSpace);
+  }
+  // Remove trailing punctuation clutter
+  return s.replace(/[,;:\-–—]+$/, '').trim();
 }
 
 function processDumpManual(text) {
