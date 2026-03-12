@@ -1943,6 +1943,7 @@ function createTask(o = {}) {
     project: '', dueDate: '', phase: '',
     recurrence: '', // 'daily', 'weekly', 'monthly', or ''
     tags: [], // string array of tag names
+    blockedBy: [], // array of task IDs this task depends on
     subtasks: [], // [{ id, title, done }]
     createdAt: new Date().toISOString(), completedAt: null,
     updates: [],
@@ -1981,10 +1982,13 @@ function addTask(t) { data.tasks.push(t); saveData(data); }
 function updateTask(id, u) {
   const t = data.tasks.find(x => x.id === id);
   if (!t) return;
+  const wasNotDone = t.status !== 'done';
   Object.assign(t, u);
   if (u.status === 'done' && !t.completedAt) t.completedAt = new Date().toISOString();
   if (u.status && u.status !== 'done') t.completedAt = null;
   saveData(data);
+  // Trigger reflection on meaningful completions (not every time)
+  if (wasNotDone && u.status === 'done') maybeReflect(t);
 }
 function deleteTask(id, silent) {
   const t = data.tasks.find(x => x.id === id);
@@ -2232,11 +2236,12 @@ function renderDashboard() {
   const projOpts = data.projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   let html = `<div class="dash-greeting">
     <div class="dash-greeting-text">${greeting}</div>
-    <div class="dash-greeting-sub">${subGreeting}${overdue.length ? '' : ` <span style="color:var(--text3)">${active.length} active · ${inProgress.length} in progress · ${done.length} done</span>`}${renderStreakBadge()}</div>
+    <div class="dash-greeting-sub">${subGreeting}${overdue.length ? '' : ` <span style="color:var(--text3)">${active.length} active · ${inProgress.length} in progress · ${done.length} done</span>`}</div>
   </div>`;
 
-  // Smart nudges
+  // Smart nudges + stuck detection
   html += renderNudgeBar();
+  html += renderStuckNudges();
 
   html += `<div class="quick-capture">
     <input class="quick-capture-input" id="quickCapture" placeholder="Quick add a task... (or press / to focus)" onkeydown="if(event.key==='Enter'&&this.value.trim()){quickAddFromCapture();}" autocomplete="off">
@@ -2632,10 +2637,11 @@ function renderTaskRow(t, showProject = false) {
   const proj = showProject && t.project ? data.projects.find(x => x.id === t.project) : null;
 
   const priClass = !isDone && (t.priority === 'urgent' || t.priority === 'important') ? ` pri-${t.priority}` : '';
-  return `<div class="task-row${priClass}" data-task="${t.id}">
+  const blocked = !isDone && isBlocked(t);
+  return `<div class="task-row${priClass}" data-task="${t.id}"${blocked ? ' style="opacity:0.55"' : ''}>
     <div class="task-check ${isDone ? 'done' : ''}" data-toggle="${t.id}"></div>
     <div class="task-body">
-      <div class="task-title ${isDone ? 'done-text' : ''}" data-inline-edit="${t.id}">${esc(t.title)}</div>
+      <div class="task-title ${isDone ? 'done-text' : ''}" data-inline-edit="${t.id}">${blocked ? '<span style="color:var(--red);font-size:10px;margin-right:4px" title="Blocked">◆</span>' : ''}${esc(t.title)}</div>
       ${t.notes ? `<div class="task-note">${esc(t.notes)}</div>` : ''}
       ${t.subtasks && t.subtasks.length ? renderSubtaskProgress(t.subtasks) : ''}
       ${taskNudge(t)}
@@ -2681,6 +2687,8 @@ function renderTaskExpanded(t, showProject = false) {
       ${t.dueDate ? `<div class="task-detail-row"><span class="task-detail-label">Due</span>${fmtDate(t.dueDate)}</div>` : ''}
       <div class="task-detail-row"><span class="task-detail-label">Created</span>${relativeTime(t.createdAt)}</div>
       ${t.completedAt ? `<div class="task-detail-row"><span class="task-detail-label">Done</span>${relativeTime(t.completedAt)}</div>` : ''}
+      ${renderBlockedBy(t)}
+      ${renderBlocking(t)}
       ${(t.subtasks && t.subtasks.length) ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600">SUBTASKS</div>${t.subtasks.map(s => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer" onclick="event.stopPropagation();toggleSubtask('${t.id}','${s.id}')"><div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done?'var(--accent)':'var(--border2)'};background:${s.done?'var(--accent)':'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0">${s.done?'✓':''}</div><span style="font-size:12px;color:${s.done?'var(--text3)':'var(--text)'};${s.done?'text-decoration:line-through':''}">${esc(s.title)}</span></div>`).join('')}</div>` : ''}
       <div style="margin-top:6px"><input style="font-size:11px;padding:4px 8px;background:transparent;border:1px dashed var(--border);border-radius:4px;color:var(--text2);width:100%;outline:none;font-family:inherit" placeholder="+ add subtask" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'&&this.value.trim()){addSubtask('${t.id}',this.value.trim());this.value=''}"></div>
       ${t.updates && t.updates.length > 0 ? `<div style="margin-top:8px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">UPDATES</div>${t.updates.map(u => `<div style="font-size:12px;color:var(--text2);padding:3px 0"><span style="color:var(--text3)">${u.date}</span> — ${esc(u.text)}</div>`).join('')}</div>` : ''}
@@ -2836,6 +2844,82 @@ function attachTooltips() {
       if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
     });
   });
+}
+
+// ============================================================
+// TASK DEPENDENCIES
+// ============================================================
+function isBlocked(t) {
+  if (!t.blockedBy || !t.blockedBy.length) return false;
+  return t.blockedBy.some(id => {
+    const dep = data.tasks.find(x => x.id === id);
+    return dep && dep.status !== 'done';
+  });
+}
+
+function renderBlockedBy(t) {
+  if (!t.blockedBy || !t.blockedBy.length) return '';
+  const blockers = t.blockedBy.map(id => data.tasks.find(x => x.id === id)).filter(Boolean);
+  if (!blockers.length) return '';
+  return `<div style="margin-top:6px"><div style="font-size:11px;color:var(--text3);margin-bottom:3px;font-weight:600">BLOCKED BY</div>${blockers.map(b =>
+    `<div style="display:flex;align-items:center;gap:6px;padding:2px 0;font-size:12px">
+      <span style="color:${b.status === 'done' ? 'var(--green)' : 'var(--red)'}">${b.status === 'done' ? '✓' : '○'}</span>
+      <span style="color:${b.status === 'done' ? 'var(--text3)' : 'var(--text)'};${b.status === 'done' ? 'text-decoration:line-through' : ''}">${esc(b.title)}</span>
+      <span style="font-size:10px;color:var(--text3);cursor:pointer" onclick="event.stopPropagation();removeDep('${t.id}','${b.id}')">✕</span>
+    </div>`
+  ).join('')}</div>`;
+}
+
+function renderBlocking(t) {
+  const blocking = data.tasks.filter(x => x.blockedBy && x.blockedBy.includes(t.id) && x.status !== 'done');
+  if (!blocking.length) return '';
+  return `<div style="margin-top:4px;font-size:11px;color:var(--amber)">Blocking: ${blocking.map(b => esc(b.title)).join(', ')}</div>`;
+}
+
+function addDep(taskId, blockerQuery) {
+  const t = data.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  const blocker = matchTask(blockerQuery);
+  if (!blocker || blocker.id === taskId) { showToast('Task not found', true); return; }
+  if (!t.blockedBy) t.blockedBy = [];
+  if (t.blockedBy.includes(blocker.id)) return;
+  t.blockedBy.push(blocker.id);
+  saveData(data);
+  render();
+  showToast(`"${t.title}" now blocked by "${blocker.title}"`, false, true);
+}
+
+function removeDep(taskId, blockerId) {
+  const t = data.tasks.find(x => x.id === taskId);
+  if (!t || !t.blockedBy) return;
+  t.blockedBy = t.blockedBy.filter(id => id !== blockerId);
+  saveData(data);
+  render();
+}
+
+function showDepResults(query, excludeId) {
+  const el = document.getElementById('depResults');
+  if (!el) return;
+  const q = query.toLowerCase().trim();
+  if (!q) { el.innerHTML = ''; return; }
+  const existing = [...document.querySelectorAll('#fBlockedBy [data-dep]')].map(e => e.dataset.dep);
+  const matches = data.tasks.filter(t => t.id !== excludeId && !existing.includes(t.id) && t.title.toLowerCase().includes(q)).slice(0, 5);
+  el.innerHTML = matches.map(t => `<div style="padding:4px 8px;font-size:12px;cursor:pointer;border-radius:4px;color:var(--text2)" onmouseenter="this.style.background='var(--surface3)'" onmouseleave="this.style.background=''" onclick="selectDep('${t.id}','${esc(t.title.slice(0, 30))}')">${esc(t.title)}${t.status === 'done' ? ' <span style="color:var(--green)">✓</span>' : ''}</div>`).join('');
+}
+
+function selectDep(id, title) {
+  const container = document.getElementById('fBlockedBy');
+  if (!container) return;
+  if (container.querySelector(`[data-dep="${id}"]`)) return;
+  const chip = document.createElement('span');
+  chip.className = 'tag';
+  chip.style.cssText = 'background:var(--red-dim);color:var(--red);cursor:pointer';
+  chip.dataset.dep = id;
+  chip.textContent = title;
+  chip.onclick = () => chip.remove();
+  container.appendChild(chip);
+  document.getElementById('fDepSearch').value = '';
+  document.getElementById('depResults').innerHTML = '';
 }
 
 function renderPriorityTag(p) {
@@ -3026,11 +3110,41 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'k') { e.preventDefault(); openQuickAdd(); return; }
   if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openSearch(); return; }
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) {
     if (e.key === 'Escape') { e.target.blur(); return; }
     return;
   }
-  if (e.key === 'Escape') { if (expandedTask) { expandedTask = null; render(); } else closeModal(); }
+  if (e.key === 'Escape') { if (expandedTask) { expandedTask = null; kbIdx = -1; render(); } else closeModal(); return; }
+  // j/k/x/e keyboard navigation
+  if ('jkxe'.includes(e.key)) {
+    const rows = [...document.querySelectorAll('.task-row, .task-expanded')];
+    if (!rows.length) { /* fall through */ }
+    else if (e.key === 'j') { e.preventDefault(); kbIdx = Math.min(kbIdx + 1, rows.length - 1); highlightKbRow(rows); return; }
+    else if (e.key === 'k') { e.preventDefault(); kbIdx = Math.max(kbIdx - 1, 0); highlightKbRow(rows); return; }
+    else if (e.key === 'x' && kbIdx >= 0 && kbIdx < rows.length) {
+      e.preventDefault();
+      const id = rows[kbIdx].dataset.task;
+      if (id) { const t = data.tasks.find(x => x.id === id); if (t) { updateTask(id, { status: t.status === 'done' ? 'todo' : 'done' }); render(); } }
+      return;
+    }
+    else if (e.key === 'e' && kbIdx >= 0 && kbIdx < rows.length) {
+      e.preventDefault();
+      const id = rows[kbIdx].dataset.task;
+      if (id) openEditTask(id);
+      return;
+    }
+  }
+  if (e.key === 'Enter' && kbIdx >= 0) {
+    const rows = [...document.querySelectorAll('.task-row, .task-expanded')];
+    if (kbIdx < rows.length) {
+      e.preventDefault();
+      const id = rows[kbIdx].dataset.task;
+      expandedTask = expandedTask === id ? null : id;
+      render();
+      if (expandedTask && settings.apiKey) setTimeout(() => getTaskCoachTip(expandedTask), 100);
+      return;
+    }
+  }
   if (e.key === 'n') openNewTask(currentProject || '');
   if (e.key === 'd') setView('dump');
   if (e.key === 'w') setView('review');
@@ -3038,6 +3152,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === '1') setView('dashboard');
   if (e.key === '/') { e.preventDefault(); const qc = document.getElementById('quickCapture'); if (qc) qc.focus(); else setView('dashboard'); }
 });
+
+let kbIdx = -1;
+function highlightKbRow(rows) {
+  rows.forEach((r, i) => {
+    r.style.outline = i === kbIdx ? '2px solid var(--accent)' : '';
+    r.style.outlineOffset = i === kbIdx ? '-2px' : '';
+  });
+  if (rows[kbIdx]) rows[kbIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
 
 // ============================================================
 // MODALS
@@ -3289,6 +3412,11 @@ function openEditTask(id) {
     <div class="form-group"><label class="form-label">Tags</label>
       <div class="tag-picker" id="fTagPicker">${renderTagPicker(t.tags || [])}</div>
     </div>
+    <div class="form-group"><label class="form-label">Blocked By</label>
+      <div id="fBlockedBy" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${(t.blockedBy || []).map(id => { const b = data.tasks.find(x => x.id === id); return b ? `<span class="tag" style="background:var(--red-dim);color:var(--red);cursor:pointer" data-dep="${id}" onclick="this.remove()">${esc(b.title.slice(0, 30))}</span>` : ''; }).join('')}</div>
+      <input class="form-input" id="fDepSearch" placeholder="Type task name to add dependency..." style="font-size:12px" oninput="showDepResults(this.value,'${t.id}')" onkeydown="if(event.key==='Escape'){this.value='';document.getElementById('depResults').innerHTML='';}">
+      <div id="depResults" style="max-height:120px;overflow-y:auto"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}');closeModal();expandedTask=null;render()">Delete</button>
       <div style="flex:1"></div>
@@ -3300,7 +3428,8 @@ function openEditTask(id) {
 
 function saveEditTask(id) {
   const tags = [...document.querySelectorAll('#fTagPicker .tag-chip.selected')].map(el => el.dataset.tag).filter(Boolean);
-  updateTask(id, { title: $('#fTitle').value.trim(), notes: $('#fNotes').value.trim(), status: $('#fStatus').value, priority: $('#fPriority').value, project: $('#fProject').value, dueDate: $('#fDue').value, recurrence: $('#fRecurrence').value, phase: $('#fPhase').value.trim(), tags });
+  const blockedBy = [...document.querySelectorAll('#fBlockedBy [data-dep]')].map(el => el.dataset.dep).filter(Boolean);
+  updateTask(id, { title: $('#fTitle').value.trim(), notes: $('#fNotes').value.trim(), status: $('#fStatus').value, priority: $('#fPriority').value, project: $('#fProject').value, dueDate: $('#fDue').value, recurrence: $('#fRecurrence').value, phase: $('#fPhase').value.trim(), tags, blockedBy });
   closeModal();
   render();
 }
@@ -3382,7 +3511,7 @@ function buildAIContext(scope = 'all', projectId = null) {
     ctx += `\nALL ACTIVE TASKS:\n`;
     data.tasks.filter(t => t.status !== 'done').forEach(t => {
       const proj = data.projects.find(p => p.id === t.project);
-      ctx += `  - [${t.priority}${t.status === 'in-progress' ? '/WIP' : ''}] ${t.title}${proj ? ' {' + proj.name + '}' : ''}${t.dueDate ? ' due:' + t.dueDate : ''}${t.notes ? ' — ' + t.notes.slice(0, 80) : ''}${t.subtasks?.length ? ' [' + t.subtasks.filter(s => s.done).length + '/' + t.subtasks.length + ' sub]' : ''}\n`;
+      ctx += `  - [${t.priority}${t.status === 'in-progress' ? '/WIP' : ''}${isBlocked(t) ? '/BLOCKED' : ''}] ${t.title}${proj ? ' {' + proj.name + '}' : ''}${t.dueDate ? ' due:' + t.dueDate : ''}${t.notes ? ' — ' + t.notes.slice(0, 80) : ''}${t.subtasks?.length ? ' [' + t.subtasks.filter(s => s.done).length + '/' + t.subtasks.length + ' sub]' : ''}${t.blockedBy?.length ? ' [blocked by: ' + t.blockedBy.map(id => { const b = data.tasks.find(x => x.id === id); return b ? b.title.slice(0, 25) : '?'; }).join(', ') + ']' : ''}\n`;
     });
     if (data.habits.length) {
       const todayD = ds(new Date());
@@ -4786,8 +4915,23 @@ async function sendChat() {
 
 ${AI_ACTIONS_SPEC}
 
+MODES — read the user's intent and respond in the right mode:
+
+1. EXECUTION MODE: When they clearly want something done ("create a task", "move X to urgent", "delete Y")
+   → DO IT with an actions block + brief confirmation. No extra commentary.
+
+2. THINKING MODE: When they're working through something ("I need to figure out...", "I'm not sure about...", "what should I do about...")
+   → Think WITH them. Ask clarifying questions. Explore options. Don't jump to creating tasks yet.
+   → Help them get clear on what they actually want before organizing it.
+   → "What does 'done' look like for this?" / "Is this urgent or just on your mind?"
+
+3. REFLECTION MODE: When they share how something went or seem to be processing ("that meeting was rough", "finally finished X")
+   → Acknowledge genuinely. Ask what they learned or what's next. No toxic positivity.
+   → Connect it to the bigger picture if relevant.
+
+Default to THINKING MODE when the intent is ambiguous. It's better to help someone clarify than to create the wrong tasks.
+
 RULES:
-- When the user asks to change something, DO IT with an actions block + brief confirmation.
 - Convert relative dates to YYYY-MM-DD. Today is ${todayStr()}.
 - Match tasks by partial title — "dentist" matches "Dentist appointment Friday".
 - You have the FULL conversation history — don't repeat what the user already knows.
@@ -4796,6 +4940,8 @@ RULES:
 - When creating tasks, think about what else might be needed. "Book flights" → maybe also needs hotel, car, PTO?
 - If a task sounds complex, break it into subtasks automatically.
 - If you notice related existing tasks, mention them.
+- When the user completes something meaningful, think about what it unlocks — what should they do next?
+- If someone seems overwhelmed, don't add more. Help them triage what they already have.
 
 ${context}`;
 
@@ -5181,11 +5327,120 @@ function getStreak() {
   return streak;
 }
 
-function renderStreakBadge() {
-  const streak = getStreak();
-  if (streak < 2) return '';
-  const fire = streak >= 7 ? '🔥' : streak >= 3 ? '✦' : '·';
-  return `<div style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:var(--accent-dim);border-radius:12px;font-size:11px;color:var(--accent);font-weight:600;margin-left:8px">${fire} ${streak}-day streak</div>`;
+// ============================================================
+// COMPLETION REFLECTIONS
+// ============================================================
+function maybeReflect(t) {
+  if (!settings.apiKey) return;
+  // Only reflect on ~30% of completions, and only for non-trivial tasks
+  const isNontrivial = t.priority === 'urgent' || t.priority === 'important' || (t.subtasks && t.subtasks.length >= 2) || (t.notes && t.notes.length > 20);
+  if (!isNontrivial || Math.random() > 0.3) return;
+
+  const proj = data.projects.find(p => p.id === t.project);
+  const relatedActive = data.tasks.filter(x => x.status !== 'done' && x.project === t.project && x.id !== t.id);
+
+  const prompt = `${AI_PERSONA}
+
+The user just completed: "${t.title}"
+${t.notes ? 'Notes: ' + t.notes : ''}
+${proj ? 'Project: ' + proj.name : ''}
+${relatedActive.length ? 'Still active in this project: ' + relatedActive.slice(0, 5).map(x => x.title).join(', ') : 'No other active tasks in this project.'}
+
+Choose ONE of these responses (whichever fits best):
+A) If this completion unlocks or enables something else → suggest what to do next. "Now that X is done, you could tackle Y."
+B) If this was a big or long-running task → one sentence of genuine acknowledgment + what it means for the bigger picture.
+C) If there's a pattern worth noticing → name it. "That's the third outreach task you've done this week — is networking becoming a focus?"
+D) If the project is now nearly done → note it. "Only 2 tasks left in [project]. Finish line is close."
+E) If nothing noteworthy → respond with just "✓" and nothing else.
+
+ONE sentence max. Be genuine, not performative. No "Great job!" energy.`;
+
+  callAI(prompt, { maxTokens: 100 }).then(reply => {
+    const clean = reply.replace(/\n/g, ' ').trim();
+    if (clean && clean !== '✓' && clean.length > 2) {
+      showReflectionToast(clean);
+    }
+  }).catch(() => {});
+}
+
+function showReflectionToast(text) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:150;max-width:420px;text-align:center;box-shadow:var(--shadow);line-height:1.4;animation:toastIn 0.3s ease';
+  el.innerHTML = `<span style="color:var(--accent);margin-right:6px">✦</span>${esc(text)}`;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.5s'; setTimeout(() => el.remove(), 500); }, 6000);
+}
+
+// ============================================================
+// STUCK DETECTION
+// ============================================================
+function getStuckTasks() {
+  const now = Date.now();
+  return data.tasks.filter(t => {
+    if (t.status !== 'in-progress') return false;
+    // In progress for 3+ days
+    const lastTouch = t.updates?.length ? new Date(t.updates[t.updates.length - 1].date).getTime() : new Date(t.createdAt).getTime();
+    const daysSince = (now - lastTouch) / 86400000;
+    if (daysSince < 3) return false;
+    // Has subtasks but none completed recently
+    if (t.subtasks?.length) {
+      const doneCount = t.subtasks.filter(s => s.done).length;
+      if (doneCount === 0 || doneCount === t.subtasks.length) return false; // not started or all done
+    }
+    return true;
+  });
+}
+
+function renderStuckNudges() {
+  const stuck = getStuckTasks();
+  if (!stuck.length) return '';
+  return stuck.slice(0, 2).map(t => {
+    const days = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000);
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;background:var(--surface);border-radius:var(--radius-xs);border-left:3px solid var(--amber);margin-bottom:6px">
+      <span style="flex-shrink:0">◇</span>
+      <div style="font-size:12px;color:var(--text2);line-height:1.4">
+        <strong>${esc(t.title)}</strong> has been in-progress for ${days} days.
+        ${settings.apiKey ? `<span style="color:var(--accent);cursor:pointer" onclick="event.stopPropagation();offerStuckHelp('${t.id}')">Want to think through what's blocking it?</span>` : 'Is something blocking it?'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function offerStuckHelp(taskId) {
+  const t = data.tasks.find(x => x.id === taskId);
+  if (!t || !settings.apiKey) return;
+  const proj = data.projects.find(p => p.id === t.project);
+
+  // Open chat with this context
+  chatContext = t.project || null;
+  chatHistory = [
+    { role: 'user', content: `I'm stuck on "${t.title}". Help me think through it.` },
+  ];
+
+  const prompt = `${AI_PERSONA}
+
+The user has a task that's been in-progress but hasn't moved: "${t.title}"
+${t.notes ? 'Notes: ' + t.notes : ''}
+${t.subtasks?.length ? 'Subtasks: ' + t.subtasks.map(s => (s.done ? '✓' : '○') + ' ' + s.title).join(', ') : ''}
+${proj ? 'Project: ' + proj.name : ''}
+
+Don't jump to solutions. Help them THINK through it:
+1. Ask what specifically is blocking progress — is it unclear, overwhelming, waiting on something, or just not a real priority?
+2. If it seems too big, offer to break it down together.
+3. If it might not matter anymore, give them permission to drop it.
+
+Be curious, not prescriptive. 2-3 sentences. Ask a real question.`;
+
+  try {
+    const reply = await callAI(prompt, { maxTokens: 200 });
+    chatHistory.push({ role: 'assistant', content: reply });
+    const formatted = esc(reply).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    document.getElementById('chatTitle').textContent = proj ? `Chat: ${proj.name}` : 'AI Assistant';
+    document.getElementById('chatMessages').innerHTML = `<div class="chat-msg ai">${formatted}</div>`;
+    document.getElementById('chatPanel').classList.add('open');
+  } catch (err) {
+    console.error('Stuck help error:', err);
+  }
 }
 
 // ============================================================
