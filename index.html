@@ -3794,8 +3794,6 @@ async function handleFileAttach(files) {
       if (text) {
         dumpAttachments.push({ name: file.name, content: text });
         renderAttachmentChips();
-        const ta = document.getElementById('dumpText');
-        if (ta) { ta.value += (ta.value.trim() ? '\n\n' : '') + `--- ${file.name} ---\n` + text; saveDumpDraft(); }
         showToast(`Attached: ${file.name}`);
       }
     } catch { showToast(`Couldn't read ${file.name}`, true); }
@@ -3967,7 +3965,7 @@ TODAY: ${todayStr()}
 For updates to existing tasks, use: { "action": "update", "id": "existing_task_id", "updateFields": { "status": "done" } }
 
 Brainstorm input:
-${text}`;
+${text}${dumpAttachments.length ? '\n\n--- ATTACHED DOCUMENTS ---\n' + dumpAttachments.map(a => `--- ${a.name} ---\n${a.content}`).join('\n\n') : ''}`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
