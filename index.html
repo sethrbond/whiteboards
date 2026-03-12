@@ -2012,6 +2012,46 @@ function showUndoToast(label) {
   setTimeout(() => { el.classList.add('leaving'); setTimeout(() => el.remove(), 300); }, 5000);
 }
 
+// --- Fuzzy matching for dedup ---
+function normalizeTitle(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+function titleSimilarity(a, b) {
+  const na = normalizeTitle(a), nb = normalizeTitle(b);
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.85;
+  // Word overlap — Jaccard similarity
+  const wa = new Set(na.split(' ')), wb = new Set(nb.split(' '));
+  const intersection = [...wa].filter(w => wb.has(w)).length;
+  const union = new Set([...wa, ...wb]).size;
+  return union ? intersection / union : 0;
+}
+function findSimilarTask(title, projectId) {
+  let best = null, bestScore = 0;
+  for (const t of data.tasks) {
+    if (projectId && t.project !== projectId) continue;
+    const score = titleSimilarity(title, t.title);
+    if (score > bestScore) { bestScore = score; best = t; }
+  }
+  // Also check across all projects if no project-scoped match
+  if (bestScore < 0.6 && projectId) {
+    for (const t of data.tasks) {
+      const score = titleSimilarity(title, t.title);
+      if (score > bestScore) { bestScore = score; best = t; }
+    }
+  }
+  return bestScore >= 0.6 ? best : null;
+}
+function findSimilarProject(name) {
+  const nn = normalizeTitle(name);
+  let best = null, bestScore = 0;
+  for (const p of data.projects) {
+    const score = titleSimilarity(name, p.name);
+    if (score > bestScore) { bestScore = score; best = p; }
+  }
+  return bestScore >= 0.6 ? best : null;
+}
+
 function projectTasks(pid) { return data.tasks.filter(t => t.project === pid); }
 function activeTasks(pid) { return (pid ? projectTasks(pid) : data.tasks).filter(t => t.status !== 'done'); }
 function doneTasks(pid) { return (pid ? projectTasks(pid) : data.tasks).filter(t => t.status === 'done'); }
@@ -3188,9 +3228,30 @@ ACTIONS — include a JSON block in your response to take action:
 ]
 \`\`\``;
 
+// --- Smart matching for AI actions ---
+function matchTask(query) {
+  if (!query) return null;
+  const q = query.toLowerCase();
+  // 1. Exact match
+  let m = data.tasks.find(t => t.title.toLowerCase() === q);
+  if (m) return m;
+  // 2. Starts with
+  m = data.tasks.find(t => t.title.toLowerCase().startsWith(q) || q.startsWith(t.title.toLowerCase()));
+  if (m) return m;
+  // 3. Fuzzy — best word overlap
+  return findSimilarTask(query, null);
+}
+function matchProject(query) {
+  if (!query) return null;
+  const q = query.toLowerCase();
+  let m = data.projects.find(p => p.name.toLowerCase() === q);
+  if (m) return m;
+  return findSimilarProject(query);
+}
+
 // --- Centralized Action Executor ---
 function executeAIActions(reply) {
-  const actionsMatch = reply.match(/```actions\s*([\s\S]*?)```/);
+  const actionsMatch = reply.match(/```(?:actions|json)\s*([\s\S]*?)```/);
   if (!actionsMatch) return { applied: 0, insights: [] };
   pushUndo('AI actions');
   let applied = 0;
@@ -3201,7 +3262,10 @@ function executeAIActions(reply) {
       try {
         switch (a.action) {
           case 'create_task': {
-            const projId = a.project ? (data.projects.find(p => p.name.toLowerCase() === a.project.toLowerCase()) || {}).id || '' : '';
+            // Check for duplicate before creating
+            const dupe = findSimilarTask(a.title, null);
+            if (dupe) { updated++; break; } // skip duplicate
+            const projId = a.project ? (matchProject(a.project) || {}).id || '' : '';
             const st = (a.subtasks || []).map(s => ({ id: genId('st'), title: s, done: false }));
             addTask(createTask({ title: a.title, project: projId, priority: a.priority || 'normal', dueDate: a.dueDate || '', notes: a.notes || '', subtasks: st, recurrence: a.recurrence || '', phase: a.phase || '' }));
             applied++;
@@ -3209,11 +3273,10 @@ function executeAIActions(reply) {
           }
           case 'update_task': {
             if (!a.taskTitle) break;
-            const match = data.tasks.find(t => t.title.toLowerCase().includes(a.taskTitle.toLowerCase()));
+            const match = matchTask(a.taskTitle);
             if (match && a.fields) {
-              // Handle project name → id conversion
               if (a.fields.project) {
-                const p = data.projects.find(p => p.name.toLowerCase() === a.fields.project.toLowerCase());
+                const p = matchProject(a.fields.project);
                 if (p) a.fields.project = p.id;
                 else delete a.fields.project;
               }
@@ -3224,20 +3287,20 @@ function executeAIActions(reply) {
           }
           case 'delete_task': {
             if (!a.taskTitle) break;
-            const match = data.tasks.find(t => t.title.toLowerCase().includes(a.taskTitle.toLowerCase()));
-            if (match) { deleteTask(match.id); applied++; }
+            const match = matchTask(a.taskTitle);
+            if (match) { deleteTask(match.id, true); applied++; }
             break;
           }
           case 'move_task': {
             if (!a.taskTitle || !a.toProject) break;
-            const match = data.tasks.find(t => t.title.toLowerCase().includes(a.taskTitle.toLowerCase()));
-            const proj = data.projects.find(p => p.name.toLowerCase() === a.toProject.toLowerCase());
+            const match = matchTask(a.taskTitle);
+            const proj = matchProject(a.toProject);
             if (match && proj) { updateTask(match.id, { project: proj.id }); applied++; }
             break;
           }
           case 'add_subtasks': {
             if (!a.taskTitle || !a.subtasks) break;
-            const match = data.tasks.find(t => t.title.toLowerCase().includes(a.taskTitle.toLowerCase()));
+            const match = matchTask(a.taskTitle);
             if (match) {
               if (!match.subtasks) match.subtasks = [];
               a.subtasks.forEach(s => match.subtasks.push({ id: genId('st'), title: s, done: false }));
@@ -3248,12 +3311,13 @@ function executeAIActions(reply) {
           }
           case 'split_task': {
             if (!a.taskTitle || !a.into) break;
-            const match = data.tasks.find(t => t.title.toLowerCase().includes(a.taskTitle.toLowerCase()));
+            const match = matchTask(a.taskTitle);
             if (match) {
               a.into.forEach(item => {
                 addTask(createTask({ title: item.title, project: match.project, priority: item.priority || match.priority, notes: item.notes || '', dueDate: item.dueDate || '' }));
               });
-              deleteTask(match.id);
+              data.tasks = data.tasks.filter(x => x.id !== match.id); // remove without double-undo
+              saveData(data);
               applied++;
             }
             break;
@@ -3262,29 +3326,32 @@ function executeAIActions(reply) {
             if (!a.filter || !a.fields) break;
             let targets = data.tasks.filter(t => t.status !== 'done');
             if (a.filter.project) {
-              const proj = data.projects.find(p => p.name.toLowerCase() === a.filter.project.toLowerCase());
+              const proj = matchProject(a.filter.project);
               if (proj) targets = targets.filter(t => t.project === proj.id);
             }
             if (a.filter.priority) targets = targets.filter(t => t.priority === a.filter.priority);
             if (a.filter.status) targets = targets.filter(t => t.status === a.filter.status);
+            if (targets.length > 20) break; // safety cap
             targets.forEach(t => updateTask(t.id, a.fields));
             if (targets.length) applied++;
             break;
           }
           case 'create_project': {
-            addProject(createProject({ name: a.name, description: a.description || '' }));
+            const existingP = matchProject(a.name);
+            if (existingP) break; // don't create duplicate project
+            addProject(createProject({ name: a.name, description: (a.description || '').slice(0, 100) }));
             applied++;
             break;
           }
           case 'update_project': {
             if (!a.name) break;
-            const match = data.projects.find(p => p.name.toLowerCase() === a.name.toLowerCase());
+            const match = matchProject(a.name);
             if (match && a.fields) { updateProject(match.id, a.fields); applied++; }
             break;
           }
           case 'update_background': {
             if (!a.project) break;
-            const match = data.projects.find(p => p.name.toLowerCase() === a.project.toLowerCase());
+            const match = matchProject(a.project);
             if (match && a.section && a.content) {
               const sectionMap = { origin: 'Origin', direction: "Where It's Going", roadblocks: 'Roadblocks', nextSteps: 'Next Steps', notes: 'Notes' };
               const header = sectionMap[a.section] || a.section;
@@ -3339,6 +3406,7 @@ async function callAI(prompt, opts = {}) {
 // BRAINSTORM
 // ============================================================
 let dumpAttachments = [];
+let dumpAbort = null; // AbortController for cancelling brainstorm
 
 function saveDumpDraft() { const ta = document.getElementById('dumpText'); if (ta) localStorage.setItem(DUMP_DRAFT_KEY, ta.value); }
 function loadDumpDraft() { return localStorage.getItem(DUMP_DRAFT_KEY) || ''; }
@@ -3448,15 +3516,16 @@ async function processDump() {
   if (!settings.apiKey) { processDumpManual(text); return; }
 
   pushUndo('Brainstorm');
+  dumpAbort = new AbortController();
   const statusEl = $('#dumpStatus');
-  if (statusEl) statusEl.innerHTML = '<div class="ai-status"><div class="spinner"></div>Analyzing document — extracting all tasks, context, and project details...</div>';
+  if (statusEl) statusEl.innerHTML = '<div class="ai-status"><div class="spinner"></div>Analyzing document — extracting all tasks, context, and project details...<button class="btn btn-sm" style="margin-left:12px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="cancelDump()">Cancel</button></div>';
 
   const existingTasks = data.tasks.map(t => ({ id: t.id, title: t.title, project: t.project, priority: t.priority, status: t.status, notes: t.notes }));
   const existingProjects = data.projects.map(p => ({ id: p.id, name: p.name, description: (p.description || '').slice(0, 200) }));
   const existingHabits = data.habits.map(h => h.name);
 
-  // Build a compact summary of existing data — include notes snippet for pattern detection
-  const existingCompact = existingTasks.slice(0, 100).map(t => `${t.id}|${t.title}|${t.status}|${(t.notes||'').slice(0,60)}`).join('\n');
+  // Build a compact summary of existing data — ALL tasks, not just 100
+  const existingCompact = existingTasks.map(t => `${t.id}|${t.title}|${t.status}|${(t.notes||'').slice(0,60)}`).join('\n');
   const projectCompact = existingProjects.map(p => `${p.id}|${p.name}`).join('\n');
 
   const prompt = `You are the world's best executive assistant. You have been handed a brainstorm — it could be a stream of consciousness, a formal project document, meeting notes, a status update, or anything in between. Your job: extract EVERYTHING useful and organize it perfectly.
@@ -3499,15 +3568,20 @@ LOW — nice-to-have, future consideration, exploratory.
 - If you see the same topic mentioned across multiple brainstorms (appearing in existing tasks AND new input), note the connection
 - Look for tasks that logically depend on each other and note dependencies in the notes field
 
-## DEDUPLICATION
-- Check existing tasks by title similarity. "Set up payroll" and "Establish payroll architecture" are the same task — UPDATE, don't create.
-- If no match found, CREATE.
+## DEDUPLICATION — THIS IS CRITICAL
+- Before creating ANY task, check the existing tasks list below. If a task with a similar meaning already exists (even with different wording), use "action": "update" with the existing task's ID instead of creating a new one.
+- "Call with Drew re: Executive Assistant role at Aleo" and "Call with Drew Hettenbach re: Aleo EA/CEO Director role" = SAME TASK. Update, don't create.
+- Prefer updating existing tasks over creating new ones. When in doubt, UPDATE.
+- Use exact IDs from the existing tasks list when updating.
 
-## PROJECT ASSIGNMENT
-- If the dump clearly describes a specific project, assign tasks to it.
-- If items are random personal stuff (gym, errands, appointments), assign to "${LIFE_PROJECT_NAME}".
-- For project "description": write a SHORT 1-2 sentence summary ONLY. This is displayed as a subtitle.
-- For project "background": put ALL detailed info here using ## section headers (Origin, Where It's Going, Roadblocks, Next Steps, Notes). This is where mission, team, phase, decisions, financial info, and context go. This lives in a collapsible dropdown, NOT the main description.
+## PROJECT ASSIGNMENT — BE CONSERVATIVE
+- Only create a new project via projectUpdates if the input clearly describes a substantial new workstream with multiple tasks.
+- A single phone call, meeting, or task about a company (like "Aleo") does NOT warrant its own project. Put it in "${LIFE_PROJECT_NAME}" or an existing project.
+- If items are random personal stuff (gym, errands, appointments, calls), assign to "${LIFE_PROJECT_NAME}".
+- Match existing project names FUZZILY — "Career Tracker" matches "Seth Bond Program Tracker & Career Vision".
+- CRITICAL — "description" vs "background":
+  - "description" = ONE sentence, max 15 words. Example: "Multi-path career exploration and educational planning." It is a SUBTITLE shown on project cards. NEVER put details, context, team, financials, phases, or anything else here. If it's longer than one sentence, it's WRONG.
+  - "background" = ALL detailed info using ## section headers (Origin, Where It's Going, Roadblocks, Next Steps, Notes). Mission, team, phase, decisions, context, financials — everything goes HERE. This lives in a collapsible dropdown.
 
 EXISTING TASKS (id|title|status|notes_preview):
 ${existingCompact || '(none)'}
@@ -3522,7 +3596,7 @@ TODAY: ${todayStr()}
 ## OUTPUT FORMAT — Return ONLY this JSON object, nothing else:
 {
   "projectUpdates": [
-    { "name": "Project Name", "description": "1-2 sentence summary ONLY — what is this project?", "background": "## Origin\nWhere it came from\n## Where It's Going\nThe goal\n## Roadblocks\nBlockers\n## Next Steps\nWhat's next\n## Notes\nOther context", "isNew": true }
+    { "name": "Project Name", "description": "One sentence, max 15 words — a subtitle, NOT details.", "background": "## Origin\nWhere it came from\n## Where It's Going\nThe goal\n## Roadblocks\nBlockers\n## Next Steps\nWhat's next\n## Notes\nOther context", "isNew": true }
   ],
   "tasks": [
     {
@@ -3554,6 +3628,7 @@ ${text}`;
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: dumpAbort.signal,
       headers: { 'Content-Type': 'application/json', 'x-api-key': settings.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({ model: settings.aiModel, max_tokens: 16384, messages: [{ role: 'user', content: prompt }] }),
     });
@@ -3599,24 +3674,37 @@ ${text}`;
     // Process project updates (short description + detailed background)
     projectUpdates.forEach(pu => {
       if (!pu.name) return;
-      const existing = data.projects.find(p => p.name.toLowerCase() === pu.name.toLowerCase());
+      const existing = findSimilarProject(pu.name);
       if (existing) {
         const updates = {};
-        // Description: keep it SHORT — only update if we have a shorter/better one or none exists
-        if (pu.description && pu.description.length <= 200) {
-          if (!existing.description || existing.description.length > 200) {
-            updates.description = pu.description;
+        // Description: enforce SHORT subtitle — max 100 chars
+        if (pu.description) {
+          const shortDesc = pu.description.split(/[.!?]\s/)[0].slice(0, 100);
+          if (!existing.description || existing.description.length > 100) {
+            updates.description = shortDesc;
           }
         }
-        // Background: detailed info goes here
+        // Background: detailed info goes here — APPEND if existing, don't overwrite
         if (pu.background) {
           updates.background = pu.background;
+        }
+        // Safety: if AI stuffed details into description, move overflow to background
+        if (pu.description && pu.description.length > 100 && !pu.background) {
+          updates.description = pu.description.split(/[.!?]\s/)[0].slice(0, 100);
+          updates.background = pu.description;
         }
         if (Object.keys(updates).length) updateProject(existing.id, updates);
         projectMap[pu.name] = existing.id;
         projectsUpdated++;
       } else if (pu.isNew !== false) {
-        const p = createProject({ name: pu.name, description: (pu.description || '').slice(0, 200), background: pu.background || '' });
+        // Force short description on new projects too
+        let desc = (pu.description || '').split(/[.!?]\s/)[0].slice(0, 100);
+        let bg = pu.background || '';
+        // If AI dumped everything into description, rescue it to background
+        if ((pu.description || '').length > 100 && !bg) {
+          bg = pu.description;
+        }
+        const p = createProject({ name: pu.name, description: desc, background: bg });
         addProject(p);
         projectMap[pu.name] = p.id;
         projectsUpdated++;
@@ -3627,17 +3715,23 @@ ${text}`;
     (Array.isArray(items) ? items : []).forEach(item => {
       if (!item || (!item.title && !item.id)) return;
 
-      // Resolve project
+      // Resolve project — fuzzy match before creating
       if (item.suggestedProject) {
-        const spLower = item.suggestedProject.toLowerCase();
         if (!projectMap[item.suggestedProject]) {
-          const existing = data.projects.find(p => p.name.toLowerCase() === spLower);
+          const existing = findSimilarProject(item.suggestedProject);
           if (existing) {
             projectMap[item.suggestedProject] = existing.id;
           } else {
-            const p = createProject({ name: item.suggestedProject });
-            addProject(p);
-            projectMap[item.suggestedProject] = p.id;
+            // Only create a new project if the AI explicitly marked it as new in projectUpdates
+            // Otherwise assign to Life — don't auto-create projects from task suggestions
+            const wasExplicitlyCreated = (parsed.projectUpdates || []).some(pu => normalizeTitle(pu.name) === normalizeTitle(item.suggestedProject));
+            if (wasExplicitlyCreated) {
+              const p = createProject({ name: item.suggestedProject });
+              addProject(p);
+              projectMap[item.suggestedProject] = p.id;
+            } else {
+              projectMap[item.suggestedProject] = getLifeProjectId();
+            }
           }
         }
       }
@@ -3658,13 +3752,16 @@ ${text}`;
         updateTask(item.id, fields);
         updated++;
       } else if (item.title) {
-        // Check for duplicate by title similarity before creating
-        const titleLower = (item.title || '').toLowerCase();
-        const dupe = data.tasks.find(t => t.title.toLowerCase() === titleLower && t.project === projId);
+        // Fuzzy dedup — find similar tasks by normalized title + word overlap
+        const dupe = findSimilarTask(item.title, projId);
         if (dupe) {
-          // Update existing instead
-          if (item.status && item.status !== dupe.status) updateTask(dupe.id, { status: item.status });
-          if (item.notes && item.notes !== dupe.notes) updateTask(dupe.id, { notes: item.notes });
+          // Update existing instead of creating duplicate
+          const updates = {};
+          if (item.status && item.status !== dupe.status) updates.status = item.status;
+          if (item.notes && item.notes !== dupe.notes) updates.notes = (dupe.notes ? dupe.notes + '\n' : '') + item.notes;
+          if (item.dueDate && !dupe.dueDate) updates.dueDate = item.dueDate;
+          if (item.priority && item.priority !== dupe.priority && item.priority !== 'normal') updates.priority = item.priority;
+          if (Object.keys(updates).length) updateTask(dupe.id, updates);
           updated++;
         } else {
           const taskStatus = item.status || 'todo';
@@ -3719,25 +3816,26 @@ ${text}`;
     if (created > 2 || projectsUpdated > 0 || patterns.length > 0) {
       setTimeout(() => askDumpFollowUp(text.slice(0, 2000), created, updated, completed, projectsUpdated, patterns), 500);
     }
-    if (created + updated > 3) {
-      setTimeout(() => aiReorganize(), 2000);
-    }
-    // Auto-refresh background for affected projects
-    const affectedProjects = new Set();
-    data.tasks.filter(t => t.status !== 'done').forEach(t => { if (t.project) affectedProjects.add(t.project); });
-    if (affectedProjects.size > 0 && settings.apiKey) {
-      setTimeout(() => {
-        affectedProjects.forEach(pid => {
-          const p = data.projects.find(x => x.id === pid);
-          if (p && p.background) generateProjectBackground(pid);
-        });
-      }, 4000);
-    }
+    // NOTE: Removed auto-reorganize — was silently changing tasks the user hadn't reviewed yet.
+    // User can manually trigger via project menu or chat.
+    // NOTE: Do NOT auto-regenerate backgrounds here — brainstorm already set them.
+    // Auto-regen was overwriting the brainstorm's structured background with a generic one.
 
   } catch (err) {
+    if (err.name === 'AbortError') {
+      if (statusEl) statusEl.innerHTML = '<div class="ai-status" style="color:var(--orange)">Cancelled. Your data was not changed.</div>';
+      undo(); // restore pre-brainstorm state
+      return;
+    }
     console.error('AI error:', err);
     if (statusEl) statusEl.innerHTML = `<div class="ai-status" style="color:var(--red)">Error: ${esc(err.message)}</div>`;
+  } finally {
+    dumpAbort = null;
   }
+}
+
+function cancelDump() {
+  if (dumpAbort) dumpAbort.abort();
 }
 
 function processDumpManual(text) {
@@ -3778,8 +3876,9 @@ Be conversational. Reference REAL task names. Keep it short.`;
     const reply = await callAI(prompt, { maxTokens: 1024 });
     const formatted = esc(reply).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-    // Open chat panel with the follow-up
+    // Open chat panel with the follow-up — add to chat history so replies have context
     chatContext = null;
+    chatHistory = [{ role: 'assistant', content: 'I just organized your brainstorm. ' + reply }];
     document.getElementById('chatTitle').textContent = 'AI Assistant';
     const messagesEl = document.getElementById('chatMessages');
     messagesEl.innerHTML = `<div class="chat-msg ai">I just organized your brainstorm. ${formatted}</div>`;
