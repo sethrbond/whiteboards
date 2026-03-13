@@ -20,8 +20,22 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23818cf8'/><text x='50' y='68' text-anchor='middle' font-size='52' font-weight='bold' fill='white'>W</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap" as="style">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onerror="document.getElementById('splashStatus')&&(document.getElementById('splashStatus').textContent='Loading... If this takes too long, try refreshing.')"></script>
+<script>
+(function(){
+  var _sbTimer = setTimeout(function(){
+    if (!window.supabase) {
+      var s = document.getElementById('splashStatus');
+      if (s) s.textContent = 'Loading... If this takes too long, try refreshing.';
+    }
+  }, 5000);
+  var _origCheck = setInterval(function(){
+    if (window.supabase) { clearTimeout(_sbTimer); clearInterval(_origCheck); }
+  }, 200);
+})();
+</script>
 <style>
 
 :root {
@@ -1349,7 +1363,38 @@ body {
   transition: all 0.15s;
 }
 .chat-msg.ai .chat-action:hover { border-color: var(--accent); background: var(--accent-glow); }
-.chat-typing { color: var(--text3); font-style: italic; }
+.chat-typing { color: var(--text3); font-style: italic; display: flex; align-items: center; gap: 4px; }
+.chat-typing-dots { display: inline-flex; gap: 3px; align-items: center; }
+.chat-typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); animation: chatDotBounce 1.4s ease-in-out infinite; }
+.chat-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chatDotBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+.chat-msg .chat-ts { display: block; font-size: 10px; color: var(--text3); opacity: 0.6; margin-top: 4px; }
+.chat-msg.user .chat-ts { text-align: right; }
+@keyframes chatSlideIn {
+  0% { right: -420px; }
+  70% { right: 8px; }
+  100% { right: 0; }
+}
+@keyframes chatSlideInMobile {
+  0% { right: -100vw; }
+  70% { right: 2vw; }
+  100% { right: 0; }
+}
+@keyframes chatMsgFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chat-panel.open { animation: chatSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.chat-msg.stagger { animation: chatMsgFadeIn 0.3s ease-out both; }
+.chat-welcome-msg { font-size: 13px; line-height: 1.7; }
+.chat-welcome-msg .chat-welcome-hint { color: var(--text3); font-size: 12px; margin-top: 8px; font-style: italic; }
+.chat-chips { display: flex; gap: 6px; padding: 6px 16px 4px; flex-wrap: wrap; }
+.chat-chip { padding: 5px 12px; font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.chat-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
 .chat-input-row {
   padding: 12px 16px;
@@ -1477,9 +1522,11 @@ body {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 16px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(129,140,248,0.06);
-  animation: cmdIn 0.15s ease-out;
+  animation: cmdIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-@keyframes cmdIn { from { opacity: 0; transform: translateY(-8px) scale(0.98); } }
+@keyframes cmdIn { from { opacity: 0; transform: scale(0.95) translateY(-6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes cmdOut { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(0.95) translateY(-6px); } }
+.cmd-palette.cmd-closing { animation: cmdOut 0.12s cubic-bezier(0.4, 0, 1, 1) forwards; }
 .cmd-input-row {
   display: flex;
   align-items: center;
@@ -1547,6 +1594,7 @@ body {
   font-family: inherit;
   margin-left: auto;
 }
+.cmd-create-task { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 10px; }
 .cmd-empty { padding: 24px; text-align: center; color: var(--text3); font-size: 13px; }
 
 /* ==================== ROADMAP ==================== */
@@ -1738,6 +1786,7 @@ body {
   .header { padding: 12px 16px !important; }
   .project-grid { grid-template-columns: 1fr !important; }
   .chat-panel { width: 100vw; right: -100vw; }
+  .chat-panel.open { animation-name: chatSlideInMobile; }
   .chat-toggle { bottom: 16px; right: 16px; width: 44px; height: 44px; font-size: 18px; }
   .modal { width: 95vw !important; padding: 20px !important; }
   .kanban { grid-template-columns: 1fr !important; }
@@ -1777,11 +1826,166 @@ body {
   .cal-agenda-mobile { display: none !important; }
 }
 
+/* ==================== LANDING PAGE ==================== */
+.landing-page {
+  position: fixed; inset: 0; z-index: 310;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.landing-page.hidden {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none;
+}
+.landing-bg-glow {
+  position: absolute; top: -40%; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(129,140,248,0.08) 0%, rgba(168,85,247,0.04) 30%, transparent 70%);
+  pointer-events: none;
+}
+.landing-bg-glow-2 {
+  position: absolute; bottom: -30%; right: -10%;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(168,85,247,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+.landing-content {
+  position: relative; z-index: 1;
+  max-width: 680px; width: 90vw;
+  text-align: center;
+  animation: landingFadeUp 0.8s ease both;
+}
+@keyframes landingFadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.landing-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px 6px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px; font-weight: 500;
+  color: var(--text2);
+  margin-bottom: 32px;
+  animation: landingFadeUp 0.8s ease 0.1s both;
+}
+.landing-badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+.landing-h1 {
+  font-size: clamp(36px, 6vw, 56px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin-bottom: 20px;
+  animation: landingFadeUp 0.8s ease 0.15s both;
+}
+.landing-h1-accent {
+  background: linear-gradient(135deg, var(--accent), #a78bfa, var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-sub {
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.6;
+  color: var(--text3);
+  max-width: 520px;
+  margin: 0 auto 40px;
+  animation: landingFadeUp 0.8s ease 0.25s both;
+}
+.landing-cta-row {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  animation: landingFadeUp 0.8s ease 0.35s both;
+  margin-bottom: 56px;
+}
+.landing-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 28px;
+  font-size: 15px; font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none; border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 0 0 rgba(129,140,248,0);
+}
+.landing-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 24px rgba(129,140,248,0.3);
+}
+.landing-cta:active { transform: translateY(0); }
+.landing-cta-secondary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 13px 24px;
+  font-size: 14px; font-weight: 500;
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.landing-cta-secondary:hover {
+  border-color: var(--text3);
+  color: var(--text);
+}
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: landingFadeUp 0.8s ease 0.5s both;
+}
+.landing-feature {
+  padding: 28px 24px;
+  background: var(--surface);
+  text-align: left;
+  transition: background 0.2s;
+}
+.landing-feature:hover { background: var(--surface2); }
+.landing-feature-icon {
+  font-size: 20px;
+  margin-bottom: 12px;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.landing-feature h3 {
+  font-size: 14px; font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.landing-feature p {
+  font-size: 12.5px; line-height: 1.5;
+  color: var(--text3);
+}
+@media (max-width: 640px) {
+  .landing-features { grid-template-columns: 1fr; }
+  .landing-cta-row { flex-direction: column; }
+  .landing-cta, .landing-cta-secondary { width: 100%; justify-content: center; }
+}
+
 /* ==================== AUTH SCREEN ==================== */
 .auth-screen {
   position: fixed; inset: 0; z-index: 300;
   background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
   font-family: 'Inter', sans-serif;
 }
 .auth-card {
@@ -1851,11 +2055,101 @@ body {
 .sync-dot.offline { background: var(--red); }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 .ai-hero-card{background:linear-gradient(135deg,rgba(129,140,248,.07),rgba(168,85,247,.04));border:1px solid rgba(129,140,248,.12);border-radius:var(--radius);padding:24px 28px;margin-bottom:24px;position:relative;overflow:hidden}
+
+/* ==================== SPLASH SCREEN ==================== */
+#splashScreen {
+  position: fixed; inset: 0; z-index: 400;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.35s ease;
+}
+#splashScreen.fade-out { opacity: 0; pointer-events: none; }
+.splash-logo {
+  width: 56px; height: 56px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 700; color: #fff;
+  animation: splashPulse 1.8s ease-in-out infinite;
+}
+@keyframes splashPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.85; }
+}
+#splashStatus {
+  margin-top: 16px; font-size: 12px; color: var(--text3);
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+}
+
+/* ==================== CONTENT SKELETON ==================== */
+.loading-skeleton {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 32px; max-width: 600px; margin: 60px auto 0;
+}
+.loading-skeleton-bar {
+  height: 16px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite;
+}
+.loading-skeleton-bar:nth-child(1) { width: 80%; }
+.loading-skeleton-bar:nth-child(2) { width: 60%; }
+.loading-skeleton-bar:nth-child(3) { width: 70%; }
 </style><link rel="stylesheet" href="dashboard-v2.css">
 </head>
 <body>
 <a href="#content" class="skip-link" style="position:absolute;top:-40px;left:0;background:var(--accent);color:#fff;padding:8px 16px;z-index:999;font-size:13px;border-radius:0 0 var(--radius-xs) 0;transition:top 0.2s" onfocus="this.style.top='0'" onblur="this.style.top='-40px'">Skip to content</a>
 <div id="ariaLive" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap"></div>
+
+<!-- Splash Screen (first load only) -->
+<div id="splashScreen">
+  <div class="splash-logo">W</div>
+  <div id="splashStatus"></div>
+</div>
+
+<!-- Landing Page -->
+<div class="landing-page" id="landingPage">
+  <div class="landing-bg-glow"></div>
+  <div class="landing-bg-glow-2"></div>
+  <div class="landing-content">
+    <div class="landing-badge">
+      <span class="landing-badge-dot"></span>
+      Free forever &mdash; no credit card
+    </div>
+    <h1 class="landing-h1">
+      Brain dump your thoughts.<br>
+      <span class="landing-h1-accent">AI turns them into action.</span>
+    </h1>
+    <p class="landing-sub">
+      Stop organizing tasks. Just write what's on your mind — Whiteboards uses AI to extract tasks, prioritize your day, and keep you focused on what matters.
+    </p>
+    <div class="landing-cta-row">
+      <button class="landing-cta" onclick="showAuthFromLanding()">
+        Get Started Free &rarr;
+      </button>
+      <button class="landing-cta-secondary" onclick="showAuthFromLanding('login')">
+        Sign In
+      </button>
+    </div>
+    <div class="landing-features">
+      <div class="landing-feature">
+        <div class="landing-feature-icon">&#x21af;</div>
+        <h3>Brain Dump &rarr; Tasks</h3>
+        <p>Write freely. AI extracts tasks with dates, priorities, and projects — automatically.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="landing-feature-icon">&#x2726;</div>
+        <h3>Daily Briefings</h3>
+        <p>Start each day with an AI-generated plan. Focus mode and smart reminders keep you on track.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="landing-feature-icon">&#x25A1;</div>
+        <h3>Boards & Calendar</h3>
+        <p>Kanban boards, calendar view, recurring tasks, habits — keyboard-first and blazing fast.</p>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Auth Screen -->
 <div class="auth-screen" id="authScreen" role="dialog" aria-modal="true" aria-label="Sign in to Whiteboards">
@@ -1962,10 +2256,14 @@ body {
     <button class="chat-close" onclick="toggleChat()" aria-label="Close chat">&times;</button>
   </div>
   <div class="chat-messages" id="chatMessages">
-    <div class="chat-msg ai">Hey! I'm your AI assistant. Ask me anything about your boards, tasks, or schedule.</div>
+  </div>
+  <div class="chat-chips" id="chatChips">
+    <button class="chat-chip" onclick="sendChatChip('Plan my day')">Plan my day</button>
+    <button class="chat-chip" onclick="sendChatChip('What should I focus on?')">What should I focus on?</button>
+    <button class="chat-chip" onclick="sendChatChip('Summarize my week')">Summarize my week</button>
   </div>
   <div class="chat-input-row">
-    <textarea class="chat-input" id="chatInput" rows="1" placeholder="Ask about a project, task, or anything..." aria-label="Chat message" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+    <textarea class="chat-input" id="chatInput" rows="1" placeholder="Ask about a project, task, or anything..." aria-label="Chat message" oninput="updateChatChips()" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
     <button class="chat-send" onclick="sendChat()">Send</button>
   </div>
 </div>
@@ -1990,11 +2288,44 @@ let syncTimer = null;
 let _lastCloudUpdatedAt = null; // track cloud's updated_at for conflict detection
 let _dataVersion = 0; // incremented on every saveData() call
 
+// --- Landing Page ---
+function showAuthFromLanding(mode) {
+  const landing = document.getElementById('landingPage');
+  const authScreen = document.getElementById('authScreen');
+  if (mode === 'login') {
+    authMode = 'login';
+    document.getElementById('authBtn').textContent = 'Sign In';
+    document.getElementById('authSwitchText').textContent = "Don't have an account?";
+    document.getElementById('authSwitchLink').textContent = 'Sign Up';
+  } else {
+    authMode = 'signup';
+    document.getElementById('authBtn').textContent = 'Create Account';
+    document.getElementById('authSwitchText').textContent = 'Already have an account?';
+    document.getElementById('authSwitchLink').textContent = 'Sign In';
+  }
+  authScreen.style.display = 'flex';
+  landing.classList.add('hidden');
+  setTimeout(function() { landing.style.display = 'none'; }, 500);
+  document.getElementById('authEmail').focus();
+}
+
 // --- Auth ---
 let authMode = 'login'; // 'login' | 'signup' | 'forgot'
 
 let authInitialized = false;
+var _splashShownAt = Date.now();
+function _dismissSplash() {
+  var splash = document.getElementById('splashScreen');
+  if (!splash || splash.classList.contains('fade-out')) return;
+  var elapsed = Date.now() - _splashShownAt;
+  var delay = Math.max(0, 500 - elapsed);
+  setTimeout(function() {
+    splash.classList.add('fade-out');
+    setTimeout(function() { if (splash.parentNode) splash.remove(); }, 400);
+  }, delay);
+}
 async function initAuth() {
+  _dismissSplash();
   if (!sb) {
     document.getElementById('authError').innerHTML = '<div class="auth-error">Failed to load — check your connection and reload.</div>';
     return;
@@ -2044,7 +2375,8 @@ async function initAuth() {
       expandedTask = null;
       if (window._focusInterval) { clearInterval(window._focusInterval); window._focusInterval = null; }
       _chatSessionStarted = false;
-      document.getElementById('authScreen').style.display = 'flex';
+      var lp = document.getElementById('landingPage'); if (lp) { lp.style.display = ''; lp.classList.remove('hidden'); }
+      document.getElementById('authScreen').style.display = 'none';
       document.querySelector('.sidebar').style.display = 'none';
       document.querySelector('.main').style.display = 'none';
       document.getElementById('chatPanel').classList.remove('open');
@@ -2069,6 +2401,7 @@ function cleanupStaleLocalStorage() {
 }
 
 function showApp() {
+  var lp = document.getElementById('landingPage'); if (lp) lp.style.display = 'none';
   document.getElementById('authScreen').style.display = 'none';
   const sidebarEl = document.querySelector('.sidebar');
   sidebarEl.style.display = '';
@@ -2374,7 +2707,7 @@ async function loadFromCloud() {
   if (!currentUser) return;
   // Show loading indicator
   const mainEl = document.querySelector('.main .content');
-  if (mainEl) mainEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--text3);font-size:13px"><div class="spinner" style="margin-right:10px"></div>Loading your data...</div>';
+  if (mainEl) mainEl.innerHTML = '<div style="padding:32px"><div style="display:flex;align-items:center;color:var(--text3);font-size:13px;margin-bottom:28px"><div class="spinner" style="margin-right:10px"></div>Loading your data...</div><div class="loading-skeleton"><div class="loading-skeleton-bar"></div><div class="loading-skeleton-bar"></div><div class="loading-skeleton-bar"></div></div></div>';
   try {
     const { data: row, error } = await sb.from('user_data').select('*').eq('user_id', currentUser.id).single();
     if (error) { console.error('Cloud load error:', error); return; }
@@ -2925,9 +3258,26 @@ function _renderNow() {
   attachListeners();
   renderBulkBar();
 
-  // Auto-generate briefing and plan on first dashboard load of the day (only if user has tasks)
-  if (currentView === 'dashboard' && dashViewMode === 'list' && data.tasks.length > 0) {
+  // Welcome typing animation for empty state
+  if (currentView === 'dashboard') {
+    const _wt = document.getElementById('welcomeTyping');
+    if (_wt && !_wt.dataset.typed) {
+      _wt.dataset.typed = '1';
+      const _msg = 'What will you build today?';
+      let _ci = 0;
+      _wt.textContent = '';
+      const _ti = setInterval(() => { _ci++; _wt.textContent = _msg.slice(0, _ci); if (_ci >= _msg.length) clearInterval(_ti); }, 45);
+    }
+  }
+
+  // Auto-generate briefing and plan on first dashboard load of the day
+  // First-time users: wait until 3+ active tasks so the briefing has enough data to be useful
+  const _hasEverBriefed = localStorage.getItem(userKey('wb_has_ever_briefed'));
+  const _activeCount = data.tasks.filter(t => t.status !== 'done' && !t.archived).length;
+  const _readyForBriefing = _hasEverBriefed || _activeCount >= 3;
+  if (currentView === 'dashboard' && dashViewMode === 'list' && data.tasks.length > 0 && _readyForBriefing) {
     if (hasAI() && !localStorage.getItem(userKey('whiteboard_briefing_' + todayStr())) && !_briefingGenerating) {
+      if (!_hasEverBriefed) localStorage.setItem(userKey('wb_has_ever_briefed'), '1');
       _briefingGenerating = true;
       { const _bc = document.querySelector('.briefing-card'); if (_bc && !document.getElementById('briefingBody')) { const _bh = _bc.querySelector('.briefing-header'); if (_bh) _bh.insertAdjacentHTML('afterend', '<div class="skeleton-pulse" style="padding:16px 20px;min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Generating your briefing...</span></div>'); } }
       generateAIBriefing().finally(() => { _briefingGenerating = false; });
@@ -4040,54 +4390,55 @@ let _closeModalTimer = null;
 function closeModal() {
   if (_closeModalTimer) { clearTimeout(_closeModalTimer); _closeModalTimer = null; }
   const overlay = $('#modalRoot').querySelector('.modal-overlay');
-  if (overlay) { overlay.style.opacity = '0'; const modal = overlay.querySelector('.modal'); if (modal) { modal.style.transform = 'translateY(8px)'; modal.style.opacity = '0'; } _closeModalTimer = setTimeout(() => { _closeModalTimer = null; $('#modalRoot').innerHTML = ''; }, 150); }
+  if (overlay) { overlay.style.opacity = '0'; const cp = overlay.querySelector('.cmd-palette'); if (cp) cp.classList.add('cmd-closing'); const modal = overlay.querySelector('.modal'); if (modal) { modal.style.transform = 'translateY(8px)'; modal.style.opacity = '0'; } _closeModalTimer = setTimeout(() => { _closeModalTimer = null; $('#modalRoot').innerHTML = ''; }, 150); }
   else { $('#modalRoot').innerHTML = ''; }
 }
 
 function openShortcutHelp() {
-  const shortcuts = [
-    { section: 'Navigation', items: [
-      ['j / k', 'Move up / down through tasks'],
-      ['x', 'Toggle task done'],
-      ['e', 'Edit selected task'],
-      ['Enter', 'Expand / collapse task'],
-      ['n', 'New task'],
-      ['/', 'Focus quick capture'],
-      ['Cmd+K', 'Command palette'],
-      ['Cmd+Shift+K', 'Quick add task'],
-    ]},
-    { section: 'Views', items: [
-      ['Cmd/Ctrl+D', 'Brain Dump'],
-      ['w', 'Weekly review'],
-      ['1', 'Dashboard'],
-    ]},
-    { section: 'Other', items: [
-      ['Cmd+Z', 'Undo'],
-      ['Escape', 'Close panel / modal'],
-      ['?', 'This help'],
-    ]},
+  const isMac = navigator.platform.includes('Mac');
+  const mod = isMac ? '\u2318' : 'Ctrl';
+  const columns = [
+    { title: 'Navigation', icon: '\u25C7', items: [[[mod, 'K'], 'Command palette'], [['/', ''], 'Focus quick capture'], [['j', ''], 'Previous task'], [['k', ''], 'Next task'], [['Enter', ''], 'Expand task'], [['1', ''], 'Dashboard'], [['Esc', ''], 'Close anything']] },
+    { title: 'Tasks', icon: '\u2726', items: [[['n', ''], 'New task'], [[mod, '\u21E7', 'K'], 'Quick add'], [['x', ''], 'Toggle done'], [['e', ''], 'Edit task'], [[mod, 'Z'], 'Undo'], [['w', ''], 'Weekly review'], [['?', ''], 'This help']] },
+    { title: 'AI Features', icon: '\u26A1', items: [[[mod, 'J'], 'AI Chat'], [[mod, 'D'], 'Brain Dump']] },
   ];
-  const sectionHtml = shortcuts.map(s => `
-    <div style="margin-bottom:18px">
-      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px">${s.section}</div>
-      ${s.items.map(([key, desc]) => `
-        <div style="display:flex;align-items:center;gap:12px;padding:4px 0">
-          <span style="font-family:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;background:var(--hover);border:1px solid var(--border);border-radius:5px;padding:2px 8px;min-width:80px;text-align:center;color:var(--accent);white-space:nowrap">${key}</span>
-          <span style="font-size:13px;color:var(--text2)">${desc}</span>
+  const kbdStyle = "font-family:'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;background:var(--hover);border:1px solid var(--border);border-radius:5px;padding:2px 7px;color:var(--accent)";
+  const sectionHtml = columns.map(col => `
+    <div style="flex:1;min-width:160px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px">${col.icon} ${col.title}</div>
+      ${col.items.map(([keys, desc]) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+          <span style="display:inline-flex;gap:2px">${keys.filter(Boolean).map(k => '<kbd style="' + kbdStyle + '">' + k + '</kbd>').join('')}</span>
+          <span style="font-size:12px;color:var(--text2)">${desc}</span>
         </div>
       `).join('')}
     </div>
   `).join('');
 
   $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal" style="max-width:400px">
+    <div class="modal" style="max-width:640px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
         <div class="modal-title" style="margin-bottom:0">Keyboard Shortcuts</div>
         <button class="btn" onclick="closeModal()" style="padding:4px 10px;font-size:12px">Close</button>
       </div>
-      ${sectionHtml}
+      <div style="display:flex;gap:24px;flex-wrap:wrap">${sectionHtml}</div>
     </div>
   </div>`;
+}
+
+// --- Recent command actions for command palette ---
+function getCmdRecent() {
+  try { return JSON.parse(localStorage.getItem(userKey('wb_cmd_recent')) || '[]'); } catch(e) { return []; }
+}
+function pushCmdRecent(label) {
+  let arr = getCmdRecent().filter(l => l !== label);
+  arr.unshift(label);
+  if (arr.length > 5) arr = arr.slice(0, 5);
+  localStorage.setItem(userKey('wb_cmd_recent'), JSON.stringify(arr));
+}
+function cmdExec(actionCode, label) {
+  pushCmdRecent(label);
+  eval(actionCode);
 }
 
 let cmdIdx = 0;
@@ -4136,28 +4487,27 @@ function renderSearchResults(query) {
   const isCmd = q.startsWith('>');
   const cmdQ = isCmd ? q.slice(1).trim() : q;
   const commands = [
-    { icon: '✦', label: 'New Task', hint: 'n', action: `closeModal();openNewTask(currentProject||'')` },
+    { icon: '✦', label: 'New Task', hint: 'N', action: `closeModal();openNewTask(currentProject||'')` },
     { icon: '+', label: 'Quick Add', hint: '⇧⌘K', action: 'closeModal();openQuickAdd()' },
     { icon: '+', label: 'New Board', hint: '', action: 'closeModal();openNewProject()' },
     { icon: '↯', label: 'Brain Dump', hint: '⌘D', action: `closeModal();setView('dump')` },
-    { icon: '◎', label: 'Focus Mode', hint: '', action: 'closeModal();startFocus()' },
-    { icon: '✦', label: 'Ask AI', hint: '', action: 'closeModal();toggleChat()' },
+    { icon: '◎', label: 'Focus Mode', hint: '/focus', action: 'closeModal();startFocus()' },
+    { icon: '✦', label: 'Ask AI', hint: '⌘J', action: 'closeModal();toggleChat()' },
     { icon: '✦', label: 'Reorganize All', hint: '', action: 'closeModal();aiReorganize()' },
-    { icon: '★', label: 'Weekly Review', hint: 'w', action: `closeModal();setView('review')` },
+    { icon: '★', label: 'Weekly Review', hint: 'W', action: `closeModal();setView('review')` },
     { icon: '⚙', label: 'Settings', hint: '', action: 'closeModal();openSettings()' },
     { icon: '✦', label: 'Show AI Prepared Tasks', hint: '', action: 'closeModal();filterAIPrepared()' },
   ];
 
+  // Render cmd item with tracking + shortcut badge
+  const cmdItemHtml = (c, isActive, matchQ) => { const ea = c.action.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); const el2 = c.label.replace(/'/g,"\\'"); const lt = matchQ ? highlightMatch(c.label,matchQ) : c.label; return `<div class="cmd-item ${isActive?'active':''}" onclick="cmdExec('${ea}','${el2}')"><span class="cmd-item-icon">${c.icon}</span><span class="cmd-item-label">${lt}</span>${c.hint?`<kbd class="cmd-item-hint">${c.hint}</kbd>`:''}</div>`; };
+
   if (!q) {
-    // Show commands + recent tasks
+    const recentLabels = getCmdRecent().slice(0,3); const recentCmds = recentLabels.map(l=>commands.find(c=>c.label===l)).filter(Boolean); let globalIdx = 0;
+    if (recentCmds.length) { html += '<div class="cmd-section-label">Recent</div>'; recentCmds.forEach(c => { html += cmdItemHtml(c, globalIdx===0); globalIdx++; }); }
+    const recentSet = new Set(recentLabels); const remainingCmds = commands.filter(c => !recentSet.has(c.label));
     html += '<div class="cmd-section-label">Commands</div>';
-    commands.slice(0, 5).forEach((c, i) => {
-      html += `<div class="cmd-item ${i === 0 ? 'active' : ''}" onclick="${c.action}">
-        <span class="cmd-item-icon">${c.icon}</span>
-        <span class="cmd-item-label">${c.label}</span>
-        ${c.hint ? `<kbd class="cmd-item-hint">${c.hint}</kbd>` : ''}
-      </div>`;
-    });
+    remainingCmds.slice(0, 5).forEach((c) => { html += cmdItemHtml(c, globalIdx===0); globalIdx++; });
     const recent = [...data.tasks].filter(t => t.status !== 'done').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, 5);
     if (recent.length) {
       html += '<div class="cmd-section-label">Recent Tasks</div>';
@@ -4171,13 +4521,7 @@ function renderSearchResults(query) {
     const filtered = commands.filter(c => c.label.toLowerCase().includes(cmdQ));
     if (filtered.length) {
       html += '<div class="cmd-section-label">Commands</div>';
-      filtered.forEach((c, i) => {
-        html += `<div class="cmd-item ${i === 0 ? 'active' : ''}" onclick="${c.action}">
-          <span class="cmd-item-icon">${c.icon}</span>
-          <span class="cmd-item-label">${highlightMatch(c.label, cmdQ)}</span>
-          ${c.hint ? `<kbd class="cmd-item-hint">${c.hint}</kbd>` : ''}
-        </div>`;
-      });
+      filtered.forEach((c, i) => { html += cmdItemHtml(c, i === 0, cmdQ); });
     } else {
       html = '<div class="cmd-empty">No commands found</div>';
     }
@@ -4190,13 +4534,7 @@ function renderSearchResults(query) {
 
     if (cmdResults.length) {
       html += '<div class="cmd-section-label">Commands</div>';
-      cmdResults.forEach(c => {
-        html += `<div class="cmd-item ${idx === 0 ? 'active' : ''}" onclick="${c.action}">
-          <span class="cmd-item-icon">${c.icon}</span>
-          <span class="cmd-item-label">${highlightMatch(c.label, q)}</span>
-        </div>`;
-        idx++;
-      });
+      cmdResults.forEach(c => { html += cmdItemHtml(c, idx === 0, q); idx++; });
     }
     if (projectResults.length) {
       html += '<div class="cmd-section-label">Boards</div>';
@@ -4218,6 +4556,11 @@ function renderSearchResults(query) {
       });
     }
     if (!html) html = '<div class="cmd-empty">No results for "' + esc(q) + '"</div>';
+    // Natural language task creation — if typed text doesn't start with > or /
+    if (q.length > 1 && !q.startsWith('/')) {
+      const safeTitle = query.trim().replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      html += `<div class="cmd-item cmd-create-task" onclick="closeModal();addTask(createTask({title:'${safeTitle}',project:currentProject||''}));showToast('Task created');render()"><span class="cmd-item-icon" style="color:var(--accent)">+</span><span class="cmd-item-label">Create task: <strong>${esc(query.trim())}</strong></span><kbd class="cmd-item-hint">&#9166;</kbd></div>`;
+    }
     // Add "Ask AI" footer for natural language queries when results are sparse or empty
     if (hasAI() && q.length > 3 && !isCmd) {
       html += `<div class="cmd-ai-footer" data-query="${encodeURIComponent(q)}">
@@ -5044,7 +5387,8 @@ function renderDump() {
 
   const hasKey = hasAI();
   const draft = esc(loadDumpDraft());
-  const placeholder = "What's on your mind? Paste anything — meeting notes, project plans, to-do lists, random thoughts...";
+  const _dumpHints = ["What's on your mind? Paste anything — meeting notes, project plans, to-do lists, random thoughts...","Try pasting a meeting transcript, a Slack thread, or just stream your thoughts here...","Got a wall of text? Dump it here — AI will find every task hiding in it..."];
+  const placeholder = _dumpHints[Math.floor(Date.now() / 60000) % _dumpHints.length];
   return `<div class="dump-area">
     <p style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">
       Just let it out — stream of consciousness, project updates, documents, whatever's on your mind.<br>AI reads through everything, extracts every task and detail, spots patterns with your existing work, organizes it all by project and priority.
@@ -6247,7 +6591,7 @@ function discussReview() {
   const reviewText = body ? body.textContent : '';
   if (!reviewText || reviewText.startsWith('Click Generate')) { showToast('Generate a review first', true); return; }
   chatHistory = [
-    { role: 'user', content: 'I just read my weekly review. Here\'s what it said:\n\n' + reviewText + '\n\nI want to discuss it.' }
+    { role: 'user', content: 'I just read my weekly review. Here\'s what it said:\n\n' + reviewText + '\n\nI want to discuss it.', ts: Date.now() }
   ];
   saveChatHistory();
   _chatSessionStarted = false;
@@ -6256,7 +6600,7 @@ function discussReview() {
   _chatSessionStarted = true;
   const messagesEl = document.getElementById('chatMessages');
   if (messagesEl) {
-    messagesEl.innerHTML = '<div class="chat-msg user">I just read my weekly review and want to discuss it.</div>';
+    messagesEl.innerHTML = '<div class="chat-msg user">I just read my weekly review and want to discuss it.<span class="chat-ts">' + chatTimeStr() + '</span></div>';
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
   document.getElementById('chatTitle').textContent = 'AI Assistant';
@@ -6584,22 +6928,37 @@ async function submitEndOfDay() {
 // ============================================================
 // AI CHAT
 // ============================================================
+function chatTimeStr(date) {
+  if (!date) date = new Date();
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+function sendChatChip(text) {
+  const input = document.getElementById('chatInput');
+  if (input) { input.value = text; }
+  sendChat();
+}
+function updateChatChips() {
+  const chips = document.getElementById('chatChips');
+  const input = document.getElementById('chatInput');
+  if (chips && input) { chips.style.display = input.value.trim() ? 'none' : 'flex'; }
+}
 function toggleChat() {
   const panel = document.getElementById('chatPanel');
   const isOpening = !panel.classList.contains('open');
-  panel.classList.toggle('open');
+  if (isOpening) { panel.classList.remove('open'); void panel.offsetWidth; panel.classList.add('open'); } else { panel.classList.remove('open'); }
   if (isOpening && !_chatSessionStarted) {
     _chatSessionStarted = true;
     const messagesEl = document.getElementById('chatMessages');
     if (chatHistory.length > 0 && messagesEl) {
-      // Restore persisted chat history
-      messagesEl.innerHTML = chatHistory.map(m => {
+      messagesEl.innerHTML = chatHistory.map((m, i) => {
         const formatted = esc(m.content.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim()).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        return `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'}">${formatted}</div>`;
+        const timeStr = m.ts ? chatTimeStr(new Date(m.ts)) : '';
+        return `<div class="chat-msg ${m.role === 'user' ? 'user' : 'ai'} stagger" style="animation-delay:${i * 50}ms">${formatted}${timeStr ? '<span class="chat-ts">' + timeStr + '</span>' : ''}</div>`;
       }).join('');
       messagesEl.scrollTop = messagesEl.scrollHeight;
-    } else if (messagesEl && messagesEl.children.length <= 1) {
-      messagesEl.innerHTML = '<div class="chat-msg ai">' + getChatGreeting() + '</div>';
+      updateChatChips();
+    } else if (messagesEl && messagesEl.children.length === 0) {
+      messagesEl.innerHTML = '<div class="chat-msg ai stagger chat-welcome-msg">Hey! I\'m your AI co-pilot. Ask me anything about your tasks, or try:<div class="chat-welcome-hint">&quot;Plan my day&quot;, &quot;What\'s overdue?&quot;, &quot;Help me with [task]&quot;</div><span class="chat-ts">' + chatTimeStr() + '</span></div>';
     }
   }
 }
@@ -6643,8 +7002,9 @@ async function sendChat() {
   if (!hasAI()) return;
 
   const chatMsgs = document.getElementById('chatMessages');
-  chatMsgs.innerHTML += `<div class="chat-msg user">${esc(msg)}</div>`;
+  chatMsgs.innerHTML += `<div class="chat-msg user">${esc(msg)}<span class="chat-ts">${chatTimeStr()}</span></div>`;
   input.value = '';
+  updateChatChips();
 
   const context = chatContext ? buildAIContext('project', chatContext, 'standard') : buildAIContext('all', null, 'standard');
 
@@ -6698,13 +7058,13 @@ RULES:
 
 ${context}`;
 
-  chatHistory.push({ role: 'user', content: msg });
+  chatHistory.push({ role: 'user', content: msg, ts: Date.now() });
   saveChatHistory();
 
   // Show typing indicator
   const typingEl = document.createElement('div');
   typingEl.className = 'chat-msg ai';
-  typingEl.innerHTML = '<div class="chat-bubble ai"><span class="chat-typing">Thinking...</span></div>';
+  typingEl.innerHTML = '<div class="chat-bubble ai"><span class="chat-typing"><div class="chat-typing-dots"><span></span><span></span><span></span></div></span></div>';
   chatMsgs.appendChild(typingEl);
   chatMsgs.scrollTop = chatMsgs.scrollHeight;
 
@@ -6768,7 +7128,7 @@ ${context}`;
 
     // Process complete response
     const reply = fullText;
-    chatHistory.push({ role: 'assistant', content: reply });
+    chatHistory.push({ role: 'assistant', content: reply, ts: Date.now() });
     saveChatHistory();
     incrementAIInteraction();
 
@@ -6781,9 +7141,9 @@ ${context}`;
     // Update the streaming bubble with final formatted content
     if (cleanReply) {
       const formatted = esc(cleanReply).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      typingEl.innerHTML = `${formatted}${applied ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">✦ ${applied} action${applied > 1 ? 's' : ''} applied</div>` : ''}${insightHtml}`;
+      typingEl.innerHTML = `${formatted}${applied ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">✦ ${applied} action${applied > 1 ? 's' : ''} applied</div>` : ''}${insightHtml}<span class="chat-ts">${chatTimeStr()}</span>`;
     } else if (applied) {
-      typingEl.innerHTML = `Done. <span style="font-size:10px;color:var(--text3)">✦ ${applied} action${applied > 1 ? 's' : ''} applied</span>${insightHtml}`;
+      typingEl.innerHTML = `Done. <span style="font-size:10px;color:var(--text3)">✦ ${applied} action${applied > 1 ? 's' : ''} applied</span>${insightHtml}<span class="chat-ts">${chatTimeStr()}</span>`;
     }
     chatMsgs.scrollTop = chatMsgs.scrollHeight;
   } catch (err) {
@@ -7218,7 +7578,7 @@ async function offerStuckHelp(taskId) {
   // Open chat with this context
   chatContext = t.project || null;
   chatHistory = [
-    { role: 'user', content: `I'm stuck on "${t.title}". Help me think through it.` },
+    { role: 'user', content: `I'm stuck on "${t.title}". Help me think through it.`, ts: Date.now() },
   ];
   saveChatHistory();
 
@@ -7238,11 +7598,11 @@ Be curious, not prescriptive. 2-3 sentences. Ask a real question.`;
 
   try {
     const reply = await callAI(prompt, { maxTokens: 200 });
-    chatHistory.push({ role: 'assistant', content: reply });
+    chatHistory.push({ role: 'assistant', content: reply, ts: Date.now() });
     saveChatHistory();
     const formatted = esc(reply).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     document.getElementById('chatTitle').textContent = proj ? `Chat: ${proj.name}` : 'AI Assistant';
-    document.getElementById('chatMessages').innerHTML = `<div class="chat-msg ai">${formatted}</div>`;
+    document.getElementById('chatMessages').innerHTML = `<div class="chat-msg ai">${formatted}<span class="chat-ts">${chatTimeStr()}</span></div>`;
     document.getElementById('chatPanel').classList.add('open');
   } catch (err) {
     console.error('Stuck help error:', err);
@@ -7290,7 +7650,7 @@ function processRecurringTasks() {
 // INIT
 // ============================================================
 (function(){document.addEventListener('mouseenter',function(e){var r=e.target.closest('.task-row');if(!r)return;var id=r.dataset.task,t=data.tasks.find(function(x){return x.id===id});if(!t||!t.notes)return;if(tooltipEl)tooltipEl.remove();tooltipEl=document.createElement('div');tooltipEl.className='task-tooltip';tooltipEl.textContent=t.notes.length>200?t.notes.slice(0,200)+'...':t.notes;document.body.appendChild(tooltipEl);var b=r.getBoundingClientRect();tooltipEl.style.left=Math.min(b.left,window.innerWidth-300)+'px';tooltipEl.style.top=(b.bottom+4)+'px'},true);document.addEventListener('mouseleave',function(e){if(!e.target.closest('.task-row'))return;if(tooltipEl){tooltipEl.remove();tooltipEl=null}},true)})();
-async function _sseFallback(r,te,cm,ct2){var c=(r.headers.get('content-type')||'');if(c.includes('text/event-stream'))return false;var j=await r.json();var f=j.content&&j.content[0]?j.content[0].text:(j.completion||JSON.stringify(j));chatHistory.push({role:'assistant',content:f});saveChatHistory();incrementAIInteraction();var a=await executeAIActions(f);if(a.applied)render();var clean=f.replace(/```(?:actions|json)[\s\S]*?```/g,'').trim();te.innerHTML='<div class="chat-bubble ai">'+esc(clean).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</div>';cm.scrollTop=cm.scrollHeight;clearTimeout(ct2);return true;}
+async function _sseFallback(r,te,cm,ct2){var c=(r.headers.get('content-type')||'');if(c.includes('text/event-stream'))return false;var j=await r.json();var f=j.content&&j.content[0]?j.content[0].text:(j.completion||JSON.stringify(j));chatHistory.push({role:'assistant',content:f,ts:Date.now()});saveChatHistory();incrementAIInteraction();var a=await executeAIActions(f);if(a.applied)render();var clean=f.replace(/```(?:actions|json)[\s\S]*?```/g,'').trim();te.innerHTML='<div class="chat-bubble ai">'+esc(clean).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'<span class="chat-ts">'+chatTimeStr()+'</span></div>';cm.scrollTop=cm.scrollHeight;clearTimeout(ct2);return true;}
 var _oB=generateAIBriefing,_oP=planMyDay,_oE=submitEndOfDay,_oR=generateWeeklyReview,_oPW=runProactiveWorker;generateAIBriefing=async function(){if(!throttleAI('b'))return;return _oB.apply(this,arguments)};planMyDay=async function(){if(!throttleAI('p'))return;return _oP.apply(this,arguments)};submitEndOfDay=async function(){if(!throttleAI('e'))return;return _oE.apply(this,arguments)};generateWeeklyReview=async function(){if(!throttleAI('r'))return;return _oR.apply(this,arguments)};runProactiveWorker=async function(){if(!throttleAI('w'))return;return _oPW.apply(this,arguments)};
 initAuth();
 function toggleHabitDay() {} // stub — habits feature removed

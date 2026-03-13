@@ -161,15 +161,27 @@ renderDashboard = function() {
   const done = doneTasks();
   const inProgress = active.filter(t => t.status === 'in-progress');
 
-  // Fresh start welcome (keep original)
+  // Fresh start welcome — magical empty state
   if (data.tasks.length === 0 && data.projects.length <= 1) {
-    return `<div style="max-width:480px;margin:60px auto;text-align:center">
-      <div style="font-size:48px;margin-bottom:16px;opacity:0.3">✦</div>
-      <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">A clean slate.</h2>
-      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:28px">Paste anything into Brain Dump and your AI co-pilot will organize it &mdash; meeting notes, plans, ideas, anything.</p>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="openNewProject()">+ New Board</button>
-        <button class="btn" onclick="setView('dump')">↯ Brain Dump</button>
+    return `<div style="max-width:540px;margin:48px auto;text-align:center">
+      <div id="welcomeTyping" style="font-size:22px;font-weight:600;margin-bottom:6px;min-height:32px"></div>
+      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Your AI co-pilot is ready. Pick a way to begin.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:left">
+        <div onclick="setView('dump');setTimeout(()=>{const t=document.getElementById('dumpText');if(t){t.value='Here are my plans for the week:\\n- ';t.focus();t.setSelectionRange(t.value.length,t.value.length)}},100)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+          <div style="font-size:24px;margin-bottom:10px">&#9671;</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Plan my week</div>
+          <div style="font-size:12px;color:var(--text3);line-height:1.5">Dump your weekly goals and let AI organize them</div>
+        </div>
+        <div onclick="setView('dump')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+          <div style="font-size:24px;margin-bottom:10px">&#8623;</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Import from notes</div>
+          <div style="font-size:12px;color:var(--text3);line-height:1.5">Paste meeting notes, docs, or ideas &mdash; AI extracts tasks</div>
+        </div>
+        <div onclick="openNewTask()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+          <div style="font-size:24px;margin-bottom:10px">+</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Add a task</div>
+          <div style="font-size:12px;color:var(--text3);line-height:1.5">Start with one thing and build from there</div>
+        </div>
       </div>
     </div>`;
   }
