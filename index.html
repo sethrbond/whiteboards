@@ -1768,15 +1768,26 @@ async function handleAuth(e) {
       return;
     }
     if (authMode === 'signup') {
-      const { error } = await sb.auth.signUp({ email, password });
+      const { data: signUpData, error } = await sb.auth.signUp({ email, password });
       if (error) throw error;
-      msgEl.innerHTML = '<div class="auth-msg">Check your email to confirm your account.</div>';
+      // If email confirmation is off, session comes back immediately — onAuthStateChange handles it.
+      // If email confirmation is on, show the message.
+      if (!signUpData.session) {
+        msgEl.innerHTML = '<div class="auth-msg">Check your email to confirm your account.</div>';
+      }
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
     }
   } catch (err) {
-    errEl.innerHTML = `<div class="auth-error">${esc(err.message)}</div>`;
+    const msg = err.message || '';
+    const friendly = msg.includes('Invalid login') ? 'Wrong email or password.'
+      : msg.includes('already registered') ? 'That email is already registered — try signing in.'
+      : msg.includes('Password should be') ? 'Password must be at least 6 characters.'
+      : msg.includes('valid email') ? 'Please enter a valid email address.'
+      : msg.includes('rate limit') ? 'Too many attempts — wait a moment and try again.'
+      : msg;
+    errEl.innerHTML = `<div class="auth-error">${esc(friendly)}</div>`;
   }
   btn.disabled = false;
   btn.textContent = authMode === 'signup' ? 'Sign Up' : 'Sign In';
