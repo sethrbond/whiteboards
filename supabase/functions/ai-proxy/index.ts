@@ -21,16 +21,26 @@ const RATE_LIMIT_DAY = 300     // max requests per IP per rolling day
 const MAX_MESSAGES = 20        // max messages in a conversation
 const MAX_SYSTEM_CHARS = 8000  // max system prompt length
 const MAX_MESSAGE_CHARS = 15000 // max single message length
-const MAX_TOKENS_NORMAL = 4096 // max_tokens cap for non-streaming
-const MAX_TOKENS_STREAM = 8192 // max_tokens cap for streaming
+const MAX_TOKENS_NORMAL = 16384 // max_tokens cap for non-streaming (brainstorm needs 16k)
+const MAX_TOKENS_STREAM = 8192  // max_tokens cap for streaming
 
 const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * HOUR_MS
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const ALLOWED_ORIGINS = new Set([
+  'https://www.whiteboards.dev',
+  'https://whiteboards.dev',
+  'http://localhost:5173',
+  'http://localhost:3000',
+])
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || ''
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://www.whiteboards.dev',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
 }
 
 // ── In-memory rate limit store ──────────────────────────────────────────────
@@ -65,7 +75,7 @@ function cleanupStaleEntries() {
 /**
  * Check rate limits for an IP. Returns null if OK, or an error Response if limited.
  */
-function checkRateLimit(ip: string): Response | null {
+function checkRateLimit(ip: string, req: Request): Response | null {
   cleanupStaleEntries()
 
   const now = Date.now()
@@ -96,7 +106,7 @@ function checkRateLimit(ip: string): Response | null {
       {
         status: 429,
         headers: {
-          ...corsHeaders,
+          ...getCorsHeaders(req),
           'Content-Type': 'application/json',
           'Retry-After': String(Math.ceil(retryInMs / 1000)),
         },
@@ -122,7 +132,7 @@ function checkRateLimit(ip: string): Response | null {
       {
         status: 429,
         headers: {
-          ...corsHeaders,
+          ...getCorsHeaders(req),
           'Content-Type': 'application/json',
           'Retry-After': String(Math.ceil(retryInMs / 1000)),
         },
@@ -139,10 +149,11 @@ function checkRateLimit(ip: string): Response | null {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function jsonError(message: string, status: number): Response {
+function jsonError(message: string, status: number, req?: Request): Response {
+  const cors = req ? getCorsHeaders(req) : { 'Access-Control-Allow-Origin': 'https://www.whiteboards.dev', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
   return new Response(
     JSON.stringify({ error: { message } }),
-    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    { status, headers: { ...cors, 'Content-Type': 'application/json' } }
   )
 }
 
@@ -181,20 +192,20 @@ function getMessageLength(content: unknown): number {
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: getCorsHeaders(req) })
   }
 
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+    return new Response('Method not allowed', { status: 405, headers: getCorsHeaders(req) })
   }
 
   if (!ANTHROPIC_API_KEY) {
-    return jsonError('API key not configured on server', 500)
+    return jsonError('API key not configured on server', 500, req)
   }
 
   // ── Rate limiting ───────────────────────────────────────────────────────
   const clientIP = getClientIP(req)
-  const rateLimitResponse = checkRateLimit(clientIP)
+  const rateLimitResponse = checkRateLimit(clientIP, req)
   if (rateLimitResponse) return rateLimitResponse
 
   // ── Parse and validate ──────────────────────────────────────────────────
@@ -202,32 +213,32 @@ serve(async (req) => {
   try {
     body = await req.json()
   } catch {
-    return jsonError('Invalid JSON body', 400)
+    return jsonError('Invalid JSON body', 400, req)
   }
 
-  const { stream, model, messages, system, max_tokens, ...rest } = body
+  const { stream, model, messages, system, max_tokens, temperature } = body
 
   // Required fields
   if (!model || !messages) {
-    return jsonError('Missing model or messages', 400)
+    return jsonError('Missing model or messages', 400, req)
   }
 
   // Model allowlist
   if (!ALLOWED_MODELS.has(model as string)) {
     return jsonError(
       `Model "${model}" is not allowed. Approved models: ${[...ALLOWED_MODELS].join(', ')}`,
-      400
+      400, req
     )
   }
 
   // Message count limit
   if (!Array.isArray(messages)) {
-    return jsonError('messages must be an array', 400)
+    return jsonError('messages must be an array', 400, req)
   }
   if (messages.length > MAX_MESSAGES) {
     return jsonError(
       `Too many messages (${messages.length}). Maximum is ${MAX_MESSAGES}. Try starting a new conversation.`,
-      400
+      400, req
     )
   }
 
@@ -248,7 +259,7 @@ serve(async (req) => {
     if (systemLength > MAX_SYSTEM_CHARS) {
       return jsonError(
         `System prompt too long (${systemLength} chars). Maximum is ${MAX_SYSTEM_CHARS}.`,
-        400
+        400, req
       )
     }
   }
@@ -261,7 +272,7 @@ serve(async (req) => {
       if (len > MAX_MESSAGE_CHARS) {
         return jsonError(
           `Message ${i + 1} is too long (${len} chars). Maximum is ${MAX_MESSAGE_CHARS} per message.`,
-          400
+          400, req
         )
       }
     }
@@ -275,13 +286,13 @@ serve(async (req) => {
 
   // ── Forward to Anthropic ────────────────────────────────────────────────
   try {
-    const anthropicBody = {
+    const anthropicBody: Record<string, unknown> = {
       model,
       messages,
       max_tokens: finalMaxTokens,
       stream: isStream,
       ...(system != null ? { system } : {}),
-      ...rest,
+      ...(typeof temperature === 'number' ? { temperature: Math.min(Math.max(temperature, 0), 1) } : {}),
     }
 
     const anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -298,7 +309,7 @@ serve(async (req) => {
       return new Response(anthropicResp.body, {
         status: anthropicResp.status,
         headers: {
-          ...corsHeaders,
+          ...getCorsHeaders(req),
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
         },
@@ -308,10 +319,10 @@ serve(async (req) => {
     const result = await anthropicResp.json()
     return new Response(JSON.stringify(result), {
       status: anthropicResp.status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
     })
   } catch (err) {
     console.error('[PROXY ERROR]', err)
-    return jsonError((err as Error).message || 'Proxy error', 500)
+    return jsonError((err as Error).message || 'Proxy error', 500, req)
   }
 })

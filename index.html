@@ -4,10 +4,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Whiteboards</title>
+<title>Whiteboards — AI-powered productivity</title>
+<meta name="description" content="Brain dump your thoughts, AI organizes them into tasks. The productivity tool that thinks with you.">
+<meta property="og:title" content="Whiteboards — AI-powered productivity">
+<meta property="og:description" content="Brain dump your thoughts, AI organizes them into tasks. The productivity tool that thinks with you.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.whiteboards.dev">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Whiteboards — AI-powered productivity">
+<meta name="twitter:description" content="Brain dump your thoughts, AI organizes them into tasks.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23818cf8'/><text x='50' y='68' text-anchor='middle' font-size='52' font-weight='bold' fill='white'>W</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   --bg: #09090b;
@@ -51,6 +62,7 @@ body {
   display: flex;
 }
 
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -1834,7 +1846,13 @@ body {
     <div class="auth-logo">
       <div class="auth-logo-mark">W</div>
       <div class="auth-logo-text">Whiteboards</div>
-      <div class="auth-logo-sub">AI-powered productivity command center</div>
+      <div class="auth-logo-sub">AI-powered productivity</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;padding:0 4px">
+      <div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">&#x21af;</span> Brain dump anything — AI organizes it into tasks</div>
+      <div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">&#x2726;</span> Daily briefings, day plans, and focus mode</div>
+      <div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">&#x25CB;</span> Boards, calendar, keyboard-first workflow</div>
+      <div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">&#x2601;</span> Free forever — syncs across devices</div>
     </div>
     <div id="authError"></div>
     <div id="authMsg"></div>
@@ -1848,6 +1866,11 @@ body {
       <a id="authSwitchLink" onclick="toggleAuthMode()">Sign Up</a>
       <span style="margin-left:8px">·</span>
       <a style="margin-left:8px" onclick="showForgotPassword()">Forgot password?</a>
+    </div>
+    <div style="margin-top:16px;font-size:10px;color:var(--text3);text-align:center">
+      <a onclick="showPrivacy()" style="color:var(--text3);cursor:pointer;text-decoration:underline">Privacy</a>
+      <span style="margin:0 6px">·</span>
+      <a onclick="showTerms()" style="color:var(--text3);cursor:pointer;text-decoration:underline">Terms</a>
     </div>
   </div>
 </div>
@@ -1993,6 +2016,8 @@ async function initAuth() {
       currentUser = null;
       data = { tasks: [], projects: [], habits: [] };
       chatHistory = [];
+      settings = { ...DEFAULT_SETTINGS };
+      proactiveLog = [];
       currentView = 'dump';
       currentProject = null;
       expandedTask = null;
@@ -2141,7 +2166,7 @@ function showOnboarding() {
       step = 3;
       renderStep();
     } catch (err) {
-      if (statusEl) statusEl.innerHTML = '<div class="ai-status" style="color:var(--red)">Error: ' + (err.message || 'Something went wrong') + '</div>';
+      if (statusEl) statusEl.innerHTML = '<div class="ai-status" style="color:var(--red)">Error: ' + esc(err.message || 'Something went wrong') + '</div>';
       if (btn) { btn.disabled = false; btn.textContent = 'Organize this'; }
     } finally {
       if (tempCreated && dumpEl.parentNode) dumpEl.parentNode.removeChild(dumpEl);
@@ -2155,9 +2180,42 @@ function showOnboarding() {
     delete window.onbNext;
     delete window.onbProcessDump;
     delete window.onbFinish;
+    // Show feature tips after a short delay
+    setTimeout(showFeatureTips, 800);
   };
 
   renderStep();
+}
+
+function showFeatureTips() {
+  if (localStorage.getItem(userKey('wb_tips_seen'))) return;
+  localStorage.setItem(userKey('wb_tips_seen'), '1');
+  const tips = [
+    { icon: '&#x2726;', title: 'AI Chat Assistant', desc: 'Click the chat button (bottom-right) or press <kbd>Cmd+J</kbd> to talk to your AI co-pilot.' },
+    { icon: '&#x2318;', title: 'Command Palette', desc: 'Press <kbd>Cmd+K</kbd> to search, switch views, and run commands instantly.' },
+    { icon: '&#x25B6;', title: 'Focus Mode', desc: 'Type <kbd>/focus</kbd> in the command palette to get AI-picked deep work sessions.' },
+    { icon: '?', title: 'Keyboard Shortcuts', desc: 'Press <kbd>?</kbd> anytime to see all available shortcuts.' },
+  ];
+  let idx = 0;
+  function renderTip() {
+    const t = tips[idx];
+    const isLast = idx === tips.length - 1;
+    document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" style="background:rgba(0,0,0,0.5)"><div class="modal" style="max-width:380px;text-align:center;padding:32px">
+      <div style="font-size:32px;margin-bottom:12px;opacity:0.7">${t.icon}</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:8px">${t.title}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">${t.desc}</div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button class="btn" onclick="document.getElementById('modalRoot').innerHTML=''" style="font-size:12px">Skip</button>
+        <button class="btn btn-primary" onclick="window._nextTip()" style="font-size:12px">${isLast ? 'Got it!' : 'Next'} <span style="font-size:10px;opacity:0.6;margin-left:4px">${idx + 1}/${tips.length}</span></button>
+      </div>
+    </div></div>`;
+  }
+  window._nextTip = function() {
+    idx++;
+    if (idx >= tips.length) { document.getElementById('modalRoot').innerHTML = ''; delete window._nextTip; return; }
+    renderTip();
+  };
+  renderTip();
 }
 // skipAuth removed — was a security bypass callable from console
 
@@ -2185,7 +2243,7 @@ async function handleAuth(e) {
       // If email confirmation is off, session comes back immediately — onAuthStateChange handles it.
       // If email confirmation is on, show the message.
       if (!signUpData.session) {
-        msgEl.innerHTML = '<div class="auth-msg">Check your email to confirm your account.</div>';
+        msgEl.innerHTML = '<div class="auth-msg">Check your email to confirm your account.<br><span style="font-size:11px;color:var(--text3)">Don\'t see it? Check your spam folder.</span><br><button class="auth-resend" onclick="resendVerification(\'' + esc(email).replace(/'/g, "\\'") + '\')" style="margin-top:8px;background:none;border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit">Resend verification email</button></div>';
       }
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password });
@@ -2221,6 +2279,46 @@ function toggleAuthMode() {
     document.getElementById('authSwitchText').textContent = "Don't have an account?";
     document.getElementById('authSwitchLink').textContent = 'Sign Up';
     document.getElementById('authPassword').setAttribute('autocomplete', 'current-password');
+  }
+}
+
+function showPrivacy() {
+  document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title">Privacy Policy</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8">
+      <p><strong>What we collect:</strong> Your email address (for authentication) and the task data you create.</p>
+      <p><strong>How we store it:</strong> All data is stored securely in Supabase (hosted on AWS). Each user's data is isolated — no one else can see your tasks, boards, or AI conversations.</p>
+      <p><strong>AI processing:</strong> When you use AI features, your task data is sent to Anthropic's Claude API for processing. We do not store AI conversations server-side beyond your browser's local storage.</p>
+      <p><strong>What we don't do:</strong> We don't sell your data, run analytics trackers, or share information with third parties. No cookies beyond authentication.</p>
+      <p><strong>Data deletion:</strong> You can export and delete all your data from Settings at any time. Contact us to delete your account entirely.</p>
+      <p style="color:var(--text3);font-size:11px;margin-top:16px">Last updated: March 2026</p>
+    </div>
+    <button class="btn" onclick="closeModal()" style="margin-top:16px">Close</button>
+  </div></div>`;
+}
+
+function showTerms() {
+  document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:520px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title">Terms of Service</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8">
+      <p><strong>What this is:</strong> Whiteboards is a free AI-powered productivity tool. You can use it to manage tasks, brain dump ideas, and plan your work.</p>
+      <p><strong>Your data:</strong> You own everything you create. We provide the tool; you own the content.</p>
+      <p><strong>AI features:</strong> AI responses are generated by Claude (Anthropic). They may not always be accurate. Use your judgment when acting on AI suggestions.</p>
+      <p><strong>Availability:</strong> We aim to keep the service running but provide no uptime guarantees. Export your data regularly as a backup.</p>
+      <p><strong>Acceptable use:</strong> Don't abuse the AI proxy, attempt to access other users' data, or use the service for anything illegal.</p>
+      <p style="color:var(--text3);font-size:11px;margin-top:16px">Last updated: March 2026</p>
+    </div>
+    <button class="btn" onclick="closeModal()" style="margin-top:16px">Close</button>
+  </div></div>`;
+}
+
+async function resendVerification(email) {
+  try {
+    const { error } = await sb.auth.resend({ type: 'signup', email });
+    if (error) throw error;
+    showToast('Verification email sent!');
+  } catch (err) {
+    showToast(err.message || 'Could not resend email', true);
   }
 }
 
@@ -2608,7 +2706,62 @@ function activeTasks(pid) { return applyTagFilter((pid ? data.tasks.filter(t => 
 function doneTasks(pid) { return applyTagFilter((pid ? data.tasks.filter(t => t.project === pid) : data.tasks).filter(t => t.status === 'done' && !t.archived)); }
 function urgentTasks() { return data.tasks.filter(t => t.status !== 'done' && !t.archived && (t.priority === 'urgent' || (t.dueDate && t.dueDate <= todayStr()))); }
 function archivedTasks() { return data.tasks.filter(t => t.archived); } // MARKER
-function cleanupArchive(){var c=Date.now()-2592000000,f=false;data.tasks.forEach(function(t){if(t.status==='done'&&t.completedAt&&!t.archived&&new Date(t.completedAt).getTime()<c){t.archived=true;f=true;}});if(f)saveData(data);}function requestNotificationPermission(){if(!('Notification' in window)||localStorage.getItem(userKey('wb_notif_asked')))return;localStorage.setItem(userKey('wb_notif_asked'),'1');Notification.requestPermission();}function notifyOverdueTasks(){if(!('Notification' in window)||Notification.permission!=='granted')return;var ov=data.tasks.filter(function(t){return t.status!=='done'&&!t.archived&&t.dueDate&&t.dueDate<todayStr();});if(!ov.length)return;var n=new Notification('You have '+ov.length+' overdue task'+(ov.length>1?'s':''),{body:ov.slice(0,3).map(function(t){return t.title;}).join(', ')+(ov.length>3?'...':'')});n.onclick=function(){window.focus();n.close();};}var proactiveResults=null;function dismissProactiveBanner(){proactiveResults=null;render();}function unarchiveTask(id){var t=data.tasks.find(function(x){return x.id===id;});if(t){t.archived=false;saveData(data);render();showToast('Task restored');}}async function deleteArchivedPermanently(){var ok=await confirmAction('Permanently delete all archived tasks?');if(!ok)return;data.tasks=data.tasks.filter(function(t){return!t.archived;});saveData(data);render();showToast('Archived tasks deleted');}function renderArchive(){var ts=archivedTasks(),h='';if(!ts.length)return '<div style="text-align:center;padding:60px;color:var(--text3)">No archived tasks</div>';h+='<button class="btn btn-sm btn-danger" onclick="deleteArchivedPermanently()" style="margin-bottom:16px">Delete All</button>';ts.forEach(function(t){h+='<div style="display:flex;align-items:center;gap:12px;padding:10px;margin-bottom:4px;background:var(--surface);border-radius:8px"><span style="flex:1;font-size:13px;color:var(--text2);text-decoration:line-through">'+esc(t.title)+'</span><button class="btn btn-sm" onclick="unarchiveTask(\''+t.id+'\')">Restore</button></div>';});return h;}
+function cleanupArchive() {
+  var cutoff = Date.now() - 2592000000; // 30 days
+  var changed = false;
+  data.tasks.forEach(function(t) {
+    if (t.status === 'done' && t.completedAt && !t.archived && new Date(t.completedAt).getTime() < cutoff) {
+      t.archived = true;
+      changed = true;
+    }
+  });
+  if (changed) saveData(data);
+}
+
+function requestNotificationPermission() {
+  if (!('Notification' in window) || localStorage.getItem(userKey('wb_notif_asked'))) return;
+  localStorage.setItem(userKey('wb_notif_asked'), '1');
+  Notification.requestPermission();
+}
+
+function notifyOverdueTasks() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  var overdue = data.tasks.filter(function(t) {
+    return t.status !== 'done' && !t.archived && t.dueDate && t.dueDate < todayStr();
+  });
+  if (!overdue.length) return;
+  var n = new Notification('You have ' + overdue.length + ' overdue task' + (overdue.length > 1 ? 's' : ''), {
+    body: overdue.slice(0, 3).map(function(t) { return t.title; }).join(', ') + (overdue.length > 3 ? '...' : '')
+  });
+  n.onclick = function() { window.focus(); n.close(); };
+}
+
+var proactiveResults = null;
+function dismissProactiveBanner() { proactiveResults = null; render(); }
+
+function unarchiveTask(id) {
+  var t = data.tasks.find(function(x) { return x.id === id; });
+  if (t) { t.archived = false; saveData(data); render(); showToast('Task restored'); }
+}
+
+async function deleteArchivedPermanently() {
+  var ok = await confirmAction('Permanently delete all archived tasks?');
+  if (!ok) return;
+  data.tasks = data.tasks.filter(function(t) { return !t.archived; });
+  saveData(data);
+  render();
+  showToast('Archived tasks deleted');
+}
+
+function renderArchive() {
+  var ts = archivedTasks(), h = '';
+  if (!ts.length) return '<div style="text-align:center;padding:60px;color:var(--text3)">No archived tasks</div>';
+  h += '<button class="btn btn-sm btn-danger" onclick="deleteArchivedPermanently()" style="margin-bottom:16px">Delete All</button>';
+  ts.forEach(function(t) {
+    h += '<div style="display:flex;align-items:center;gap:12px;padding:10px;margin-bottom:4px;background:var(--surface);border-radius:8px"><span style="flex:1;font-size:13px;color:var(--text2);text-decoration:line-through">' + esc(t.title) + '</span><button class="btn btn-sm" onclick="unarchiveTask(\'' + t.id + '\')">Restore</button></div>';
+  });
+  return h;
+}
 
 function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
@@ -2729,7 +2882,16 @@ function _renderNow() {
       break;
     case 'review':
       $('#viewTitle').textContent = 'Weekly Review';
-      $('#viewSub').textContent = 'Reflect, reset, plan ahead';break;case 'archive':$('#viewTitle').textContent='Archive';$('#viewSub').textContent='';ha.innerHTML='';c.innerHTML=renderArchive();break;
+      $('#viewSub').textContent = 'Reflect, reset, plan ahead';
+      ha.innerHTML = '';
+      c.innerHTML = renderWeeklyReview();
+      break;
+    case 'archive':
+      $('#viewTitle').textContent = 'Archive';
+      $('#viewSub').textContent = '';
+      ha.innerHTML = '';
+      c.innerHTML = renderArchive();
+      break;
   }
   $('#headerActions').innerHTML = '<button class="btn btn-sm btn-ghost" onclick="openSearch()" style="color:var(--text3);font-size:11px">&#8984;K</button>' + $('#headerActions').innerHTML;
   attachListeners();
@@ -2812,8 +2974,8 @@ function renderSidebar() {
 function toggleSidebar() {
   sidebarCollapsed = !sidebarCollapsed;
   localStorage.setItem(userKey('wb_sidebar_collapsed'), sidebarCollapsed);
-  const sb = $('#sidebar');
-  if (sb) sb.classList.toggle('collapsed', sidebarCollapsed);
+  const sidebarEl = $('#sidebar');
+  if (sidebarEl) sidebarEl.classList.toggle('collapsed', sidebarCollapsed);
 }
 
 // ============================================================
@@ -3662,6 +3824,8 @@ function resolveSmartDate(id) {
 
 function attachInlineEdit() {
   document.querySelectorAll('[data-inline-edit]').forEach(el => {
+    if (el._inlineEditBound) return;
+    el._inlineEditBound = true;
     el.addEventListener('dblclick', (e) => {
       e.stopPropagation();
       const taskId = el.dataset.inlineEdit;
@@ -5071,9 +5235,9 @@ function saveDumpDraft() { const ta = document.getElementById('dumpText'); if (t
 function loadDumpDraft() { return localStorage.getItem(userKey(DUMP_DRAFT_KEY)) || ''; }
 function clearDumpDraft() { localStorage.removeItem(userKey(DUMP_DRAFT_KEY)); }
 const DUMP_HISTORY_KEY='wb_dump_history',DUMP_LAST_TS_KEY='wb_last_dump';
-function getDumpHistory(){try{return JSON.parse(localStorage.getItem(DUMP_HISTORY_KEY)||'[]')}catch{return[]}}
-function saveDumpHistory(e){const h=getDumpHistory();h.unshift(e);if(h.length>5)h.length=5;localStorage.setItem(DUMP_HISTORY_KEY,JSON.stringify(h));localStorage.setItem(DUMP_LAST_TS_KEY,new Date().toISOString())}
-function shouldShowDumpInvite(){const l=localStorage.getItem(DUMP_LAST_TS_KEY);if(!l)return true;return(Date.now()-new Date(l).getTime())>86400000}
+function getDumpHistory(){try{return JSON.parse(localStorage.getItem(userKey(DUMP_HISTORY_KEY))||'[]')}catch{return[]}}
+function saveDumpHistory(e){const h=getDumpHistory();h.unshift(e);if(h.length>5)h.length=5;localStorage.setItem(userKey(DUMP_HISTORY_KEY),JSON.stringify(h));localStorage.setItem(userKey(DUMP_LAST_TS_KEY),new Date().toISOString())}
+function shouldShowDumpInvite(){const l=localStorage.getItem(userKey(DUMP_LAST_TS_KEY));if(!l)return true;return(Date.now()-new Date(l).getTime())>86400000}
 function renderDumpHistory(){const h=getDumpHistory();if(!h.length)return'';let o='<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:8px">Recent dumps</div>';h.forEach(x=>{const d=new Date(x.date);o+='<div class="dump-history-item"><span>'+d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span><span style="color:var(--text2)">'+x.wordCount+' words &rarr; '+x.tasksCreated+' task'+(x.tasksCreated===1?'':'s')+'</span></div>'});return o+'</div>'}
 function renderDump() {
   // Show results card if brainstorm just completed
@@ -5710,7 +5874,7 @@ function openSettings() {
 
   $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:540px">
     <div class="modal-title">Settings</div>
-    <div class="form-group"><label class="form-label">Claude API Key <span style="color:var(--text3);font-weight:400">(optional)</span></label><input class="form-input" id="fApiKey" type="password" value="${settings.apiKey}" placeholder="Leave blank to use shared AI" style="font-family:monospace"></div>
+    <div class="form-group"><label class="form-label">Claude API Key <span style="color:var(--text3);font-weight:400">(optional)</span></label><input class="form-input" id="fApiKey" type="password" value="${esc(settings.apiKey)}" placeholder="Leave blank to use shared AI" style="font-family:monospace"></div>
     <p style="font-size:11px;color:var(--text3);margin-bottom:16px">AI is included. Add your own key to use your personal API account instead.</p>
 
     <div style="margin-bottom:16px">
@@ -7348,7 +7512,7 @@ function processRecurringTasks() {
 // ============================================================
 (function(){document.addEventListener('mouseenter',function(e){var r=e.target.closest('.task-row');if(!r)return;var id=r.dataset.task,t=data.tasks.find(function(x){return x.id===id});if(!t||!t.notes)return;if(tooltipEl)tooltipEl.remove();tooltipEl=document.createElement('div');tooltipEl.className='task-tooltip';tooltipEl.textContent=t.notes.length>200?t.notes.slice(0,200)+'...':t.notes;document.body.appendChild(tooltipEl);var b=r.getBoundingClientRect();tooltipEl.style.left=Math.min(b.left,window.innerWidth-300)+'px';tooltipEl.style.top=(b.bottom+4)+'px'},true);document.addEventListener('mouseleave',function(e){if(!e.target.closest('.task-row'))return;if(tooltipEl){tooltipEl.remove();tooltipEl=null}},true)})();
 async function _sseFallback(r,te,cm,ct2){var c=(r.headers.get('content-type')||'');if(c.includes('text/event-stream'))return false;var j=await r.json();var f=j.content&&j.content[0]?j.content[0].text:(j.completion||JSON.stringify(j));te.innerHTML='<div class="chat-bubble ai"></div>';te.querySelector('.chat-bubble').innerHTML=esc(f).replace(/\n/g,'<br>');chatHistory.push({role:'assistant',content:f});saveChatHistory();incrementAIInteraction();var a=await executeAIActions(f);if(a.applied)render();te.innerHTML=esc(f.replace(/```(?:actions|json)[\s\S]*?```/g,'').trim()).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');cm.scrollTop=cm.scrollHeight;clearTimeout(ct2);return true;}
-var var _oB=generateAIBriefing,_oP=planMyDay,_oE=submitEndOfDay,_oR=generateWeeklyReview,_oPW=runProactiveWorker;generateAIBriefing=async function(){if(!throttleAI('b'))return;return _oB.apply(this,arguments)};planMyDay=async function(){if(!throttleAI('p'))return;return _oP.apply(this,arguments)};submitEndOfDay=async function(){if(!throttleAI('e'))return;return _oE.apply(this,arguments)};generateWeeklyReview=async function(){if(!throttleAI('r'))return;return _oR.apply(this,arguments)};runProactiveWorker=async function(){if(!throttleAI('w'))return;return _oPW.apply(this,arguments)};
+var _oB=generateAIBriefing,_oP=planMyDay,_oE=submitEndOfDay,_oR=generateWeeklyReview,_oPW=runProactiveWorker;generateAIBriefing=async function(){if(!throttleAI('b'))return;return _oB.apply(this,arguments)};planMyDay=async function(){if(!throttleAI('p'))return;return _oP.apply(this,arguments)};submitEndOfDay=async function(){if(!throttleAI('e'))return;return _oE.apply(this,arguments)};generateWeeklyReview=async function(){if(!throttleAI('r'))return;return _oR.apply(this,arguments)};runProactiveWorker=async function(){if(!throttleAI('w'))return;return _oPW.apply(this,arguments)};
 initAuth();
 </script>
 <script src="dashboard-v2.js"></script>
