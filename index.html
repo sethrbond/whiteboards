@@ -57,10 +57,12 @@ body {
   font-family: 'Inter', -apple-system, system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
-  height: 100vh;
+  height: 100dvh;
+  height: 100vh; /* fallback for older browsers */
   overflow: hidden;
   display: flex;
 }
+@supports (height: 100dvh) { body { height: 100dvh; } }
 
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 ::-webkit-scrollbar { width: 5px; }
@@ -1276,7 +1278,7 @@ body {
 .chat-panel {
   position: fixed;
   top: 0; right: -420px;
-  width: 400px; height: 100vh;
+  width: 400px; height: 100dvh; height: 100vh;
   background: var(--surface);
   border-left: 1px solid var(--border);
   z-index: 90;
@@ -1704,7 +1706,7 @@ body {
 
 /* ==================== MOBILE ==================== */
 @media (max-width: 768px) {
-  .sidebar { position: fixed; left: -260px; z-index: 80; height: 100vh; transition: left 0.3s; padding-bottom: env(safe-area-inset-bottom, 0); width: 240px !important; min-width: 240px !important; }
+  .sidebar { position: fixed; left: -260px; z-index: 80; height: 100dvh; height: 100vh; transition: left 0.3s; padding-bottom: env(safe-area-inset-bottom, 0); width: 240px !important; min-width: 240px !important; }
   .sidebar-collapse-btn { display: none !important; }
   .sidebar.open { left: 0; }
   .main { padding-bottom: env(safe-area-inset-bottom, 0); }
@@ -1746,6 +1748,17 @@ body {
   .task-row .task-tags { display: flex !important; width: 100%; margin-top: 4px; padding-left: 36px; }
   .task-row .task-actions { position: absolute; right: 8px; top: 8px; display: flex !important; }
   .mobile-hamburger { width: 44px !important; height: 44px !important; }
+  /* Prevent iOS Safari auto-zoom on input focus */
+  input, textarea, select, .form-input, .form-select, .form-textarea,
+  .auth-input, .chat-input, .dump-textarea, .onboarding-textarea,
+  .eod-textarea, .quick-capture-input, .tag-add-input { font-size: 16px !important; }
+  .task-action-btn { width: 44px !important; height: 44px !important; }
+}
+
+/* Touch feedback for interactive elements */
+@media (hover: none) {
+  .btn:active, .task-row:active, .nav-item:active, .tag-chip:active { opacity: 0.7; transition: opacity 0.1s; }
+  .chat-send:active, .onboarding-btn:active, .auth-btn:active { opacity: 0.8; }
 }
 
 /* ==================== SMALL MOBILE ==================== */
@@ -1955,6 +1968,10 @@ body {
 <button class="chat-toggle" id="chatToggle" onclick="toggleChat()" title="AI Assistant" aria-label="Open AI Assistant" style="display:none">✦</button>
 
 <script>
+// Suppress console noise in production
+const _debug = location.hostname === 'localhost';
+if (!_debug) { const _noop = () => {}; console.warn = _noop; console.error = _noop; console.log = _noop; }
+
 // ============================================================
 // SUPABASE
 // ============================================================
@@ -2168,8 +2185,8 @@ function showOnboarding() {
       step = 3;
       renderStep();
     } catch (err) {
-      if (statusEl) statusEl.innerHTML = '<div class="ai-status" style="color:var(--red)">Error: ' + esc(err.message || 'Something went wrong') + '</div>';
-      if (btn) { btn.disabled = false; btn.textContent = 'Organize this'; }
+      if (statusEl) statusEl.innerHTML = '<div class="ai-status" style="color:var(--red)">' + esc(err.message || 'Something went wrong') + '</div>';
+      if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
     } finally {
       if (tempCreated && dumpEl.parentNode) dumpEl.parentNode.removeChild(dumpEl);
     }
@@ -2986,244 +3003,9 @@ function toggleSidebar() {
 }
 
 // ============================================================
-// DASHBOARD
+// DASHBOARD (overridden by dashboard-v2.js)
 // ============================================================
-let _sfx=false,_tbx=false;function renderDashboard() {
-  const urgent = urgentTasks();
-  const active = activeTasks();
-  const done = doneTasks();
-  const inProgress = active.filter(t => t.status === 'in-progress');
-
-  // Fresh start welcome
-  if (data.tasks.length === 0 && data.projects.length <= 1) {
-    return `<div style="max-width:480px;margin:60px auto;text-align:center">
-      <div style="font-size:48px;margin-bottom:16px;opacity:0.3">✦</div>
-      <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">A clean slate.</h2>
-      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:28px">Paste anything into Brain Dump and your AI co-pilot will organize it &mdash; meeting notes, project plans, brain dumps, anything.</p>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="openNewProject()">+ New Board</button>
-        <button class="btn" onclick="setView('dump')">↯ Brain Dump</button>
-      </div>
-    </div>`;
-  }
-
-  // Greeting
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const dueToday = active.filter(t => t.dueDate === todayStr());
-  const overdue = active.filter(t => t.dueDate && t.dueDate < todayStr());
-  let subGreeting = '';
-  if (overdue.length) subGreeting = `${overdue.length} overdue — let's tackle those first.`;
-  else if (urgent.length) subGreeting = `${urgent.length} urgent task${urgent.length > 1 ? 's' : ''} waiting.`;
-  else if (dueToday.length) subGreeting = `${dueToday.length} due today.`;
-  else if (active.length) subGreeting = `${active.length} tasks across ${data.projects.length} boards.`;
-  else subGreeting = 'Nothing pressing. A good day to plan ahead.';
-
-  // Quick Capture + greeting in one tight row
-  const projOpts = data.projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-  let html = `<div class="dash-greeting">
-    <div class="dash-greeting-text">${greeting}</div>
-    <div class="dash-greeting-sub">${subGreeting}${overdue.length ? '' : ` <span style="color:var(--text3)">${active.length} active · ${inProgress.length} in progress · ${done.length} done</span>`}</div>
-  </div>`;
-
-  // "Right now" focus block
-  const planKey2 = userKey('whiteboard_plan_' + todayStr());
-  const plan2 = (() => { try { return JSON.parse(localStorage.getItem(planKey2) || '[]'); } catch { return []; } })();
-  const nextPlanned = plan2.find(p => { const t = data.tasks.find(x => x.id === p.id); return t && t.status !== 'done'; });
-  const nextTask = nextPlanned ? data.tasks.find(x => x.id === nextPlanned.id) : null;
-  if (nextTask || overdue.length) {
-    html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px">`;
-    if (nextTask) {
-      html += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);font-weight:600;margin-bottom:6px">Up Next</div>`;
-      html += `<div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px;cursor:pointer" onclick="expandedTask='${nextTask.id}';render()">${esc(nextTask.title)}</div>`;
-      if (nextPlanned.why) html += `<div style="font-size:12px;color:var(--text3);font-style:italic">↳ ${esc(nextPlanned.why)}</div>`;
-    }
-    if (overdue.length) {
-      html += `<div style="font-size:12px;color:var(--red);margin-top:${nextTask ? '10' : '0'}px">${overdue.length} overdue task${overdue.length > 1 ? 's' : ''} need${overdue.length === 1 ? 's' : ''} attention</div>`;
-    }
-    html += `</div>`;
-  }
-
-  if(shouldShowDumpInvite()){html+=`<div class="brain-dump-invite" onclick="setView('dump')"><div style="font-size:20px;opacity:0.6">\u21af</div><div style="flex:1"><div style="font-size:13px;color:var(--text2)">Got a lot on your mind?</div><div style="font-size:12px;color:var(--text3);margin-top:2px">Dump your thoughts, AI handles the rest</div></div><div class="bdi-arrow" style="font-size:13px;color:var(--text3)">Brain dump \u2192</div></div>`}
-
-  html += `<div class="quick-capture">
-    <input class="quick-capture-input" id="quickCapture" placeholder="Add a task, type /command, or describe what you need..." oninput="previewQuickCapture()" onkeydown="if(event.key==='Enter'&&this.value.trim()){quickAddFromCapture();}" autocomplete="off">
-    <span class="qc-ai-indicator" id="qcAiIndicator"><span class="qc-ai-dot"></span>AI</span>
-    <select class="quick-capture-project" id="quickCaptureProject">${projOpts}</select>
-    <button class="btn btn-primary" onclick="quickAddFromCapture()" style="flex-shrink:0">Add</button>
-  </div>
-  <div id="quickCapturePreview" class="smart-date-preview" style="padding-left:12px"></div>`;
-
-  if(proactiveResults&&proactiveResults.date===todayStr()){var _pt=proactiveResults.taskIds.map(function(id){return data.tasks.find(function(t){return t.id===id;});}).filter(Boolean);html+='<div class="proactive-banner"><button class="proactive-banner-dismiss" onclick="dismissProactiveBanner()">&times;</button><div class="proactive-banner-header"><span style="font-size:16px">&#10022;</span><div class="proactive-banner-title">AI prepared '+proactiveResults.count+' task'+(proactiveResults.count>1?'s':'')+' for you</div></div>';_pt.forEach(function(t){html+='<div class="proactive-banner-task" onclick="expandedTask=\''+t.id+'\';render()">'+esc(t.title)+'</div>';});html+='</div>';}
-  // Smart nudges (compact — max 2 + stuck, merged into one bar)
-  html += renderNudgeBar();
-  html += renderStuckNudges();
-
-  // Nudge filter indicator
-  if (_nudgeFilter) {
-    const nfLabels = { overdue: 'Overdue tasks', stale: 'Stale tasks (10+ days)', unassigned: 'Unassigned tasks' };
-    html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:12px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius-xs)">
-      <span style="font-size:12px;color:var(--accent);font-weight:500">Filtering: ${nfLabels[_nudgeFilter] || _nudgeFilter}</span>
-      <span style="font-size:11px;color:var(--accent);cursor:pointer;margin-left:auto" onclick="clearNudgeFilter()">Clear filter</span>
-    </div>`;
-  }
-
-  // Tag filter (collapsible — only show inline if a filter is active)
-  const allTags = getAllTags();
-  if (allTags.length) {
-    if (activeTagFilter) {
-      html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-        <span style="font-size:10px;color:var(--text3);margin-right:4px">Tag:</span>
-        <span class="tag-chip tag-filter-btn selected" style="background:${getTagColor(activeTagFilter).bg};color:${getTagColor(activeTagFilter).color};font-size:10px" data-tag="${esc(activeTagFilter)}">${esc(activeTagFilter)}</span>
-        <span style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:4px" onclick="activeTagFilter='';render()">✕ clear</span>
-      </div>`;
-    } else {
-      html += `<div style="margin-bottom:8px"><span onclick="toggleTagFilter()" style="font-size:10px;color:var(--text3);cursor:pointer;user-select:none">${_showTagFilter ? '▾' : '▸'} Filter by tag</span></div>`;
-      if (_showTagFilter) {
-        html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-          ${allTags.map(tag => {
-            const c = getTagColor(tag);
-            return `<span class="tag-chip tag-filter-btn" style="background:${c.bg};color:${c.color};font-size:10px" data-tag="${esc(tag)}">${esc(tag)}</span>`;
-          }).join('')}
-        </div>`;
-      }
-    }
-  }
-
-  // Daily Briefing (compact — only if AI key present and briefing cached, otherwise skip)
-  const briefingKey = userKey('whiteboard_briefing_' + todayStr());
-  const cachedBriefing = localStorage.getItem(briefingKey);
-  if (hasAI()) {
-    html += `<div class="briefing-card">
-      <div class="briefing-header">
-        <span style="font-size:14px">✦</span>
-        <div class="briefing-title">Briefing</div>
-        <div class="briefing-date">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-      </div>
-      ${cachedBriefing ? `<div class="briefing-body" id="briefingBody">${sanitizeAIHTML(cachedBriefing)}</div>` : (_briefingGenerating ? `<div class="skeleton-pulse" style="padding:16px 20px;min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Generating your briefing...</span></div>` : '')}
-      <div style="display:flex;gap:8px">
-        <button class="briefing-generate" onclick="generateAIBriefing()" id="briefingBtn">${cachedBriefing ? '↻ Refresh' : (_briefingGenerating ? '✦ Generating...' : '✦ Generate Briefing')}</button>
-        <button class="briefing-generate" onclick="planMyDay()" id="planBtn" style="color:var(--accent)">◎ Plan My Day</button>
-      </div>
-    </div>`;
-
-  // Daily Plan (if generated or generating)
-  const planKey = userKey('whiteboard_plan_' + todayStr());
-  const cachedPlan = localStorage.getItem(planKey);
-  if (cachedPlan) {
-    try {
-      const plan = JSON.parse(cachedPlan);
-      const doneCount = plan.filter(p => p.completedInPlan || (data.tasks.find(x => x.id === p.id) && data.tasks.find(x => x.id === p.id).status === 'done')).length;
-      const totalCount = plan.filter(p => data.tasks.find(x => x.id === p.id)).length;
-      const planMinutes = plan.reduce((sum, p) => { const t = data.tasks.find(x => x.id === p.id); return sum + (t && t.estimatedMinutes ? t.estimatedMinutes : 0); }, 0);
-      const planTimeStr = planMinutes > 0 ? ` · ~${Math.round(planMinutes / 60 * 10) / 10}h of work planned` : '';
-      html += `<div class="section"><div class="section-header"><div class="section-title" style="color:var(--accent)">Today's Plan</div><div class="section-count" style="font-size:10px;color:${doneCount === totalCount && totalCount > 0 ? 'var(--green)' : 'var(--text3)'}">${doneCount} of ${totalCount} done${planTimeStr}</div><div class="section-line"></div><span style="font-size:10px;color:var(--text3);cursor:pointer" onclick="localStorage.removeItem('${planKey}');render()">clear</span></div>`;
-      plan.forEach((p, i) => {
-        const t = data.tasks.find(x => x.id === p.id);
-        if (!t) return;
-        const isDone = p.completedInPlan || t.status === 'done';
-        html += `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:2px;${isDone ? 'text-decoration:line-through;opacity:0.5' : ''}">
-          <span style="font-size:11px;color:var(--text3);min-width:18px;padding-top:10px">${i + 1}.</span>
-          <div style="flex:1">${renderTaskRow(t, true)}</div>
-          ${!isDone ? `<button onclick="snoozePlanTask('${p.id}')" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:8px 4px;white-space:nowrap;flex-shrink:0" title="Snooze to tomorrow" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">snooze</button>` : ''}
-        </div>`;
-        if (p.why) html += `<div style="margin-left:28px;font-size:11px;color:var(--text3);margin-bottom:8px;margin-top:-4px;font-style:italic">↳ ${esc(p.why)}</div>`;
-      });
-      html += `<div style="margin-top:8px"><button onclick="replanDay()" class="briefing-generate" style="color:var(--accent);font-size:11px">↻ Replan</button></div>`;
-      html += `</div>`;
-    } catch (e) { console.warn('Plan render failed:', e); }
-  } else if (_planGenerating) {
-    html += `<div class="section"><div class="section-header"><div class="section-title" style="color:var(--accent)">Today's Plan</div><div class="section-line"></div></div>
-      <div class="skeleton-pulse" style="padding:16px 20px;min-height:80px;display:flex;align-items:center;justify-content:center">
-        <span style="font-size:12px;color:var(--text3)">Planning your day...</span>
-      </div></div>`;
-  }
-  }
-
-  // End of Day capture (after 5 PM, has API key, has completions today, not yet done today)
-  const eodKey = userKey('wb_eod_' + todayStr());
-  const cachedEod = localStorage.getItem(eodKey);
-  const completedToday = data.tasks.filter(t => t.status === 'done' && t.completedAt && t.completedAt.slice(0, 10) === todayStr());
-  if (new Date().getHours() >= 17 && hasAI() && completedToday.length >= 1) {
-    if (cachedEod) {
-      html += `<div class="eod-card">
-        <div class="eod-header">
-          <span style="font-size:14px;color:var(--purple)">&#9790;</span>
-          <div class="eod-title">End of Day</div>
-          <span style="font-size:11px;color:var(--text3);margin-left:auto">Today</span>
-        </div>
-        <div class="eod-response">${sanitizeAIHTML(cachedEod)}</div>
-      </div>`;
-    } else {
-      html += `<div class="eod-card" id="eodCard">
-        <div class="eod-header">
-          <span style="font-size:14px;color:var(--purple)">&#9790;</span>
-          <div class="eod-title">How did today go?</div>
-        </div>
-        <textarea class="eod-textarea" id="eodInput" rows="3" placeholder="What went well? What was hard? Anything on your mind..."></textarea>
-        <div style="display:flex;gap:8px">
-          <button class="briefing-generate" onclick="submitEndOfDay()" id="eodBtn" style="color:var(--purple);border-color:rgba(168,85,247,0.2)">Wrap up</button>
-          <button class="briefing-generate" onclick="document.getElementById('eodCard').remove()" style="color:var(--text3);border-color:var(--border)">Skip</button>
-        </div>
-      </div>`;
-    }
-  }
-
-  // Urgent section
-  if (urgent.length > 0) {
-    html += `<div class="section"><div class="section-header"><div class="section-title" style="color:var(--red)">Needs Attention</div><div class="section-count">${urgent.length}</div><div class="section-line"></div></div>`;
-    sortTasks(urgent).forEach(t => { html += renderTaskRow(t, true); });
-    html += `</div>`;
-  }
-
-  // In progress (exclude tasks already shown in urgent)
-  const inProgressNotUrgent = inProgress.filter(t => !urgent.includes(t));
-  if (inProgressNotUrgent.length > 0) {
-    html += `<div class="section"><div class="section-header"><div class="section-title">In Progress</div><div class="section-count">${inProgressNotUrgent.length}</div><div class="section-line"></div></div>`;
-    inProgressNotUrgent.forEach(t => { html += renderTaskRow(t, true); });
-    html += `</div>`;
-  }
-
-  // Due this week
-  const weekFromNow = localISO(new Date(Date.now() + 7 * 86400000));
-  const dueSoon = active.filter(t => t.dueDate && t.dueDate > todayStr() && t.dueDate <= weekFromNow && !urgent.includes(t));
-  if (dueSoon.length > 0) {
-    html += `<div class="section"><div class="section-header"><div class="section-title" style="color:var(--orange)">Due This Week</div><div class="section-count">${dueSoon.length}</div><div class="section-line"></div></div>`;
-    dueSoon.sort((a, b) => a.dueDate.localeCompare(b.dueDate)).forEach(t => { html += renderTaskRow(t, true); });
-    html += `</div>`;
-  }
-
-  // Projects grid
-  html += `<div class="section"><div class="section-header"><div class="section-title">Boards</div><div class="section-count">${data.projects.length}</div><div class="section-line"></div></div>`;
-  if (data.projects.length === 0) {
-    html += `<div class="empty"><div class="empty-icon">◈</div><div class="empty-text">No boards yet. Create one to get started.</div><button class="btn btn-primary" onclick="openNewProject()">+ New Board</button></div>`;
-  } else {
-    html += '<div class="project-grid">';
-    data.projects.forEach(p => {
-      const pt = projectTasks(p.id);
-      const ptActive = pt.filter(t => t.status !== 'done');
-      const urgentP = ptActive.filter(t => t.priority === 'urgent');
-      const topTasks = sortTasks(ptActive).slice(0, 3);
-
-      html += `<div class="project-grid-card" data-project="${p.id}">
-        <div class="project-grid-header">
-          <div class="project-grid-dot" style="background:${p.color}"></div>
-          <div class="project-grid-name">${esc(p.name)}</div>
-        </div>
-        <div class="project-grid-stats">
-          <div class="project-grid-stat"><strong>${ptActive.length}</strong> active</div>
-          ${urgentP.length ? `<div class="project-grid-stat" style="color:var(--red)"><strong>${urgentP.length}</strong> urgent</div>` : ''}
-        </div>
-        ${topTasks.length ? `<div class="project-grid-tasks">${topTasks.map(t => `<div class="project-grid-task"><div class="mini-dot" style="background:${priorityColor(t.priority)}"></div>${esc(t.title)}</div>`).join('')}</div>` : ''}
-        ${p.description ? `<div class="ai-summary">${esc(p.description).slice(0, 120)}${p.description.length > 120 ? '...' : ''}</div>` : ''}
-      </div>`;
-    });
-    html += '</div>';
-  }
-  html += '</div>';
-
-  return html;
-}
+function renderDashboard() { return ''; }
 
 // ============================================================
 // CALENDAR VIEW
@@ -3868,31 +3650,8 @@ function attachInlineEdit() {
   });
 }
 
-// ============================================================
-// TASK NOTES TOOLTIP - uses event delegation set up once
-// ============================================================
+// Tooltips handled by event delegation (see bottom of file)
 let tooltipEl = null;
-function attachTooltips() {}
-function _DEAD_TT() {
-  document.querySelectorAll('.task-row').forEach(row => {
-    const taskId = row.dataset.task;
-    const t = data.tasks.find(x => x.id === taskId);
-    if (!t || !t.notes) return;
-    row.addEventListener('mouseenter', (e) => {
-      if (tooltipEl) tooltipEl.remove();
-      tooltipEl = document.createElement('div');
-      tooltipEl.className = 'task-tooltip';
-      tooltipEl.textContent = t.notes.length > 200 ? t.notes.slice(0, 200) + '...' : t.notes;
-      document.body.appendChild(tooltipEl);
-      const rect = row.getBoundingClientRect();
-      tooltipEl.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
-      tooltipEl.style.top = (rect.bottom + 4) + 'px';
-    });
-    row.addEventListener('mouseleave', () => {
-      if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
-    });
-  });
-}
 
 // ============================================================
 // TASK DEPENDENCIES
@@ -4139,9 +3898,8 @@ function attachListeners() {
     el.onclick = () => setView('project', el.dataset.project);
   });
 
-  // Inline editing + tooltips
+  // Inline editing + bulk actions
   attachInlineEdit();
-  attachTooltips();
   attachBulkListeners();
 
   // Tag filter delegation
@@ -5208,6 +4966,11 @@ async function callAI(prompt, opts = {}) {
     if (!resp.ok) {
       let errMsg = `API error ${resp.status}`;
       try { const errBody = await resp.json(); errMsg = errBody.error?.message || errMsg; } catch {}
+      // User-friendly messages for common errors
+      if (resp.status === 429) errMsg = 'AI is busy right now. Please wait a moment and try again.';
+      else if (resp.status === 503 || resp.status === 529) errMsg = 'AI service is temporarily unavailable. Please try again shortly.';
+      else if (resp.status === 500) errMsg = 'AI service encountered an error. Please try again.';
+      else if (resp.status === 401 || resp.status === 403) errMsg = 'AI authentication failed. Check your API key in Settings.';
       const err = new Error(errMsg); err.status = resp.status; throw err;
     }
     const result = await resp.json();
@@ -5842,11 +5605,6 @@ Rules:
   }
 }
 
-// ============================================================
-// HABITS (feature removed — stubs kept for render() switch case)
-// ============================================================
-function renderHabits() { return '<div class="empty"><div class="empty-text">Habits feature removed.</div></div>'; }
-function openAddHabit() { return; }
 
 // ============================================================
 // SETTINGS
