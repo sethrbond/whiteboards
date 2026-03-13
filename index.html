@@ -4162,18 +4162,20 @@ ${text}${attachmentText}`;
   const prompt = `You are the world's best executive assistant. You have been handed a brainstorm — it could be a stream of consciousness, a formal project document, meeting notes, a status update, or anything in between. Your job: extract EVERYTHING useful and organize it perfectly.
 
 ## YOUR EXTRACTION PHILOSOPHY
-- Extract ACTIONABLE items — things someone needs to DO, DECIDE, or TRACK.
+- Extract ALL discrete items — things to DO, things already DONE, things IN PROGRESS.
+- COMPLETED WORK IS JUST AS IMPORTANT AS PENDING WORK. If the document says something was finished, submitted, approved, or done — create it as a task with status "done". The user needs a complete picture of their project, not just what's left.
 - Do NOT create tasks for background info, context, history, mission statements, or descriptive text. That goes in the project background.
-- A 1-page dump should produce 3-10 tasks. A 10-page document should produce 15-30 tasks MAX.
-- Quality over quantity. Each task should be something the user would actually put on their to-do list.
+- A 1-page dump should produce 3-10 tasks. A 10-page document should produce 15-40 tasks.
 - If something is informational/context rather than actionable, put it in the project's background field, NOT as a task.
 - Background info, mission statements, team rosters, key decisions, context = project description updates.
-- You are not summarizing. You are CATALOGUING. Every discrete item gets its own task.
+- You are CATALOGUING the full state of this work — done, in-progress, and todo.
 
-## HOW TO DETECT STATUS
-DONE/COMPLETED — look for: [x], [X], checkmarks, "completed", "done", "finished", "locked", "filed", "approved", "executed", "received", "submitted", "active" (when describing a role/position that's filled), "signed", past tense verbs describing accomplished work, items under headers like "COMPLETED" or "WHAT'S LOCKED IN".
-TODO/PENDING — look for: [ ], empty checkbox, "pending", "needs to", "must", "should", "will", "plan to", "to-do", "next step", future tense, items under headers like "NEXT STEPS" or "TO DO" or "ACTION ITEMS".
+## HOW TO DETECT STATUS — THIS IS CRITICAL, GET IT RIGHT
+DONE/COMPLETED — AGGRESSIVELY detect completed work. Look for: [x], [X], checkmarks, "completed", "done", "finished", "locked", "filed", "approved", "executed", "received", "submitted", "signed", "selected", "confirmed", "secured", "decided", "chose", "set up", "created", "built", "wrote", "sent", "paid", past tense verbs describing accomplished work, items under headers like "COMPLETED" or "WHAT'S LOCKED IN" or "DONE" or "PROGRESS SO FAR". When in doubt between done and todo, look at the verb tense — past tense = DONE.
+TODO/PENDING — look for: [ ], empty checkbox, "pending", "needs to", "must", "should", "will", "plan to", "to-do", "next step", future tense, items under headers like "NEXT STEPS" or "TO DO" or "ACTION ITEMS" or "UPCOMING".
 IN-PROGRESS — look for: "working on", "currently", "in progress", "started", "underway", "building", present tense active work.
+
+IMPORTANT: A project document typically has BOTH completed and pending items. If you extract 20 tasks and zero are "done", you are almost certainly misreading the document. Go back and re-check for past-tense accomplishments.
 
 ## HOW TO SET PRIORITY
 URGENT — has a deadline within 7 days, blocks other work, user explicitly says "urgent" or "ASAP" or "immediately", legal/compliance deadlines.
@@ -4182,6 +4184,7 @@ NORMAL — standard task, needs doing but no special urgency.
 LOW — nice-to-have, future consideration, exploratory.
 
 ## HOW TO HANDLE DIFFERENT INPUT TYPES
+- **Project planning document**: This is a FULL PROJECT IMPORT. Extract everything — done items, pending items, phases, deadlines. Use phases liberally. A project doc with 30+ items is normal. Set status accurately: things already accomplished = "done", things planned = "todo".
 - **Checklist document with phases**: Each checkbox = one task. Preserve the phase/section header. Items under "Phase 3" get phase="Phase 3: [phase name]".
 - **Stream of consciousness**: Parse every distinct thought. "oh and the dentist moved to friday" = task: "Dentist appointment" with dueDate for Friday. "groceries: milk, eggs" = task: "Buy groceries" with notes "milk, eggs".
 - **Status update**: Things described as done = done tasks. Things described as next = todo tasks. Context about the project = projectUpdates.
