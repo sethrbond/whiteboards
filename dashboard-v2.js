@@ -13,9 +13,6 @@ document.addEventListener('keydown', function(e) {
 let _smartFeedExpanded = false;
 let _todayBriefingExpanded = false;
 
-// Store original renderDashboard for fallback
-const _origRenderDashboard = typeof renderDashboard === 'function' ? renderDashboard : null;
-
 // Helper: build AI status items from proactive worker results
 function getAIStatusItems() {
   const items = [];
@@ -169,10 +166,10 @@ renderDashboard = function() {
     return `<div style="max-width:480px;margin:60px auto;text-align:center">
       <div style="font-size:48px;margin-bottom:16px;opacity:0.3">✦</div>
       <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">A clean slate.</h2>
-      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:28px">Paste anything into Brainstorm and your AI co-pilot will organize it &mdash; meeting notes, project plans, brain dumps, anything.</p>
+      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:28px">Paste anything into Brain Dump and your AI co-pilot will organize it &mdash; meeting notes, plans, ideas, anything.</p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="openNewProject()">+ New Board</button>
-        <button class="btn" onclick="setView('dump')">↯ Brainstorm</button>
+        <button class="btn" onclick="setView('dump')">↯ Brain Dump</button>
       </div>
     </div>`;
   }

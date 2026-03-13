@@ -1945,7 +1945,7 @@ body {
     <button class="chat-close" onclick="toggleChat()" aria-label="Close chat">&times;</button>
   </div>
   <div class="chat-messages" id="chatMessages">
-    <div class="chat-msg ai">Hey! I'm your AI assistant. Ask me anything about your projects, tasks, or schedule.</div>
+    <div class="chat-msg ai">Hey! I'm your AI assistant. Ask me anything about your boards, tasks, or schedule.</div>
   </div>
   <div class="chat-input-row">
     <textarea class="chat-input" id="chatInput" rows="1" placeholder="Ask about a project, task, or anything..." aria-label="Chat message" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
@@ -2090,7 +2090,7 @@ function showOnboarding() {
     } else if (step === 2) {
       body = `<div class="onboarding-body">
         <div class="onboarding-title">Try your first brain dump</div>
-        <div class="onboarding-desc">Paste anything &mdash; meeting notes, a project plan, a to-do list, a stream of consciousness. AI will organize it into tasks and projects.</div>
+        <div class="onboarding-desc">Paste anything &mdash; meeting notes, a project plan, a to-do list, a stream of consciousness. AI will organize it into tasks and boards.</div>
         <textarea class="onboarding-textarea" id="onbDumpText" placeholder="e.g. I need to finish the quarterly report by Friday, schedule a dentist appointment, research flights to Tokyo for April..."></textarea>
         <div id="onbDumpStatus"></div>
         <div class="onboarding-actions">
@@ -2567,7 +2567,7 @@ function createProject(o = {}) {
 
 function ensureLifeProject() {
   if (!data.projects.find(p => p.name === LIFE_PROJECT_NAME)) {
-    data.projects.unshift(createProject({ name: LIFE_PROJECT_NAME, description: 'Everyday tasks, errands, personal stuff — anything not tied to a specific project.', color: '#4ade80' }));
+    data.projects.unshift(createProject({ name: LIFE_PROJECT_NAME, description: 'Everyday tasks, errands, personal stuff — anything not tied to a specific board.', color: '#4ade80' }));
     saveData(data);
   }
 }
@@ -2709,7 +2709,7 @@ function projectTasks(pid) { return applyTagFilter(data.tasks.filter(t => t.proj
 function activeTasks(pid) { return applyTagFilter((pid ? data.tasks.filter(t => t.project === pid) : data.tasks).filter(t => t.status !== 'done' && !t.archived)); }
 function doneTasks(pid) { return applyTagFilter((pid ? data.tasks.filter(t => t.project === pid) : data.tasks).filter(t => t.status === 'done' && !t.archived)); }
 function urgentTasks() { return data.tasks.filter(t => t.status !== 'done' && !t.archived && (t.priority === 'urgent' || (t.dueDate && t.dueDate <= todayStr()))); }
-function archivedTasks() { return data.tasks.filter(t => t.archived); } // MARKER
+function archivedTasks() { return data.tasks.filter(t => t.archived); }
 function cleanupArchive() {
   var cutoff = Date.now() - 2592000000; // 30 days
   var count = 0;
@@ -3016,7 +3016,7 @@ let _sfx=false,_tbx=false;function renderDashboard() {
   if (overdue.length) subGreeting = `${overdue.length} overdue — let's tackle those first.`;
   else if (urgent.length) subGreeting = `${urgent.length} urgent task${urgent.length > 1 ? 's' : ''} waiting.`;
   else if (dueToday.length) subGreeting = `${dueToday.length} due today.`;
-  else if (active.length) subGreeting = `${active.length} tasks across ${data.projects.length} projects.`;
+  else if (active.length) subGreeting = `${active.length} tasks across ${data.projects.length} boards.`;
   else subGreeting = 'Nothing pressing. A good day to plan ahead.';
 
   // Quick Capture + greeting in one tight row
@@ -4747,7 +4747,7 @@ async function consolidateMemories() {
     if (toArchive.length) { const arc = getAIMemoryArchive(); arc.push(...toArchive); saveAIMemoryArchive(arc); }
     pruneStaleMemories();
     localStorage.setItem(userKey('whiteboard_mem_consolidated'), new Date().toISOString());
-    console.log('AI memory consolidated: ' + mem.length + ' to ' + active.length + (toArchive.length ? ', ' + toArchive.length + ' archived' : ''));
+    // Memory consolidation complete
   } catch (e) { console.error('Memory consolidation error:', e); }
 }
 
@@ -5901,6 +5901,9 @@ function openSettings() {
       <button class="btn btn-sm btn-danger" onclick="confirmResetData()">Reset All Data</button>
     </div>
     <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="settings.apiKey=$('#fApiKey').value.trim();saveSettings(settings);closeModal();showToast('Saved')">Save</button></div>
+    <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--text3)">Whiteboards v1.0 &middot; <a onclick="showPrivacy()" style="color:var(--text3);cursor:pointer;text-decoration:underline">Privacy</a> &middot; <a onclick="showTerms()" style="color:var(--text3);cursor:pointer;text-decoration:underline">Terms</a></div>
+    </div>
   </div></div>`;
 }
 
