@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Whiteboards</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -373,8 +373,8 @@ body {
 }
 .cal-cell.today .cal-day-num { color: var(--accent); }
 .cal-task {
-  font-size: 10px;
-  padding: 3px 5px;
+  font-size: 11px;
+  padding: 4px 6px;
   margin-bottom: 2px;
   border-radius: 3px;
   background: var(--surface2);
@@ -399,6 +399,7 @@ body {
 .cal-task-more:hover { color: var(--accent); }
 /* Week view: taller cells */
 .cal-grid.week-view .cal-cell { min-height: 200px; }
+.cal-grid.week-view .cal-task { font-size: 11px; padding: 4px 6px; }
 
 .stat-card {
   background: var(--surface);
@@ -1011,6 +1012,17 @@ body {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeletonPulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 .ai-status {
   font-size: 12px;
@@ -1676,8 +1688,11 @@ body {
 
 /* ==================== MOBILE ==================== */
 @media (max-width: 768px) {
-  .sidebar { position: fixed; left: -260px; z-index: 80; height: 100vh; transition: left 0.3s; }
+  .sidebar { position: fixed; left: -260px; z-index: 80; height: 100vh; transition: left 0.3s; padding-bottom: env(safe-area-inset-bottom, 0); }
   .sidebar.open { left: 0; }
+  .main { padding-bottom: env(safe-area-inset-bottom, 0); }
+  .bulk-bar { bottom: env(safe-area-inset-bottom, 0); }
+  #chatPanel .chat-input-row { padding-bottom: env(safe-area-inset-bottom, 0); }
   .mobile-hamburger {
     display: flex !important;
     align-items: center;
@@ -1705,14 +1720,27 @@ body {
   .kanban { grid-template-columns: 1fr !important; }
   .cal-cell { min-height: 60px; padding: 4px; }
   .cal-grid.week-view .cal-cell { min-height: 120px; }
-  .cal-task { font-size: 9px; padding: 2px 4px; }
+  .cal-task { font-size: 10px; padding: 3px 5px; }
   .cal-period { font-size: 11px; min-width: 110px; }
   .cal-nav-btn { padding: 10px 14px; min-height: 44px; }
   .task-check { width: 24px !important; height: 24px !important; }
   .task-action-btn { width: 36px; height: 36px; }
-  .task-row .task-actions { display: flex !important; }
-  .task-row .task-tags { display: none; }
+  .task-row { flex-wrap: wrap; position: relative; }
+  .task-row .task-tags { display: flex !important; width: 100%; margin-top: 4px; padding-left: 36px; }
+  .task-row .task-actions { position: absolute; right: 8px; top: 8px; display: flex !important; }
   .mobile-hamburger { width: 44px !important; height: 44px !important; }
+}
+
+/* ==================== SMALL MOBILE ==================== */
+@media (max-width: 480px) {
+  .quick-capture { flex-wrap: wrap; gap: 8px; }
+  .quick-capture .quick-capture-input { width: 100%; min-width: unset; flex: 1 1 100%; }
+  .quick-capture .quick-capture-project { min-width: unset; flex: 1; }
+  .cal-grid:not(.week-view) { display: none !important; }
+  .cal-agenda-mobile { display: block !important; }
+}
+@media (min-width: 481px) {
+  .cal-agenda-mobile { display: none !important; }
 }
 
 /* ==================== AUTH SCREEN ==================== */
@@ -2167,6 +2195,7 @@ let projectViewMode = {}; // projectId -> 'list' | 'board'
 let showProjectBg = {}; // projectId -> boolean
 let dashViewMode = 'list'; // 'list' | 'week' | 'month'
 let calendarOffset = 0; // weeks or months offset from current
+let calendarExpandedDay = null; // ISO date string for expanded day in calendar
 const undoStack = []; // [{ label, snapshot }] — max 20
 const coachTipCache = {}; // taskId -> tip string
 
@@ -2237,9 +2266,10 @@ function updateTask(id, u) {
     if (cachedPlan) {
       try {
         const plan = JSON.parse(cachedPlan);
-        if (plan.some(p => p.id === id)) {
-          const updated = plan.filter(p => p.id !== id);
-          localStorage.setItem(planKey, JSON.stringify(updated));
+        const entry = plan.find(p => p.id === id);
+        if (entry && !entry.completedInPlan) {
+          entry.completedInPlan = true;
+          localStorage.setItem(planKey, JSON.stringify(plan));
         }
       } catch {}
     }
@@ -2430,10 +2460,12 @@ function render() {
   if (currentView === 'dashboard' && dashViewMode === 'list' && data.tasks.length > 0) {
     if (settings.apiKey && !localStorage.getItem('whiteboard_briefing_' + todayStr()) && !window._briefingGenerating) {
       window._briefingGenerating = true;
+      { const _bc = document.querySelector('.briefing-card'); if (_bc && !document.getElementById('briefingBody')) { const _bh = _bc.querySelector('.briefing-header'); if (_bh) _bh.insertAdjacentHTML('afterend', '<div class="skeleton-pulse" style="padding:16px 20px;min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Generating your briefing...</span></div>'); } }
       generateAIBriefing().finally(() => { window._briefingGenerating = false; });
     }
     if (settings.apiKey && !localStorage.getItem('whiteboard_plan_' + todayStr()) && !window._planGenerating) {
       window._planGenerating = true;
+      { const _pb = document.getElementById('planBtn'); if (_pb) { const _pc = _pb.closest('.briefing-card'); if (_pc) _pc.insertAdjacentHTML('afterend', '<div class="section"><div class="section-header"><div class="section-title" style="color:var(--accent)">Today\'s Plan</div><div class="section-line"></div></div><div class="skeleton-pulse" style="padding:16px 20px;min-height:80px;display:flex;align-items:center;justify-content:center"><span style="font-size:12px;color:var(--text3)">Planning your day...</span></div></div>'); } }
       planMyDay().finally(() => { window._planGenerating = false; });
     }
   }
@@ -2576,31 +2608,41 @@ function renderDashboard() {
         <div class="briefing-title">Briefing</div>
         <div class="briefing-date">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
       </div>
-      ${cachedBriefing ? `<div class="briefing-body" id="briefingBody">${cachedBriefing}</div>` : ''}
+      ${cachedBriefing ? `<div class="briefing-body" id="briefingBody">${cachedBriefing}</div>` : (window._briefingGenerating ? `<div class="skeleton-pulse" style="padding:16px 20px;min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Generating your briefing...</span></div>` : '')}
       <div style="display:flex;gap:8px">
         <button class="briefing-generate" onclick="generateAIBriefing()" id="briefingBtn">${cachedBriefing ? '↻ Refresh' : (window._briefingGenerating ? '✦ Generating...' : '✦ Generate Briefing')}</button>
         <button class="briefing-generate" onclick="planMyDay()" id="planBtn" style="color:var(--accent)">◎ Plan My Day</button>
       </div>
     </div>`;
 
-  // Daily Plan (if generated)
+  // Daily Plan (if generated or generating)
   const planKey = 'whiteboard_plan_' + todayStr();
   const cachedPlan = localStorage.getItem(planKey);
   if (cachedPlan) {
     try {
       const plan = JSON.parse(cachedPlan);
-      html += `<div class="section"><div class="section-header"><div class="section-title" style="color:var(--accent)">Today's Plan</div><div class="section-count">${plan.length}</div><div class="section-line"></div><span style="font-size:10px;color:var(--text3);cursor:pointer" onclick="localStorage.removeItem('${planKey}');render()">clear</span></div>`;
+      const doneCount = plan.filter(p => p.completedInPlan || (data.tasks.find(x => x.id === p.id) && data.tasks.find(x => x.id === p.id).status === 'done')).length;
+      const totalCount = plan.filter(p => data.tasks.find(x => x.id === p.id)).length;
+      html += `<div class="section"><div class="section-header"><div class="section-title" style="color:var(--accent)">Today's Plan</div><div class="section-count" style="font-size:10px;color:${doneCount === totalCount && totalCount > 0 ? 'var(--green)' : 'var(--text3)'}">${doneCount} of ${totalCount} done</div><div class="section-line"></div><span style="font-size:10px;color:var(--text3);cursor:pointer" onclick="localStorage.removeItem('${planKey}');render()">clear</span></div>`;
       plan.forEach((p, i) => {
         const t = data.tasks.find(x => x.id === p.id);
         if (!t) return;
-        html += `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:2px">
+        const isDone = p.completedInPlan || t.status === 'done';
+        html += `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:2px;${isDone ? 'text-decoration:line-through;opacity:0.5' : ''}">
           <span style="font-size:11px;color:var(--text3);min-width:18px;padding-top:10px">${i + 1}.</span>
           <div style="flex:1">${renderTaskRow(t, true)}</div>
+          ${!isDone ? `<button onclick="snoozePlanTask('${p.id}')" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:8px 4px;white-space:nowrap;flex-shrink:0" title="Snooze to tomorrow" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">snooze</button>` : ''}
         </div>`;
         if (p.why) html += `<div style="margin-left:28px;font-size:11px;color:var(--text3);margin-bottom:8px;margin-top:-4px;font-style:italic">↳ ${esc(p.why)}</div>`;
       });
+      html += `<div style="margin-top:8px"><button onclick="replanDay()" class="briefing-generate" style="color:var(--accent);font-size:11px">↻ Replan</button></div>`;
       html += `</div>`;
     } catch {}
+  } else if (window._planGenerating) {
+    html += `<div class="section"><div class="section-header"><div class="section-title" style="color:var(--accent)">Today's Plan</div><div class="section-line"></div></div>
+      <div class="skeleton-pulse" style="padding:16px 20px;min-height:80px;display:flex;align-items:center;justify-content:center">
+        <span style="font-size:12px;color:var(--text3)">Planning your day...</span>
+      </div></div>`;
   }
   }
 
@@ -2787,26 +2829,73 @@ function renderCalendar() {
       return (po[a.priority]||2) - (po[b.priority]||2);
     });
 
-    html += `<div class="cal-cell${isToday ? ' today' : ''}${isOutside ? ' outside' : ''}">`;
+    const isExpanded = calendarExpandedDay === iso;
+    const visibleLimit = isExpanded ? sorted.length : MAX_VISIBLE;
+    html += `<div class="cal-cell${isToday ? ' today' : ''}${isOutside ? ' outside' : ''}" onclick="openNewTask('','${iso}')" style="cursor:pointer">`;
     html += `<div class="cal-day-num">${cursor.getDate()}</div>`;
 
-    sorted.slice(0, MAX_VISIBLE).forEach(t => {
+    sorted.slice(0, visibleLimit).forEach(t => {
       const proj = data.projects.find(p => p.id === t.project);
       const priClass = t.status !== 'done' && (t.priority === 'urgent' || t.priority === 'important') ? ` pri-${t.priority}` : '';
       const doneClass = t.status === 'done' ? ' done' : '';
-      html += `<div class="cal-task${priClass}${doneClass}" onclick="expandedTask=expandedTask==='${t.id}'?null:'${t.id}';render()" title="${esc(t.title)}${proj ? ' — '+esc(proj.name) : ''}">`;
+      html += `<div class="cal-task${priClass}${doneClass}" onclick="event.stopPropagation();expandedTask=expandedTask==='${t.id}'?null:'${t.id}';render()" title="${esc(t.title)}${proj ? ' — '+esc(proj.name) : ''}">`;
       if (proj) html += `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${proj.color};margin-right:3px;vertical-align:middle"></span>`;
       html += `${esc(t.title)}</div>`;
     });
 
     if (sorted.length > MAX_VISIBLE) {
-      html += `<div class="cal-task-more" onclick="expandedTask=null;render()">+${sorted.length - MAX_VISIBLE} more</div>`;
+      if (isExpanded) {
+        html += `<div class="cal-task-more" onclick="event.stopPropagation();calendarExpandedDay=null;render()">Show less</div>`;
+      } else {
+        html += `<div class="cal-task-more" onclick="event.stopPropagation();calendarExpandedDay='${iso}';render()">+${sorted.length - MAX_VISIBLE} more</div>`;
+      }
     }
 
     html += `</div>`;
     cursor.setDate(cursor.getDate() + 1);
   }
   html += `</div>`;
+
+  // Mobile agenda view for month (replaces grid on screens under 480px via CSS)
+  if (!isWeek) {
+    html += `<div class="cal-agenda-mobile">`;
+    const mStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const mEnd = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    const ac = new Date(mStart);
+    let hasAnyTasks = false;
+    while (ac <= mEnd) {
+      const aiso = localISO(ac);
+      const aTasks = tasksByDate[aiso] || [];
+      if (aTasks.length > 0) {
+        hasAnyTasks = true;
+        const aIsToday = aiso === todayISO;
+        const dayLabel = ac.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        html += `<div style="margin-top:12px">`;
+        html += `<div style="font-size:12px;font-weight:600;color:${aIsToday ? 'var(--accent)' : 'var(--text2)'};margin-bottom:6px;padding:4px 0;border-bottom:1px solid var(--border)">${dayLabel}${aIsToday ? ' (Today)' : ''}</div>`;
+        aTasks.sort((a,b) => {
+          if (a.status === 'done' && b.status !== 'done') return 1;
+          if (a.status !== 'done' && b.status === 'done') return -1;
+          const po = { urgent: 0, important: 1, normal: 2, low: 3 };
+          return (po[a.priority]||2) - (po[b.priority]||2);
+        });
+        aTasks.forEach(t => {
+          const proj = data.projects.find(p => p.id === t.project);
+          const doneStyle = t.status === 'done' ? 'text-decoration:line-through;color:var(--text3)' : '';
+          const priDot = t.priority === 'urgent' ? '<span style="color:var(--red);margin-right:4px">&#9679;</span>' : t.priority === 'important' ? '<span style="color:var(--orange);margin-right:4px">&#9679;</span>' : '';
+          html += `<div style="padding:6px 8px;font-size:13px;cursor:pointer;border-radius:var(--radius-xs);${doneStyle}" onclick="expandedTask=expandedTask==='${t.id}'?null:'${t.id}';render()">`;
+          html += priDot;
+          if (proj) html += `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${proj.color};margin-right:5px;vertical-align:middle"></span>`;
+          html += `${esc(t.title)}</div>`;
+        });
+        html += `</div>`;
+      }
+      ac.setDate(ac.getDate() + 1);
+    }
+    if (!hasAnyTasks) {
+      html += `<div style="text-align:center;padding:32px 0;color:var(--text3);font-size:13px">No tasks scheduled this month</div>`;
+    }
+    html += `</div>`;
+  }
 
   // Expanded task detail below calendar
   if (expandedTask) {
@@ -3914,8 +4003,9 @@ function saveEditProject(id) {
   render();
 }
 
-function openNewTask(projectId = '') {
+function openNewTask(projectId = '', prefillDate = '') {
   const projOpts = data.projects.map(p => `<option value="${p.id}" ${p.id===projectId?'selected':''}>${esc(p.name)}</option>`).join('');
+  const dueDateValue = prefillDate || '';
   $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
     <div class="modal-title">New Task</div>
     <div class="form-group"><label class="form-label">Title</label><input class="form-input" id="fTitle" placeholder="What needs to be done?" autofocus></div>
@@ -3925,12 +4015,13 @@ function openNewTask(projectId = '') {
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Project</label><select class="form-select" id="fProject"><option value="">None</option>${projOpts}</select></div>
-      <div class="form-group"><label class="form-label">Due Date</label>${smartDateInput('fDue', '')}</div>
+      <div class="form-group"><label class="form-label">Due Date</label>${smartDateInput('fDue', dueDateValue)}${settings.apiKey ? '<div style="margin-top:3px"><span id="suggestDateLink" onclick="suggestDueDate()" style="font-size:11px;color:var(--accent);cursor:pointer;user-select:none">✦ Suggest date</span></div><div id="suggestDateHint" style="min-height:14px"></div>' : ''}</div>
     </div>
     <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveNewTask()">Add</button></div>
   </div></div>`;
   $('#fTitle').focus();
   $('#fTitle').onkeydown = e => { if (e.key === 'Enter') saveNewTask(); };
+  if (dueDateValue) { const prev = document.getElementById('fDue_preview'); if (prev) { const d = new Date(dueDateValue + 'T12:00:00'); prev.innerHTML = '<span style="color:var(--green)">' + d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + '</span>'; prev.style.display = 'block'; } }
 }
 
 function saveNewTask() {
@@ -3955,7 +4046,7 @@ function openEditTask(id) {
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Project</label><select class="form-select" id="fProject"><option value="">None</option>${projOpts}</select></div>
-      <div class="form-group"><label class="form-label">Due Date</label>${smartDateInput('fDue', t.dueDate||'')}</div>
+      <div class="form-group"><label class="form-label">Due Date</label>${smartDateInput('fDue', t.dueDate||'')}${!t.dueDate && settings.apiKey ? '<div style="margin-top:3px"><span id="suggestDateLink" onclick="suggestDueDate()" style="font-size:11px;color:var(--accent);cursor:pointer;user-select:none">✦ Suggest date</span></div><div id="suggestDateHint" style="min-height:14px"></div>' : ''}</div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Repeats</label><select class="form-select" id="fRecurrence"><option value="" ${!t.recurrence?'selected':''}>Never</option><option value="daily" ${t.recurrence==='daily'?'selected':''}>Daily</option><option value="weekly" ${t.recurrence==='weekly'?'selected':''}>Weekly</option><option value="monthly" ${t.recurrence==='monthly'?'selected':''}>Monthly</option></select></div>
@@ -3986,6 +4077,46 @@ function saveEditTask(id) {
   render();
 }
 
+// --- AI Due Date Suggestion ---
+async function suggestDueDate(formContext) {
+  const hintEl = document.getElementById('suggestDateHint');
+  const linkEl = document.getElementById('suggestDateLink');
+  if (!hintEl || !linkEl) return;
+  if (!settings.apiKey) { hintEl.innerHTML = '<span style="color:var(--text3);font-size:11px">Add API key in Settings to enable</span>'; return; }
+  linkEl.textContent = 'Thinking...';
+  linkEl.style.pointerEvents = 'none';
+  try {
+    const title = $('#fTitle')?.value?.trim() || '';
+    if (!title) { hintEl.innerHTML = '<span style="color:var(--text3);font-size:11px">Enter a title first</span>'; linkEl.textContent = '✦ Suggest date'; linkEl.style.pointerEvents = ''; return; }
+    const priority = $('#fPriority')?.value || 'normal';
+    const projectId = $('#fProject')?.value || '';
+    const project = data.projects.find(p => p.id === projectId);
+    const projectName = project ? project.name : 'No project';
+    const projectDeadlines = projectId
+      ? data.tasks.filter(t => t.project === projectId && t.dueDate && t.status !== 'done').sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 8).map(t => `${t.title} (${t.dueDate})`).join(', ') || 'none'
+      : 'none';
+    const prompt = `${AI_PERSONA_SHORT}\n\nGiven this task: "${title}" with priority ${priority} in project "${projectName}", and these upcoming deadlines in the same project: ${projectDeadlines}, and today's date is ${todayStr()}, suggest a due date. Return ONLY a JSON object: { "date": "YYYY-MM-DD", "reason": "brief reason" }. If you can't determine a good date, return { "date": null, "reason": "Not enough context" }.`;
+    const reply = await callAI(prompt, { maxTokens: 100 });
+    const match = reply.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON in response');
+    const result = JSON.parse(match[0]);
+    if (result.date) {
+      const dueInput = $('#fDue');
+      if (dueInput) { dueInput.value = result.date; if (typeof previewSmartDate === 'function') previewSmartDate('fDue'); }
+      hintEl.innerHTML = `<span style="color:var(--text3);font-size:11px">✦ ${esc(result.reason)}</span>`;
+    } else {
+      hintEl.innerHTML = `<span style="color:var(--text3);font-size:11px">${esc(result.reason)}</span>`;
+    }
+    linkEl.textContent = '✦ Suggest date';
+    linkEl.style.pointerEvents = '';
+  } catch (e) {
+    console.error('Date suggestion error:', e);
+    hintEl.innerHTML = `<span style="color:var(--text3);font-size:11px">Couldn't suggest a date</span>`;
+    linkEl.textContent = '✦ Suggest date';
+    linkEl.style.pointerEvents = '';
+  }
+}
+
 // ============================================================
 // AI CORE — Unified context, memory, persona, action executor
 // ============================================================
@@ -3997,6 +4128,24 @@ function getAIMemory() {
 function saveAIMemory(mem) {
   try { localStorage.setItem('whiteboard_ai_memory', JSON.stringify(mem.slice(-50))); } catch(e) { console.error('Memory save error:', e); }
   scheduleSyncToCloud();
+}
+function addAIMemory(text, type) {
+  const mem = getAIMemory();
+  const newWords = new Set(text.toLowerCase().split(/\s+/));
+  const isDupe = mem.some(m => {
+    const existingWords = new Set((m.text || '').toLowerCase().split(/\s+/));
+    const overlap = [...newWords].filter(w => existingWords.has(w)).length;
+    const similarity = overlap / Math.max(newWords.size, existingWords.size);
+    return similarity > 0.7;
+  });
+  if (isDupe) return;
+  mem.push({ text, type: type || 'note', date: todayStr() });
+  while (mem.length > 50) {
+    const reflIdx = mem.findIndex(m => m.type === 'reflection');
+    if (reflIdx >= 0) mem.splice(reflIdx, 1);
+    else mem.shift();
+  }
+  saveAIMemory(mem);
 }
 
 // --- Unified Context Builder ---
@@ -4159,8 +4308,24 @@ function matchProject(query) {
   return findSimilarProject(query);
 }
 
+// --- Confirmation for destructive AI actions ---
+function confirmAIAction(message) {
+  return new Promise(resolve => {
+    document.querySelectorAll('.toast.ai-confirm').forEach(t => { t._resolve(false); t.remove(); });
+    const toast = document.createElement('div');
+    toast.className = 'toast ai-confirm';
+    toast.style.cssText = 'bottom:80px;display:flex;align-items:center;gap:12px;max-width:420px;';
+    toast.innerHTML = `<span style="flex:1;line-height:1.4">${esc(message)}</span>
+      <button class="btn btn-sm" style="background:var(--green);color:#fff;white-space:nowrap" onclick="this.parentElement._resolve(true);this.parentElement.remove()">Yes</button>
+      <button class="btn btn-sm" style="white-space:nowrap" onclick="this.parentElement._resolve(false);this.parentElement.remove()">No</button>`;
+    toast._resolve = resolve;
+    document.body.appendChild(toast);
+    setTimeout(() => { if (toast.parentElement) { resolve(false); toast.remove(); } }, 10000);
+  });
+}
+
 // --- Centralized Action Executor ---
-function executeAIActions(reply) {
+async function executeAIActions(reply) {
   const actionsMatch = reply.match(/```(?:actions|json)\s*([\s\S]*?)```/);
   if (!actionsMatch) return { applied: 0, insights: [] };
   pushUndo('AI actions');
@@ -4168,7 +4333,7 @@ function executeAIActions(reply) {
   const insights = [];
   try {
     const actions = JSON.parse(actionsMatch[1]);
-    actions.forEach(a => {
+    for (const a of actions) {
       try {
         switch (a.action) {
           case 'create_task': {
@@ -4198,7 +4363,10 @@ function executeAIActions(reply) {
           case 'delete_task': {
             if (!a.taskTitle) break;
             const match = matchTask(a.taskTitle);
-            if (match) { deleteTask(match.id, true); applied++; }
+            if (match) {
+              const confirmed = await confirmAIAction(`AI wants to delete "${esc(match.title)}". Allow?`);
+              if (confirmed) { deleteTask(match.id, true); applied++; }
+            }
             break;
           }
           case 'move_task': {
@@ -4223,12 +4391,15 @@ function executeAIActions(reply) {
             if (!a.taskTitle || !a.into) break;
             const match = matchTask(a.taskTitle);
             if (match) {
-              a.into.forEach(item => {
-                addTask(createTask({ title: item.title, project: match.project, priority: item.priority || match.priority, notes: item.notes || '', dueDate: item.dueDate || '' }));
-              });
-              data.tasks = data.tasks.filter(x => x.id !== match.id); // remove without double-undo
-              saveData(data);
-              applied++;
+              const confirmed = await confirmAIAction(`AI wants to split "${esc(match.title)}" into ${a.into.length} tasks. Allow?`);
+              if (confirmed) {
+                a.into.forEach(item => {
+                  addTask(createTask({ title: item.title, project: match.project, priority: item.priority || match.priority, notes: item.notes || '', dueDate: item.dueDate || '' }));
+                });
+                data.tasks = data.tasks.filter(x => x.id !== match.id); // remove without double-undo
+                saveData(data);
+                applied++;
+              }
             }
             break;
           }
@@ -4242,6 +4413,10 @@ function executeAIActions(reply) {
             if (a.filter.priority) targets = targets.filter(t => t.priority === a.filter.priority);
             if (a.filter.status) targets = targets.filter(t => t.status === a.filter.status);
             if (targets.length > 20) break; // safety cap
+            if (targets.length > 5) {
+              const confirmed = await confirmAIAction(`AI wants to update ${targets.length} tasks. Allow?`);
+              if (!confirmed) break;
+            }
             targets.forEach(t => updateTask(t.id, a.fields));
             if (targets.length) applied++;
             break;
@@ -4276,13 +4451,8 @@ function executeAIActions(reply) {
           }
           case 'save_memory': {
             if (!a.text) break;
-            const mem = getAIMemory();
-            // Avoid duplicates
-            if (!mem.some(m => m.text === a.text)) {
-              mem.push({ text: a.text, type: a.type || 'note', date: todayStr() });
-              saveAIMemory(mem);
-              applied++;
-            }
+            addAIMemory(a.text, a.type || 'note');
+            applied++;
             break;
           }
           case 'suggest_insight': {
@@ -4291,7 +4461,7 @@ function executeAIActions(reply) {
           }
         }
       } catch (err) { console.error('Action exec error:', a.action, err); }
-    });
+    }
   } catch (e) { console.error('Action parse error:', e); }
   return { applied, insights };
 }
@@ -5151,10 +5321,29 @@ function saveNewHabit() {
 // ============================================================
 function openSettings() {
   const mem = getAIMemory();
-  const memHTML = mem.length ? mem.map((m, i) => `<div style="display:flex;align-items:start;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xs);margin-bottom:4px">
+  const _typeLabels = { preference: 'Preferences', pattern: 'Patterns', context: 'Context', reflection: 'Reflections', note: 'Notes' };
+  const _typeOrder = ['preference', 'pattern', 'context', 'reflection', 'note'];
+  let memHTML = '';
+  if (mem.length) {
+    const grouped = {};
+    mem.forEach((m, i) => {
+      const type = (m.type && _typeLabels[m.type]) ? m.type : 'note';
+      if (!grouped[type]) grouped[type] = [];
+      grouped[type].push({ m, i });
+    });
+    _typeOrder.forEach(type => {
+      if (!grouped[type] || !grouped[type].length) return;
+      memHTML += `<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:6px 2px 4px;margin-top:4px">${_typeLabels[type]}</div>`;
+      grouped[type].forEach(({ m, i }) => {
+        memHTML += `<div style="display:flex;align-items:start;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xs);margin-bottom:4px">
     <div style="flex:1;font-size:11px;color:var(--text2);line-height:1.4">${esc(typeof m === 'string' ? m : m.text || JSON.stringify(m))}</div>
-    <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;padding:2px 6px;color:var(--text3)" onclick="deleteAIMemory(${i})" title="Remove">✕</button>
-  </div>`).join('') : '<div style="font-size:11px;color:var(--text3);padding:8px">No memories yet. AI learns about you as you interact.</div>';
+    <button class="btn btn-sm" style="flex-shrink:0;font-size:10px;padding:2px 6px;color:var(--text3)" onclick="deleteAIMemory(${i})" title="Remove">&#x2715;</button>
+  </div>`;
+      });
+    });
+  } else {
+    memHTML = '<div style="font-size:11px;color:var(--text3);padding:8px">No memories yet. AI learns about you as you interact.</div>';
+  }
 
   $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:540px">
     <div class="modal-title">Settings</div>
@@ -5577,10 +5766,32 @@ function renderWeeklyReview() {
       <button class="btn btn-sm" id="reviewBtn" onclick="generateWeeklyReview()">${cached ? 'Refresh' : 'Generate'}</button>
     </div>
     <div id="reviewBody" style="font-size:13px;color:var(--text2);line-height:1.6">${cached || 'Click Generate for an AI-powered reflection on your week — wins, patterns, and what to focus on next.'}</div>
+    ${cached ? `<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px"><button class="btn btn-sm" onclick="discussReview()" style="background:var(--accent);color:#fff">Discuss this review</button></div>` : ''}
   </div>`;
 
   html += `</div>`;
   return html;
+}
+
+function discussReview() {
+  const body = document.getElementById('reviewBody');
+  const reviewText = body ? body.textContent : '';
+  if (!reviewText || reviewText.startsWith('Click Generate')) { showToast('Generate a review first', true); return; }
+  chatHistory = [
+    { role: 'user', content: 'I just read my weekly review. Here\'s what it said:\n\n' + reviewText + '\n\nI want to discuss it.' }
+  ];
+  saveChatHistory();
+  window._chatSessionStarted = false;
+  const panel = document.getElementById('chatPanel');
+  if (!panel.classList.contains('open')) panel.classList.add('open');
+  window._chatSessionStarted = true;
+  const messagesEl = document.getElementById('chatMessages');
+  if (messagesEl) {
+    messagesEl.innerHTML = '<div class="chat-msg user">I just read my weekly review and want to discuss it.</div>';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  document.getElementById('chatTitle').textContent = 'AI Assistant';
+  document.getElementById('chatInput').focus();
 }
 
 async function generateWeeklyReview() {
@@ -5629,7 +5840,17 @@ Keep it under 200 words. Be encouraging but honest.`;
     text = esc(text).replace(/^[-•*]\s*/gm, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     const reviewKey = 'whiteboard_review_' + weekStart;
     localStorage.setItem(reviewKey, text);
-    if (body) body.innerHTML = text;
+    if (body) {
+      body.innerHTML = text;
+      // Add discuss button if not already present
+      const wrapper = body.parentElement;
+      if (wrapper && !wrapper.querySelector('.review-discuss-btn')) {
+        const discussDiv = document.createElement('div');
+        discussDiv.style.cssText = 'margin-top:14px;border-top:1px solid var(--border);padding-top:12px';
+        discussDiv.innerHTML = '<button class="btn btn-sm review-discuss-btn" onclick="discussReview()" style="background:var(--accent);color:#fff">Discuss this review</button>';
+        wrapper.appendChild(discussDiv);
+      }
+    }
     if (btn) btn.textContent = 'Refresh';
   } catch (err) {
     if (btn) btn.textContent = 'Error — try again';
@@ -5694,6 +5915,24 @@ Return ONLY a JSON array, no other text:
   if (btn) btn.textContent = '◎ Plan My Day';
 }
 
+function snoozePlanTask(taskId) {
+  const planKey = 'whiteboard_plan_' + todayStr();
+  try {
+    const plan = JSON.parse(localStorage.getItem(planKey) || '[]');
+    const updated = plan.filter(p => p.id !== taskId);
+    localStorage.setItem(planKey, JSON.stringify(updated));
+    showToast('Snoozed to tomorrow');
+    render();
+  } catch {}
+}
+
+function replanDay() {
+  localStorage.removeItem('whiteboard_plan_' + todayStr());
+  window._planGenerating = true;
+  render();
+  planMyDay().finally(() => { window._planGenerating = false; });
+}
+
 async function generateAIBriefing() {
   if (!settings.apiKey) return;
   const btn = document.getElementById('briefingBtn');
@@ -5750,9 +5989,7 @@ async function submitEndOfDay() {
     let reply = await callAI(eodPrompt, { maxTokens: 256 });
     const formatted = esc(reply).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     localStorage.setItem('wb_eod_' + today, formatted);
-    const mem = getAIMemory();
-    mem.push({ type: 'reflection', text: userInput + ' — AI: ' + reply.replace(/\n/g, ' ').slice(0, 150), date: today });
-    saveAIMemory(mem);
+    addAIMemory(userInput + ' — AI: ' + reply.replace(/\n/g, ' ').slice(0, 150), 'reflection');
     const card = document.getElementById('eodCard');
     if (card) {
       card.innerHTML = '<div class="eod-header"><span style="font-size:14px;color:var(--purple)">&#9790;</span><div class="eod-title">End of Day</div><span style="font-size:11px;color:var(--text3);margin-left:auto">Today</span></div><div class="eod-response">' + formatted + '</div>';
@@ -5937,7 +6174,7 @@ ${context}`;
     chatHistory.push({ role: 'assistant', content: reply });
     saveChatHistory();
 
-    const { applied, insights } = executeAIActions(reply);
+    const { applied, insights } = await executeAIActions(reply);
     if (applied) render();
 
     const cleanReply = reply.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim();
@@ -6316,9 +6553,16 @@ function nudgeFilterUnassigned() {
 // ============================================================
 function maybeReflect(t) {
   if (!settings.apiKey) return;
-  // Only reflect on ~30% of completions, and only for non-trivial tasks
-  const isNontrivial = t.priority === 'urgent' || t.priority === 'important' || (t.subtasks && t.subtasks.length >= 2) || (t.notes && t.notes.length > 20);
-  if (!isNontrivial || Math.random() > 0.7) return;
+  // Significance-based: always reflect on important completions, rarely on trivial ones
+  const daysSinceCreation = t.createdAt ? Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000) : 0;
+  const significance = (
+    (t.priority === 'urgent' ? 3 : t.priority === 'important' ? 2 : 0) +
+    (t.subtasks && t.subtasks.length >= 3 ? 2 : 0) +
+    (t.notes && t.notes.length > 50 ? 1 : 0) +
+    (daysSinceCreation > 7 ? 2 : daysSinceCreation > 3 ? 1 : 0)
+  );
+  const threshold = significance >= 4 ? 0 : significance >= 2 ? 0.5 : 0.85;
+  if (Math.random() > (1 - threshold)) return;
 
   const proj = data.projects.find(p => p.id === t.project);
   const relatedActive = data.tasks.filter(x => x.status !== 'done' && x.project === t.project && x.id !== t.id);
@@ -6348,9 +6592,7 @@ ONE sentence max. Be genuine, not performative. No "Great job!" energy.`;
       showReflectionToast(clean);
       // Save insightful reflections to AI memory
       if (clean.length > 20) {
-        const mem = getAIMemory();
-        mem.push({ type: 'reflection', text: clean, task: t.title, date: todayStr() });
-        saveAIMemory(mem);
+        addAIMemory(clean, 'reflection');
       }
     }
   }).catch(() => {});
