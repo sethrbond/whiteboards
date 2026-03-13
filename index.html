@@ -10,9 +10,13 @@
 <meta property="og:description" content="Brain dump your thoughts, AI organizes them into tasks. The productivity tool that thinks with you.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.whiteboards.dev">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="https://www.whiteboards.dev/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Whiteboards — AI-powered productivity">
 <meta name="twitter:description" content="Brain dump your thoughts, AI organizes them into tasks.">
+<meta name="twitter:image" content="https://www.whiteboards.dev/og-image.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23818cf8'/><text x='50' y='68' text-anchor='middle' font-size='52' font-weight='bold' fill='white'>W</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -5639,8 +5643,8 @@ function openSettings() {
 
   $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:540px">
     <div class="modal-title">Settings</div>
-    <div class="form-group"><label class="form-label">Claude API Key <span style="color:var(--text3);font-weight:400">(optional)</span></label><input class="form-input" id="fApiKey" type="password" value="${esc(settings.apiKey)}" placeholder="Leave blank to use shared AI" style="font-family:monospace"></div>
-    <p style="font-size:11px;color:var(--text3);margin-bottom:16px">AI is included. Add your own key to use your personal API account instead.</p>
+    <div class="form-group"><label class="form-label">Claude API Key <span style="color:var(--text3);font-weight:400">(optional)</span></label><div style="position:relative"><input class="form-input" id="fApiKey" type="password" value="${esc(settings.apiKey)}" placeholder="Leave blank to use shared AI" style="font-family:monospace;padding-right:40px"><button type="button" onclick="var f=document.getElementById('fApiKey');f.type=f.type==='password'?'text':'password';this.textContent=f.type==='password'?'show':'hide'" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:4px">show</button></div></div>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:16px">AI is included for all users (60 requests/hour). Add your own key from <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent)">console.anthropic.com</a> for unlimited use.</p>
 
     <div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -5660,6 +5664,7 @@ function openSettings() {
     </div>
     <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="settings.apiKey=$('#fApiKey').value.trim();saveSettings(settings);closeModal();showToast('Saved')">Save</button></div>
     <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="margin-bottom:8px"><button class="btn btn-sm" onclick="localStorage.removeItem(userKey('wb_tips_seen'));closeModal();setTimeout(showFeatureTips,300)" style="font-size:10px;color:var(--text3)">Show feature tips again</button></div>
       <div style="font-size:10px;color:var(--text3)">Whiteboards v1.0 &middot; <a onclick="showPrivacy()" style="color:var(--text3);cursor:pointer;text-decoration:underline">Privacy</a> &middot; <a onclick="showTerms()" style="color:var(--text3);cursor:pointer;text-decoration:underline">Terms</a></div>
     </div>
   </div></div>`;
