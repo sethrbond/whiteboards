@@ -19,11 +19,11 @@ const _origRenderDashboard = typeof renderDashboard === 'function' ? renderDashb
 // Helper: build AI status items from proactive worker results
 function getAIStatusItems() {
   const items = [];
-  const flagKey = 'whiteboard_proactive_' + todayStr();
+  const flagKey = userKey('whiteboard_proactive_' + todayStr());
   const proactiveRan = localStorage.getItem(flagKey);
 
   // Check proactive log for today
-  const logKey = 'wb_proactive_log_' + new Date().toISOString().slice(0, 10);
+  const logKey = userKey('wb_proactive_log_' + new Date().toISOString().slice(0, 10));
   let todayLog = [];
   try { todayLog = JSON.parse(localStorage.getItem(logKey) || '[]'); } catch(e) {}
 
@@ -388,7 +388,7 @@ renderDashboard = function() {
   }
 
   // ===== End of Day (keep original) =====
-  const eodKey = 'wb_eod_' + todayStr();
+  const eodKey = userKey('wb_eod_' + todayStr());
   const cachedEod = localStorage.getItem(eodKey);
   const completedToday = data.tasks.filter(t => t.status === 'done' && t.completedAt && t.completedAt.slice(0, 10) === todayStr());
   if (new Date().getHours() >= 17 && hasAI() && completedToday.length >= 1) {

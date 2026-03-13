@@ -2055,6 +2055,7 @@ function showApp() {
   document.querySelector('.main').style.display = '';
   document.getElementById('chatToggle').style.display = '';
   ensureLifeProject();
+  try { proactiveLog = JSON.parse(localStorage.getItem(userKey('wb_proactive_log_' + new Date().toISOString().slice(0, 10))) || '[]'); } catch(e) { proactiveLog = []; }
   processRecurringTasks();
   cleanupStaleLocalStorage();
   cleanupArchive();
@@ -2503,8 +2504,7 @@ let _briefingGenerating = false;
 let _planGenerating = false;
 let _proactiveRunning = false;
 let proactiveLog = [];
-// Load today's proactive log from localStorage on startup
-try { proactiveLog = JSON.parse(localStorage.getItem(userKey('wb_proactive_log_' + new Date().toISOString().slice(0, 10))) || '[]'); } catch(e) { proactiveLog = []; }
+// proactiveLog is loaded after auth in showApp() — userKey() needs currentUser
 let _chatSessionStarted = false;
 let _nudgeFilter = '';
 let _showTagFilter = false;
@@ -5922,15 +5922,17 @@ function importData(input) {
       if (d.projects && d.projects.length > 10000) { showToast('Import too large (max 10,000 boards)', true); return; }
       const validTasks = d.tasks.every(t => t && typeof t.id === 'string' && typeof t.title === 'string');
       if (!validTasks) { showToast('Invalid task data: tasks must have id and title strings', true); return; }
+      // Sanitize: strip any HTML tags from imported strings (data is escaped at render time)
+      const stripTags = s => typeof s === 'string' ? s.replace(/<[^>]*>/g, '') : s;
       d.tasks = d.tasks.map(t => {
         const clean = {};
-        for (const [k, v] of Object.entries(t)) { clean[k] = typeof v === 'string' ? esc(v) : v; }
+        for (const [k, v] of Object.entries(t)) { clean[k] = stripTags(v); }
         return clean;
       });
       if (d.projects && Array.isArray(d.projects)) {
         d.projects = d.projects.map(p => {
           const clean = {};
-          for (const [k, v] of Object.entries(p)) { clean[k] = typeof v === 'string' ? esc(v) : v; }
+          for (const [k, v] of Object.entries(p)) { clean[k] = stripTags(v); }
           return clean;
         });
       }
