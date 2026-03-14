@@ -5698,7 +5698,7 @@ ${text}`;
         method: 'POST',
         signal: dumpAbort.signal,
         headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', ..._ep.headers },
-        body: JSON.stringify({ model: settings.aiModel, max_tokens: 16384, messages: [{ role: 'user', content: finalPrompt }] }),
+        body: JSON.stringify({ model: settings.aiModel || 'claude-haiku-4-5-20251001', max_tokens: 16384, messages: [{ role: 'user', content: finalPrompt }] }),
       });
       if (!resp.ok) throw new Error(resp.status === 429 ? 'AI is busy. Please wait a moment.' : 'AI service error. Please try again.');
       const result = await resp.json();
@@ -5716,7 +5716,7 @@ ${text}`;
           method: 'POST',
           signal: dumpAbort.signal,
           headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', ..._ep.headers },
-          body: JSON.stringify({ model: settings.aiModel, max_tokens: 16384, messages: [{ role: 'user', content: chunkPrompt }] }),
+          body: JSON.stringify({ model: settings.aiModel || 'claude-haiku-4-5-20251001', max_tokens: 16384, messages: [{ role: 'user', content: chunkPrompt }] }),
         });
         if (!resp.ok) throw new Error(resp.status === 429 ? 'AI is busy. Please wait a moment.' : 'AI service error. Please try again.');
         const result = await resp.json();
