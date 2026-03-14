@@ -961,6 +961,13 @@ body {
 
 .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
 
+.dump-review-row {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  border-radius: var(--radius-sm); cursor: pointer; transition: background 0.1s;
+  border: 1px solid transparent;
+}
+.dump-review-row:hover { background: var(--surface2); border-color: var(--border); }
+
 .form-group { margin-bottom: 14px; }
 
 .form-label {
@@ -3146,7 +3153,24 @@ function todayStr() { const d = new Date(); return d.getFullYear() + '-' + Strin
 
 function sortTasks(tasks) {
   const po = { urgent: 0, important: 1, normal: 2, low: 3 };
+  // If a daily plan exists, boost planned tasks to the top in plan order
+  let planIndex = null;
+  try {
+    const planRaw = localStorage.getItem(userKey('whiteboard_plan_' + todayStr()));
+    if (planRaw) {
+      const plan = JSON.parse(planRaw);
+      planIndex = {};
+      plan.forEach((p, i) => { planIndex[p.id] = i; });
+    }
+  } catch(e) {}
   return [...tasks].sort((a, b) => {
+    if (planIndex) {
+      const aIn = planIndex.hasOwnProperty(a.id);
+      const bIn = planIndex.hasOwnProperty(b.id);
+      if (aIn && !bIn) return -1;
+      if (!aIn && bIn) return 1;
+      if (aIn && bIn) return planIndex[a.id] - planIndex[b.id];
+    }
     const sd = (a.status === 'in-progress' ? 0 : 1) - (b.status === 'in-progress' ? 0 : 1);
     if (sd) return sd;
     const pd = po[a.priority] - po[b.priority];
@@ -4711,9 +4735,52 @@ function openNewTask(projectId = '', prefillDate = '') {
 function saveNewTask() {
   const title = $('#fTitle').value.trim();
   if (!title) return;
-  addTask(createTask({ title, notes: $('#fNotes').value.trim(), priority: $('#fPriority').value, project: $('#fProject').value, dueDate: resolveSmartDate('fDue') }));
+  const priority = $('#fPriority').value;
+  const project = $('#fProject').value;
+  const newTask = createTask({ title, notes: $('#fNotes').value.trim(), priority, project, dueDate: resolveSmartDate('fDue') });
+  addTask(newTask);
   closeModal();
   render();
+  // AI auto-classify: if user left priority as normal and no project, ask AI to suggest
+  if (hasAI() && priority === 'normal' && !project) {
+    autoClassifyTask(newTask);
+  }
+  maybeProactiveEnhance(newTask);
+}
+
+async function autoClassifyTask(task) {
+  try {
+    const projects = data.projects.map(p => p.name + ' (id:' + p.id + ')').join(', ');
+    const resp = await callAI(
+      'Classify this task. Title: "' + task.title + '"\nExisting projects: ' + projects +
+      '\n\nReturn JSON only: {"project":"project_id or empty","priority":"urgent|important|normal|low","reason":"5 words max"}' +
+      '\nRules: only use an existing project ID. Only set urgent/important if clearly warranted. If unsure, leave project empty and priority normal.',
+      { maxTokens: 100 }
+    );
+    if (!resp) return;
+    const match = resp.match(/\{[\s\S]*\}/);
+    if (!match) return;
+    const cls = JSON.parse(match[0]);
+    const updates = {};
+    let changed = false;
+    if (cls.project && data.projects.find(p => p.id === cls.project)) {
+      updates.project = cls.project;
+      changed = true;
+    }
+    if (cls.priority && cls.priority !== 'normal' && ['urgent','important','low'].includes(cls.priority)) {
+      updates.priority = cls.priority;
+      changed = true;
+    }
+    if (changed) {
+      updateTask(task.id, updates);
+      const proj = updates.project ? data.projects.find(p => p.id === updates.project) : null;
+      const parts = [];
+      if (proj) parts.push('→ ' + proj.name);
+      if (updates.priority) parts.push(updates.priority);
+      showToast('✦ Auto-classified: ' + parts.join(', '));
+      render();
+    }
+  } catch (e) { /* silent — classification is best-effort */ }
 }
 
 function openEditTask(id) {
@@ -5665,169 +5732,10 @@ ${text}`;
 
     if (!parsed) throw new Error('Could not parse AI response. Please try again.');
 
-    const items = parsed.tasks || parsed || [];
-    const projectUpdates = parsed.projectUpdates || [];
-    const projectMap = {};
-    let created = 0, updated = 0, completed = 0, projectsUpdated = 0, boardsNewCount = 0;
-
-    // Process project updates (short description + detailed background)
-    projectUpdates.forEach(pu => {
-      if (!pu.name) return;
-      const existing = findSimilarProject(pu.name);
-      if (existing) {
-        const updates = {};
-        // Description: enforce SHORT subtitle — max 80 chars, first sentence only
-        if (pu.description) {
-          const shortDesc = enforceShortDesc(pu.description);
-          if (!existing.description || existing.description.length > 80) {
-            updates.description = shortDesc;
-          }
-        }
-        // Background: detailed info goes here — overwrite with new if provided
-        if (pu.background) {
-          updates.background = pu.background;
-        }
-        // Safety: if AI stuffed details into description, rescue overflow to background
-        if (pu.description && pu.description.length > 80 && !pu.background) {
-          updates.description = enforceShortDesc(pu.description);
-          updates.background = pu.description;
-        }
-        if (Object.keys(updates).length) updateProject(existing.id, updates);
-        projectMap[pu.name] = existing.id;
-        projectsUpdated++;
-      } else if (pu.isNew !== false) {
-        let desc = enforceShortDesc(pu.description || '');
-        let bg = pu.background || '';
-        // If AI dumped everything into description, rescue it to background
-        if ((pu.description || '').length > 80 && !bg) {
-          bg = pu.description;
-        }
-        const p = createProject({ name: pu.name, description: desc, background: bg });
-        addProject(p);
-        projectMap[pu.name] = p.id;
-        projectsUpdated++;
-        boardsNewCount++;
-      }
-    });
-
-    // NOTE: Brainstorm and chat use different action schemas.
-    // Brainstorm: { action: "create"|"update"|"complete", title, suggestedProject, ... }
-    // Chat: { action: "create_task"|"update_task"|..., title, project, ... }
-    // Future: unify into single format via executeAIActions()
-
-    // Process tasks
-    (Array.isArray(items) ? items : []).forEach(item => {
-      if (!item || (!item.title && !item.id)) return;
-
-      // Resolve project — fuzzy match before creating
-      if (item.suggestedProject) {
-        if (!projectMap[item.suggestedProject]) {
-          const existing = findSimilarProject(item.suggestedProject);
-          if (existing) {
-            projectMap[item.suggestedProject] = existing.id;
-          } else {
-            // Only create a new project if the AI explicitly marked it as new in projectUpdates
-            // Otherwise assign to Life — don't auto-create projects from task suggestions
-            const wasExplicitlyCreated = (parsed.projectUpdates || []).some(pu => normalizeTitle(pu.name) === normalizeTitle(item.suggestedProject));
-            if (wasExplicitlyCreated) {
-              const p = createProject({ name: item.suggestedProject });
-              addProject(p);
-              projectMap[item.suggestedProject] = p.id;
-            } else {
-              projectMap[item.suggestedProject] = getLifeProjectId();
-            }
-          }
-        }
-      }
-
-      const projId = projectMap[item.suggestedProject] || '';
-
-      if (item.action === 'complete' && item.id) {
-        updateTask(item.id, { status: 'done' });
-        completed++;
-      } else if (item.action === 'update' && item.id) {
-        const fields = item.updateFields || {};
-        if (item.dueDate) fields.dueDate = item.dueDate;
-        if (item.priority) fields.priority = item.priority;
-        if (item.notes) {
-          const t = data.tasks.find(x => x.id === item.id);
-          if (t) { if (!t.updates) t.updates = []; t.updates.push({ date: todayStr(), text: item.notes }); }
-        }
-        updateTask(item.id, fields);
-        updated++;
-      } else if (item.title) {
-        // Fuzzy dedup — find similar tasks by normalized title + word overlap
-        const dupe = findSimilarTask(item.title, projId);
-        if (dupe) {
-          // Update existing instead of creating duplicate
-          const updates = {};
-          if (item.status && item.status !== dupe.status) updates.status = item.status;
-          if (item.notes && item.notes !== dupe.notes) updates.notes = (dupe.notes ? dupe.notes + '\n' : '') + item.notes;
-          if (item.dueDate && !dupe.dueDate) updates.dueDate = item.dueDate;
-          if (item.priority && item.priority !== dupe.priority && item.priority !== 'normal') updates.priority = item.priority;
-          if (item.estimatedMinutes && !dupe.estimatedMinutes) updates.estimatedMinutes = parseInt(item.estimatedMinutes) || 0;
-          if (Object.keys(updates).length) updateTask(dupe.id, updates);
-          updated++;
-        } else {
-          const taskStatus = item.status || 'todo';
-          const st = (item.subtasks || []).map(s => ({ id: genId('st'), title: s, done: taskStatus === 'done' }));
-          let taskNotes = item.notes || '';
-          const t = createTask({
-            title: item.title, notes: taskNotes,
-            priority: item.priority || 'normal', horizon: item.horizon || 'short',
-            dueDate: item.dueDate || '',
-            project: projId, phase: item.phase || '',
-            status: taskStatus, subtasks: st,
-            recurrence: item.recurrence || '',
-            estimatedMinutes: parseInt(item.estimatedMinutes) || 0,
-          });
-          if (taskStatus === 'done') t.completedAt = new Date().toISOString();
-          addTask(t);
-          created++;
-        }
-      }
-    });
-
-    // Process patterns detected by AI
-    const patterns = parsed.patterns || [];
-
-    const parts = [];
-    if (created) parts.push(`${created} tasks created`);
-    if (updated) parts.push(`${updated} updated`);
-    if (completed) parts.push(`${completed} completed`);
-    if (projectsUpdated) parts.push(`${projectsUpdated} projects`);
-    if (patterns.length) parts.push(`${patterns.length} patterns found`);
-    const doneCount = (Array.isArray(items) ? items : []).filter(i => i.status === 'done' || i.action === 'complete').length;
-    if (doneCount) parts.push(`${doneCount} logged as done`);
-
-    // Capture results for before/after visualization
-    const newTaskItems = (Array.isArray(items) ? items : []);
-    lastDumpResult = {
-      wordCount: text.split(/\s+/).filter(Boolean).length,
-      tasksCreated: created,
-      tasksDone: newTaskItems.filter(i => i.status === 'done' || i.action === 'complete').length,
-      tasksInProgress: newTaskItems.filter(i => i.status === 'in-progress').length,
-      tasksTodo: newTaskItems.filter(i => !i.status || i.status === 'todo').length,
-      boardsCreated: boardsNewCount,
-      boardsUpdated: projectsUpdated - boardsNewCount,
-      inputSnippet: text.slice(0, 200),
-      tasksByBoard: (()=>{const m={};(Array.isArray(items)?items:[]).forEach(i=>{const n=i.suggestedProject||'Unsorted';m[n]=(m[n]||0)+1});return m})()
-    };
-
-    saveDumpHistory({date:new Date().toISOString(),wordCount:lastDumpResult.wordCount,tasksCreated:lastDumpResult.tasksCreated,boardsCreated:lastDumpResult.boardsCreated||0});
-    showToast(parts.length ? `✦ ${parts.join(', ')}` : 'Organized', false, true);
-
-    if ($('#dumpText')) $('#dumpText').value = '';
-    clearDumpDraft();
-    dumpAttachments = [];
+    // Show review modal instead of immediately committing
     _dumpInProgress = false;
-    render(); // Re-render to show results card
-
-    // Post-dump: user can manually ask questions via chat if needed
-    // NOTE: Removed auto-reorganize — was silently changing tasks the user hadn't reviewed yet.
-    // User can manually trigger via project menu or chat.
-    // NOTE: Do NOT auto-regenerate backgrounds here — brainstorm already set them.
-    // Auto-regen was overwriting the brainstorm's structured background with a generic one.
+    if (statusEl) statusEl.innerHTML = '';
+    showDumpReviewModal(parsed, text);
 
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -5845,6 +5753,248 @@ ${text}`;
 
 function cancelDump() {
   if (dumpAbort) dumpAbort.abort();
+}
+
+function showDumpReviewModal(parsed, inputText) {
+  const items = parsed.tasks || parsed || [];
+  const taskItems = (Array.isArray(items) ? items : []).filter(item => item && (item.title || item.id));
+  const totalCount = taskItems.length;
+
+  // Priority colors for badges
+  const prioColors = { urgent: 'var(--red)', important: 'var(--orange)', normal: 'var(--accent)', low: 'var(--text3)' };
+  const statusLabels = { done: 'Done', 'in-progress': 'In Progress', todo: 'To Do' };
+  const statusColors = { done: 'var(--green)', 'in-progress': 'var(--blue, var(--accent))', todo: 'var(--text3)' };
+
+  const rows = taskItems.map((item, i) => {
+    const title = esc(item.title || `Update: ${item.id || '?'}`);
+    const project = esc(item.suggestedProject || '');
+    const priority = item.priority || 'normal';
+    const status = item.status || (item.action === 'complete' ? 'done' : item.action === 'update' ? 'update' : 'todo');
+    const action = item.action || 'create';
+    const actionLabel = action === 'update' ? 'Update' : action === 'complete' ? 'Complete' : '';
+    const prioColor = prioColors[priority] || 'var(--text3)';
+    const statColor = statusColors[status] || 'var(--text3)';
+    const statLabel = actionLabel || statusLabels[status] || status;
+
+    return `<label class="dump-review-row" data-idx="${i}">
+      <input type="checkbox" checked data-dump-check="${i}" style="accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+          ${project ? `<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:var(--accent-dim);color:var(--accent)">${project}</span>` : ''}
+          <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:color-mix(in srgb, ${prioColor} 12%, transparent);color:${prioColor}">${priority}</span>
+          <span style="font-size:10px;padding:2px 7px;border-radius:4px;background:color-mix(in srgb, ${statColor} 12%, transparent);color:${statColor}">${statLabel}</span>
+        </div>
+      </div>
+    </label>`;
+  }).join('');
+
+  const updateCheckedCount = () => {
+    const checks = document.querySelectorAll('[data-dump-check]');
+    const checked = Array.from(checks).filter(c => c.checked).length;
+    const applyBtn = document.getElementById('dumpReviewApplyBtn');
+    if (applyBtn) applyBtn.textContent = `Apply Selected (${checked})`;
+  };
+
+  $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this){closeModal();undo()}" style="z-index:9999">
+    <div class="modal" style="max-width:560px;max-height:85vh;display:flex;flex-direction:column;padding:0">
+      <div style="padding:20px 24px 0;flex-shrink:0">
+        <div class="modal-title" style="margin-bottom:4px">Review extracted tasks</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:16px">${totalCount} task${totalCount !== 1 ? 's' : ''} found · uncheck any you don't want</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:0 24px;display:flex;flex-direction:column;gap:2px" id="dumpReviewList">
+        ${rows || '<div style="color:var(--text3);padding:20px;text-align:center">No tasks extracted</div>'}
+      </div>
+      <div style="padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;align-items:center">
+        <label style="font-size:11px;color:var(--text3);cursor:pointer;margin-right:auto;display:flex;align-items:center;gap:6px;user-select:none">
+          <input type="checkbox" checked id="dumpReviewSelectAll" style="accent-color:var(--accent);cursor:pointer" onchange="document.querySelectorAll('[data-dump-check]').forEach(c=>{c.checked=this.checked});(${updateCheckedCount.toString()})()">
+          Select all
+        </label>
+        <button class="btn" onclick="closeModal();undo()" style="font-size:12px">Cancel</button>
+        <button class="btn btn-primary" id="dumpReviewApplyBtn" style="font-size:12px" onclick="applyDumpResults()">Apply Selected (${totalCount})</button>
+      </div>
+    </div>
+  </div>`;
+
+  // Wire up individual checkbox change events to update count
+  document.querySelectorAll('[data-dump-check]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      updateCheckedCount();
+      const all = document.getElementById('dumpReviewSelectAll');
+      const checks = document.querySelectorAll('[data-dump-check]');
+      const checkedCount = Array.from(checks).filter(c => c.checked).length;
+      if (all) all.checked = checkedCount === checks.length;
+    });
+  });
+
+  // Store parsed data for applyDumpResults
+  window._dumpReviewData = { parsed, inputText };
+}
+
+function applyDumpResults() {
+  const reviewData = window._dumpReviewData;
+  if (!reviewData) return;
+  const { parsed, inputText } = reviewData;
+  window._dumpReviewData = null;
+
+  // Gather selected indices from checkboxes
+  const checks = document.querySelectorAll('[data-dump-check]');
+  const selectedIndices = new Set();
+  checks.forEach(cb => { if (cb.checked) selectedIndices.add(parseInt(cb.dataset.dumpCheck)); });
+
+  closeModal();
+
+  const allItems = parsed.tasks || parsed || [];
+  const taskItems = (Array.isArray(allItems) ? allItems : []).filter(item => item && (item.title || item.id));
+  // Filter to only selected tasks
+  const items = taskItems.filter((_, i) => selectedIndices.has(i));
+
+  if (items.length === 0) {
+    showToast('No tasks selected', false, false);
+    undo(); // restore pre-brainstorm state since nothing applied
+    return;
+  }
+
+  const projectUpdates = parsed.projectUpdates || [];
+  const projectMap = {};
+  let created = 0, updated = 0, completed = 0, projectsUpdated = 0, boardsNewCount = 0;
+
+  // Process project updates (short description + detailed background)
+  projectUpdates.forEach(pu => {
+    if (!pu.name) return;
+    const existing = findSimilarProject(pu.name);
+    if (existing) {
+      const updates = {};
+      if (pu.description) {
+        const shortDesc = enforceShortDesc(pu.description);
+        if (!existing.description || existing.description.length > 80) {
+          updates.description = shortDesc;
+        }
+      }
+      if (pu.background) {
+        updates.background = pu.background;
+      }
+      if (pu.description && pu.description.length > 80 && !pu.background) {
+        updates.description = enforceShortDesc(pu.description);
+        updates.background = pu.description;
+      }
+      if (Object.keys(updates).length) updateProject(existing.id, updates);
+      projectMap[pu.name] = existing.id;
+      projectsUpdated++;
+    } else if (pu.isNew !== false) {
+      let desc = enforceShortDesc(pu.description || '');
+      let bg = pu.background || '';
+      if ((pu.description || '').length > 80 && !bg) {
+        bg = pu.description;
+      }
+      const p = createProject({ name: pu.name, description: desc, background: bg });
+      addProject(p);
+      projectMap[pu.name] = p.id;
+      projectsUpdated++;
+      boardsNewCount++;
+    }
+  });
+
+  // Process selected tasks
+  items.forEach(item => {
+    if (!item || (!item.title && !item.id)) return;
+
+    if (item.suggestedProject) {
+      if (!projectMap[item.suggestedProject]) {
+        const existing = findSimilarProject(item.suggestedProject);
+        if (existing) {
+          projectMap[item.suggestedProject] = existing.id;
+        } else {
+          const wasExplicitlyCreated = (parsed.projectUpdates || []).some(pu => normalizeTitle(pu.name) === normalizeTitle(item.suggestedProject));
+          if (wasExplicitlyCreated) {
+            const p = createProject({ name: item.suggestedProject });
+            addProject(p);
+            projectMap[item.suggestedProject] = p.id;
+          } else {
+            projectMap[item.suggestedProject] = getLifeProjectId();
+          }
+        }
+      }
+    }
+
+    const projId = projectMap[item.suggestedProject] || '';
+
+    if (item.action === 'complete' && item.id) {
+      updateTask(item.id, { status: 'done' });
+      completed++;
+    } else if (item.action === 'update' && item.id) {
+      const fields = item.updateFields || {};
+      if (item.dueDate) fields.dueDate = item.dueDate;
+      if (item.priority) fields.priority = item.priority;
+      if (item.notes) {
+        const t = data.tasks.find(x => x.id === item.id);
+        if (t) { if (!t.updates) t.updates = []; t.updates.push({ date: todayStr(), text: item.notes }); }
+      }
+      updateTask(item.id, fields);
+      updated++;
+    } else if (item.title) {
+      const dupe = findSimilarTask(item.title, projId);
+      if (dupe) {
+        const updates = {};
+        if (item.status && item.status !== dupe.status) updates.status = item.status;
+        if (item.notes && item.notes !== dupe.notes) updates.notes = (dupe.notes ? dupe.notes + '\n' : '') + item.notes;
+        if (item.dueDate && !dupe.dueDate) updates.dueDate = item.dueDate;
+        if (item.priority && item.priority !== dupe.priority && item.priority !== 'normal') updates.priority = item.priority;
+        if (item.estimatedMinutes && !dupe.estimatedMinutes) updates.estimatedMinutes = parseInt(item.estimatedMinutes) || 0;
+        if (Object.keys(updates).length) updateTask(dupe.id, updates);
+        updated++;
+      } else {
+        const taskStatus = item.status || 'todo';
+        const st = (item.subtasks || []).map(s => ({ id: genId('st'), title: s, done: taskStatus === 'done' }));
+        let taskNotes = item.notes || '';
+        const t = createTask({
+          title: item.title, notes: taskNotes,
+          priority: item.priority || 'normal', horizon: item.horizon || 'short',
+          dueDate: item.dueDate || '',
+          project: projId, phase: item.phase || '',
+          status: taskStatus, subtasks: st,
+          recurrence: item.recurrence || '',
+          estimatedMinutes: parseInt(item.estimatedMinutes) || 0,
+        });
+        if (taskStatus === 'done') t.completedAt = new Date().toISOString();
+        addTask(t);
+        created++;
+      }
+    }
+  });
+
+  const patterns = parsed.patterns || [];
+
+  const parts = [];
+  if (created) parts.push(`${created} tasks created`);
+  if (updated) parts.push(`${updated} updated`);
+  if (completed) parts.push(`${completed} completed`);
+  if (projectsUpdated) parts.push(`${projectsUpdated} projects`);
+  if (patterns.length) parts.push(`${patterns.length} patterns found`);
+  const doneCount = items.filter(i => i.status === 'done' || i.action === 'complete').length;
+  if (doneCount) parts.push(`${doneCount} logged as done`);
+
+  const text = inputText;
+  lastDumpResult = {
+    wordCount: text.split(/\s+/).filter(Boolean).length,
+    tasksCreated: created,
+    tasksDone: items.filter(i => i.status === 'done' || i.action === 'complete').length,
+    tasksInProgress: items.filter(i => i.status === 'in-progress').length,
+    tasksTodo: items.filter(i => !i.status || i.status === 'todo').length,
+    boardsCreated: boardsNewCount,
+    boardsUpdated: projectsUpdated - boardsNewCount,
+    inputSnippet: text.slice(0, 200),
+    tasksByBoard: (()=>{const m={};items.forEach(i=>{const n=i.suggestedProject||'Unsorted';m[n]=(m[n]||0)+1});return m})()
+  };
+
+  saveDumpHistory({date:new Date().toISOString(),wordCount:lastDumpResult.wordCount,tasksCreated:lastDumpResult.tasksCreated,boardsCreated:lastDumpResult.boardsCreated||0});
+  showToast(parts.length ? `✦ ${parts.join(', ')}` : 'Organized', false, true);
+
+  if ($('#dumpText')) $('#dumpText').value = '';
+  clearDumpDraft();
+  dumpAttachments = [];
+  _dumpInProgress = false;
+  render();
 }
 
 function enforceShortDesc(desc) {
@@ -6472,6 +6622,10 @@ function submitQuickAdd() {
   render();
   if (isComplexInput(raw)) { aiEnhanceTask(newTask.id, raw); }
   maybeProactiveEnhance(newTask);
+  // Auto-classify if using default project and default priority
+  if (hasAI() && priority === 'normal' && proj === getLifeProjectId() && data.projects.length > 1) {
+    autoClassifyTask(newTask);
+  }
   const parts = [title];
   if (dueDate) parts.push(`due ${fmtDate(dueDate)}`);
   if (priority !== 'normal') parts.push(priority);
