@@ -19,8 +19,8 @@ const ALLOWED_MODELS = new Set([
 const RATE_LIMIT_HOUR = 60     // max requests per IP per rolling hour
 const RATE_LIMIT_DAY = 300     // max requests per IP per rolling day
 const MAX_MESSAGES = 20        // max messages in a conversation
-const MAX_SYSTEM_CHARS = 8000  // max system prompt length
-const MAX_MESSAGE_CHARS = 15000 // max single message length
+const MAX_SYSTEM_CHARS = 16000  // max system prompt length
+const MAX_MESSAGE_CHARS = 60000 // max single message length (chunked brainstorm needs room)
 const MAX_TOKENS_NORMAL = 16384 // max_tokens cap for non-streaming (brainstorm needs 16k)
 const MAX_TOKENS_STREAM = 8192  // max_tokens cap for streaming
 
