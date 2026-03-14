@@ -24,6 +24,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onerror="document.getElementById('splashStatus')&&(document.getElementById('splashStatus').textContent='Loading... If this takes too long, try refreshing.')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
   var _sbTimer = setTimeout(function(){
@@ -5435,7 +5437,7 @@ async function callAI(prompt, opts = {}) {
 // ============================================================
 // BRAINSTORM
 // ============================================================
-let dumpAttachments = []; // stub — referenced in processDump cleanup
+let _dumpAttachments = []; // stub — referenced in processDump cleanup
 let dumpAbort = null; // AbortController for cancelling brainstorm
 let _dumpInProgress = false; // true while brainstorm is processing (survives navigation)
 let lastDumpResult = null; // { wordCount, tasksCreated, tasksDone, tasksInProgress, tasksTodo, boardsCreated, boardsUpdated, inputSnippet }
@@ -5478,22 +5480,33 @@ function renderDump() {
 
   const hasKey = hasAI();
   const draft = esc(loadDumpDraft());
-  const _dumpHints = ["What's on your mind? Paste anything — meeting notes, project plans, to-do lists, random thoughts...","Try pasting a meeting transcript, a Slack thread, or just stream your thoughts here...","Got a wall of text? Drop it here — AI will find every task hiding in it..."];
+  const _dumpHints = ["What's on your mind? Add notes, context, or just brainstorm freely...","Drop a document and add your thoughts — what project is this for?","Attach files and tell the AI what to do with them..."];
   const placeholder = _dumpHints[Math.floor(Date.now() / 60000) % _dumpHints.length];
+  const attachCount = _dumpAttachments.length;
+  const attachHtml = attachCount ? `<div id="dumpAttachList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${_dumpAttachments.map((a, i) =>
+    `<div class="dump-attach-chip" style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;font-size:12px;max-width:260px">
+      <span style="font-size:16px">${a.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</div>
+        <div style="font-size:10px;color:var(--text3)">${a.size} · ${a.pages ? a.pages + ' pages' : Math.round(a.textLength/1000) + 'K chars'}</div>
+      </div>
+      <button onclick="_dumpAttachments.splice(${i},1);render()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 2px" title="Remove">×</button>
+    </div>`).join('')}</div>` : '';
   return `<div class="dump-area">
     <p style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">
-      Just let it out — stream of consciousness, project updates, documents, whatever's on your mind.<br>AI reads through everything, extracts every task and detail, spots patterns with your existing work, organizes it all by project and priority.
+      Drop files or add your thoughts — AI reads everything, extracts tasks, and organizes by project and priority.
       ${!hasKey ? '<br><span style="color:var(--orange)">Add a Claude API key in Settings for AI parsing.</span>' : ''}
     </p>
+    ${attachHtml}
     <div style="position:relative">
       <textarea class="dump-textarea" id="dumpText" placeholder="${placeholder}">${draft}</textarea>
-      <div id="dumpDropOverlay" style="display:none;position:absolute;inset:0;background:rgba(var(--accent-rgb,99,102,241),.12);border:2px dashed var(--accent);border-radius:var(--radius);pointer-events:none;z-index:2;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent)">Drop file to import text</div>
+      <div id="dumpDropOverlay" style="display:none;position:absolute;inset:0;background:rgba(var(--accent-rgb,99,102,241),.12);border:2px dashed var(--accent);border-radius:var(--radius);pointer-events:none;z-index:2;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent)">Drop file to attach</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-      <div style="font-size:11px;color:var(--text3);flex:1">Tip: paste a document, drop a file, or just stream your thoughts.</div>
-      <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);padding:4px 8px;border:1px solid var(--border);border-radius:6px;white-space:nowrap" title="Attach a file (.pdf, .txt, .md, .csv, .json)">
+      <div style="font-size:11px;color:var(--text3);flex:1">${attachCount ? attachCount + ' file' + (attachCount > 1 ? 's' : '') + ' attached. Add notes above for context.' : 'Drop files here or attach below. Supports PDF, Word, Excel, text, and more.'}</div>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);padding:4px 8px;border:1px solid var(--border);border-radius:6px;white-space:nowrap" title="Attach a file">
         <span style="font-size:14px">📎</span> Attach file
-        <input type="file" accept=".pdf,.txt,.md,.csv,.json,.log,.xml,.html,.rtf,.doc,.docx" style="display:none" onchange="handleDumpFile(this.files)">
+        <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.json,.log,.xml,.html,.rtf,.pages,.numbers" multiple style="display:none" onchange="handleDumpFiles(this.files)">
       </label>
     </div>
     <div class="dump-bar">
@@ -5503,6 +5516,14 @@ function renderDump() {
     ${renderDumpHistory()}
   </div>`;
 }
+
+// ── Attachment system ────────────────────────────────────────────────────────
+// Attachments are processed into text but displayed as chips, not dumped into textarea
+let __dumpAttachments = []; // { name, icon, size, textLength, pages, extractedText }
+
+const _fileIcons = { pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', csv: '📊', txt: '📃', md: '📃', json: '📃', html: '🌐', xml: '🌐', rtf: '📃', pages: '📝', numbers: '📊', log: '📃' };
+function _fileIcon(name) { const ext = name.split('.').pop().toLowerCase(); return _fileIcons[ext] || '📎'; }
+function _fileSize(bytes) { if (bytes < 1024) return bytes + ' B'; if (bytes < 1048576) return Math.round(bytes/1024) + ' KB'; return (bytes/1048576).toFixed(1) + ' MB'; }
 
 function readFileAsText(file) {
   return new Promise((resolve, reject) => {
@@ -5522,47 +5543,82 @@ function readFileAsArrayBuffer(file) {
   });
 }
 
-async function extractPDFText(file) {
-  if (typeof pdfjsLib === 'undefined') throw new Error('PDF library not loaded');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const arrayBuffer = await readFileAsArrayBuffer(file);
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const pages = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const text = content.items.map(item => item.str).join(' ');
-    if (text.trim()) pages.push(text);
+async function extractFileText(file) {
+  const name = file.name.toLowerCase();
+  const ext = name.split('.').pop();
+  const buf = await readFileAsArrayBuffer(file);
+
+  // PDF
+  if (ext === 'pdf' || file.type === 'application/pdf') {
+    if (typeof pdfjsLib === 'undefined') throw new Error('PDF library loading...');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map(item => item.str).join(' '));
+    }
+    return { text: pages.join('\n\n'), pages: pdf.numPages };
   }
-  return pages.join('\n\n');
+
+  // Word (.docx)
+  if (ext === 'docx' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    if (typeof mammoth === 'undefined') throw new Error('Word library loading...');
+    const result = await mammoth.extractRawText({ arrayBuffer: buf });
+    return { text: result.value };
+  }
+
+  // Excel (.xlsx, .xls) and CSV
+  if (['xlsx', 'xls', 'csv', 'numbers'].includes(ext) || file.type.includes('spreadsheet')) {
+    if (typeof XLSX === 'undefined') throw new Error('Spreadsheet library loading...');
+    const workbook = XLSX.read(buf, { type: 'array' });
+    const sheets = [];
+    workbook.SheetNames.forEach(name => {
+      const sheet = workbook.Sheets[name];
+      const text = XLSX.utils.sheet_to_csv(sheet);
+      if (text.trim()) sheets.push('--- Sheet: ' + name + ' ---\n' + text);
+    });
+    return { text: sheets.join('\n\n'), pages: workbook.SheetNames.length };
+  }
+
+  // Plain text fallback (txt, md, json, html, xml, rtf, log, etc.)
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+  // Detect binary garbage
+  const binaryChars = (text.match(/[\x00-\x08\x0E-\x1F]/g) || []).length;
+  if (binaryChars > text.length * 0.1) throw new Error('Binary file — cannot extract text. Try exporting as PDF first.');
+  return { text };
 }
 
-async function handleDumpFile(files) {
-  if (!files || !files.length) return;
-  const file = files[0];
-  const maxSize = 10 * 1024 * 1024; // 10MB
-  if (file.size > maxSize) { showToast('File too large (max 10MB). Try a smaller file or paste the text directly.', true); return; }
-  const isPDF = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
-  try {
-    let text;
-    if (isPDF) {
-      showToast('Extracting text from PDF...');
-      text = await extractPDFText(file);
-      if (!text.trim()) { showToast('Could not extract text from this PDF. It may be image-based (scanned).', true); return; }
-    } else {
-      text = await readFileAsText(file);
+async function handleDumpFiles(fileList) {
+  if (!fileList || !fileList.length) return;
+  for (const file of fileList) {
+    if (file.size > 10 * 1024 * 1024) { showToast(file.name + ' is too large (max 10MB)', true); continue; }
+    try {
+      showToast('Processing ' + file.name + '...');
+      const result = await extractFileText(file);
+      if (!result.text.trim()) { showToast('No text found in ' + file.name + '. It may be image-based.', true); continue; }
+      _dumpAttachments.push({
+        name: file.name,
+        icon: _fileIcon(file.name),
+        size: _fileSize(file.size),
+        textLength: result.text.length,
+        pages: result.pages || null,
+        extractedText: result.text
+      });
+      showToast('Attached ' + file.name);
+    } catch (e) {
+      console.error('File processing error:', e);
+      showToast('Could not process ' + file.name + '. ' + (e.message || 'Try a different format.'), true);
     }
-    const ta = document.getElementById('dumpText');
-    if (ta) {
-      const prefix = ta.value.trim() ? ta.value.trim() + '\n\n--- Attached: ' + file.name + ' ---\n' : '';
-      ta.value = prefix + text;
-      saveDumpDraft();
-      showToast('Imported ' + file.name + (isPDF ? ' (' + Math.round(text.length/1000) + 'K chars)' : ''));
-    }
-  } catch (e) {
-    console.error('File import error:', e);
-    showToast(isPDF ? 'Could not read PDF. Try a different file.' : 'Could not read file. Try a plain text file (.txt, .md, .csv).', true);
   }
+  render();
+}
+
+// Get combined text from all attachments for AI processing
+function getDumpAttachmentText() {
+  if (!_dumpAttachments.length) return '';
+  return _dumpAttachments.map(a => `\n\n=== ATTACHED FILE: ${a.name} ===\n${a.extractedText}`).join('');
 }
 
 function initDumpDropZone() {
@@ -5571,21 +5627,22 @@ function initDumpDropZone() {
   ta.addEventListener('input', () => saveDumpDraft());
 
   const overlay = document.getElementById('dumpDropOverlay');
+  // Use the dump-area parent for drag events so drops work anywhere in the zone
+  const area = ta.closest('.dump-area') || ta;
 
-  ta.addEventListener('dragover', (e) => {
+  area.addEventListener('dragover', (e) => {
     e.preventDefault();
     if (overlay) overlay.style.display = 'flex';
   });
-  ta.addEventListener('dragleave', () => {
-    if (overlay) overlay.style.display = 'none';
+  area.addEventListener('dragleave', (e) => {
+    // Only hide if we're leaving the area entirely
+    if (!area.contains(e.relatedTarget)) { if (overlay) overlay.style.display = 'none'; }
   });
-  ta.addEventListener('drop', async (e) => {
+  area.addEventListener('drop', async (e) => {
     e.preventDefault();
     if (overlay) overlay.style.display = 'none';
     const files = e.dataTransfer?.files;
-    if (files && files.length) {
-      handleDumpFile(files);
-    }
+    if (files && files.length) handleDumpFiles(files);
   });
 }
 
@@ -5647,6 +5704,8 @@ function parseDumpResponse(content) {
 
 // Curiosity pre-pass: if input is short/vague, AI asks clarifying questions first
 async function maybeClarify(text) {
+  // Skip clarify if files are attached — the documents ARE the context
+  if (_dumpAttachments.length) return null;
   // Only trigger for short inputs (under ~80 words) — long docs go straight to extraction
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   if (wordCount > 80) return null;
@@ -5717,8 +5776,8 @@ function skipClarify() {
 }
 
 async function processDump(skipClarifyPass) {
-  const text = $('#dumpText')?.value?.trim();
-  if (!text) return;
+  const text = ($('#dumpText')?.value?.trim() || '') + (_dumpAttachments.length ? '' : '');
+  if (!text && !_dumpAttachments.length) { showToast('Write something or attach a file first', true); return; }
 
   if (!hasAI()) { processDumpManual(text); return; }
 
@@ -5854,9 +5913,9 @@ TODAY: ${todayStr()}
 For updates to existing tasks, use: { "action": "update", "id": "existing_task_id", "updateFields": { "status": "done" } }
 
 Brainstorm input:
-${text}`;
+${text}${getDumpAttachmentText()}`;
 
-  const fullInput = text;
+  const fullInput = text + getDumpAttachmentText();
 
   try {
     let parsed;
@@ -6164,7 +6223,7 @@ function applyDumpResults() {
 
   if ($('#dumpText')) $('#dumpText').value = '';
   clearDumpDraft();
-  dumpAttachments = [];
+  __dumpAttachments = [];
   _dumpInProgress = false;
   render();
 }
@@ -6198,7 +6257,7 @@ function processDumpManual(text) {
   showToast(`Added ${lines.length} tasks`);
   $('#dumpText').value = '';
   clearDumpDraft();
-  dumpAttachments = [];
+  _dumpAttachments = [];
   render(); // Show results card
 }
 
