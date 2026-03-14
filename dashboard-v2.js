@@ -80,7 +80,6 @@ function setupQuickBrainstorm() {
 }
 
 // Hook into render cycle to start typing animation + brainstorm hint
-const _origRAF = window.requestAnimationFrame;
 (function hookDashboardPostRender() {
   const origRender = window.render;
   if (typeof origRender !== 'function') {
@@ -248,7 +247,7 @@ renderDashboard = function() {
 
   // Fresh start welcome — magical empty state centered on brainstorm
   if (data.tasks.length === 0 && data.projects.length <= 1) {
-    const _emptyPhrases = ['Plan my week...', 'Meeting notes from today...', 'Ideas for the project...', 'Things I need to get done...', 'Brain dump everything...'];
+    const _emptyPhrases = ['Plan my week...', 'Meeting notes from today...', 'Ideas for the project...', 'Things I need to get done...', 'Brainstorm everything...'];
     const _emptyPhrase = _emptyPhrases[Math.floor(Math.random() * _emptyPhrases.length)];
     return `<div style="max-width:540px;margin:48px auto;text-align:center">
       <div id="welcomeTyping" style="font-size:22px;font-weight:600;margin-bottom:6px;min-height:32px" data-phrases='${JSON.stringify(_emptyPhrases)}'></div>
@@ -353,16 +352,18 @@ renderDashboard = function() {
   if (_dumpHistory.length > 0) {
     const last = _dumpHistory[0];
     const ago = Math.floor((Date.now() - new Date(last.date).getTime()) / 3600000);
-    const agoStr = ago < 1 ? 'just now' : ago < 24 ? ago + 'h ago' : Math.floor(ago / 24) + 'd ago';
-    _brainstormStat = `Last: ${last.tasksCreated} task${last.tasksCreated !== 1 ? 's' : ''} from ${last.wordCount} words, ${agoStr}`;
+    if (!isNaN(ago)) {
+      const agoStr = ago < 1 ? 'just now' : ago < 24 ? ago + 'h ago' : Math.floor(ago / 24) + 'd ago';
+      _brainstormStat = `Last: ${last.tasksCreated} task${last.tasksCreated !== 1 ? 's' : ''} from ${last.wordCount} words, ${agoStr}`;
+    }
   }
-  html += `<div onclick="setView('dump')" style="background:var(--surface);border:1px solid ${_showDumpInvite ? 'var(--accent)' : 'var(--border)'};border-radius:var(--radius);padding:16px 20px;cursor:pointer;transition:all 0.2s;margin-bottom:16px;display:flex;align-items:center;gap:16px;${_showDumpInvite ? 'box-shadow:0 0 0 1px rgba(129,140,248,0.1),0 4px 20px rgba(129,140,248,0.08)' : ''}" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='${_showDumpInvite ? 'var(--accent)' : 'var(--border)'}';this.style.transform='none'">
-    <div style="font-size:24px;flex-shrink:0">&#9671;</div>
+  html += `<div onclick="setView('dump')" style="background:linear-gradient(135deg,rgba(129,140,248,.06),rgba(168,85,247,.03));border:1px solid ${_showDumpInvite ? 'var(--accent)' : 'rgba(129,140,248,0.2)'};border-radius:var(--radius);padding:20px 24px;cursor:pointer;transition:all 0.2s;margin-bottom:20px;display:flex;align-items:center;gap:16px;${_showDumpInvite ? 'box-shadow:0 0 0 1px rgba(129,140,248,0.1),0 4px 20px rgba(129,140,248,0.08)' : ''}" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 32px rgba(129,140,248,0.12)'" onmouseout="this.style.borderColor='${_showDumpInvite ? 'var(--accent)' : 'rgba(129,140,248,0.2)'}';this.style.transform='none';this.style.boxShadow='${_showDumpInvite ? '0 0 0 1px rgba(129,140,248,0.1),0 4px 20px rgba(129,140,248,0.08)' : 'none'}'">
+    <div style="font-size:28px;flex-shrink:0">&#9671;</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px">Got something on your mind?</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">Got something on your mind?</div>
       <div style="font-size:12px;color:var(--text3);line-height:1.4">${_brainstormStat ? esc(_brainstormStat) : 'Drop your thoughts, plans, or notes &mdash; AI organizes them into tasks'}</div>
     </div>
-    <div style="flex-shrink:0;font-size:12px;font-weight:500;color:var(--accent);white-space:nowrap;padding:6px 14px;border:1px solid var(--accent);border-radius:var(--radius-sm);transition:background 0.15s" onmouseover="this.style.background='rgba(129,140,248,0.1)'" onmouseout="this.style.background='transparent'">Brainstorm</div>
+    <div style="flex-shrink:0;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;padding:8px 18px;background:var(--accent);border-radius:var(--radius-sm);transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.filter='none';this.style.transform='none'">Brainstorm</div>
   </div>`;
 
   // ===== Nudge filter indicator =====
@@ -397,7 +398,17 @@ renderDashboard = function() {
   }
 
   // ===== 2. SMART FEED =====
-  const feedItems = getSmartFeedItems();
+  let feedItems = getSmartFeedItems();
+  // Apply nudge filter if active
+  if (_nudgeFilter) {
+    const today = todayStr();
+    const allActive = data.tasks.filter(t => t.status !== 'done' && !t.archived);
+    let filtered = [];
+    if (_nudgeFilter === 'overdue') filtered = allActive.filter(t => t.dueDate && t.dueDate < today);
+    else if (_nudgeFilter === 'stale') filtered = allActive.filter(t => { const lt = t.updates?.length ? t.updates[t.updates.length-1].date : t.createdAt; return lt && (Date.now() - new Date(lt).getTime()) > 10*86400000; });
+    else if (_nudgeFilter === 'unassigned') filtered = allActive.filter(t => !t.project);
+    if (filtered.length) feedItems = filtered.map(t => ({ task: t, source: _nudgeFilter }));
+  }
   const feedLimit = _smartFeedExpanded ? feedItems.length : Math.min(10, feedItems.length);
 
   if (feedItems.length > 0) {
@@ -534,20 +545,6 @@ renderDashboard = function() {
     }
   }
 
-  // ===== Today's Habits (keep original) =====
-  if (data.habits.length > 0) {
-    const todayD = ds(new Date());
-    html += `<div class="section"><div class="section-header"><div class="section-title">Today's Habits</div><div class="section-line"></div></div>`;
-    html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">`;
-    data.habits.forEach(h => {
-      const checked = !!h.completions[todayD];
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border:1px solid ${checked?'var(--accent)':'var(--border)'};border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s" onclick="toggleHabitDay('${h.id}','${todayD}');render()">
-        <div class="habit-day ${checked?'checked':''}" style="width:20px;height:20px;font-size:9px;pointer-events:none">${checked?'&#10003;':''}</div>
-        <span style="font-size:12px;font-weight:500;color:${checked?'var(--accent)':'var(--text2)'}">${esc(h.name)}</span>
-      </div>`;
-    });
-    html += `</div></div>`;
-  }
 
   // ===== 4. BOARD GRID (pushed lower) =====
   html += `<div class="section"><div class="section-header"><div class="section-title">Boards</div><div class="section-count">${data.projects.length}</div><div class="section-line"></div></div>`;

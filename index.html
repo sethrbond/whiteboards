@@ -84,6 +84,15 @@ body {
 @supports (height: 100dvh) { body { height: 100dvh; } }
 
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* Focus visible for keyboard accessibility */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; border-color: var(--accent); }
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -593,7 +602,7 @@ body {
 .task-check:hover { border-color: var(--accent); }
 .task-check.done { background: var(--accent); border-color: var(--accent); animation: checkPop 0.2s ease-out; }
 .task-check.done::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 700; }
-@keyframes checkPop { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+/* checkPop keyframes defined in dashboard-v2.css */
 
 .task-body { flex: 1; min-width: 0; }
 
@@ -1028,7 +1037,7 @@ body {
 .toast.error { border-color: var(--red); }
 .toast.success { border-color: var(--green); }
 
-@keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+/* toastIn keyframes defined in dashboard-v2.css */
 
 /* ==================== AI SPINNER ==================== */
 .spinner {
@@ -2152,8 +2161,8 @@ body {
       </div>
       <div class="landing-feature">
         <div class="landing-feature-icon">&#x25A1;</div>
-        <h3>From brain dump to done</h3>
-        <p>Tasks auto-organize into boards. Get a daily briefing. Track progress. Share with your team. All from one brain dump.</p>
+        <h3>From brainstorm to done</h3>
+        <p>Tasks auto-organize into boards. Get a daily briefing. Track progress. Share with your team. All from one brainstorm.</p>
       </div>
     </div>
   </div>
@@ -2165,7 +2174,7 @@ body {
     <div class="auth-logo">
       <div class="auth-logo-mark">W</div>
       <div class="auth-logo-text">Whiteboards</div>
-      <div class="auth-logo-sub">AI-powered productivity</div>
+      <div class="auth-logo-sub">Brainstorm freely. AI turns it into action.</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;padding:0 4px">
       <div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">&#x2726;</span> Paste anything — AI extracts tasks, deadlines, and priorities instantly</div>
@@ -2280,7 +2289,7 @@ body {
 <script>
 // Suppress console noise in production
 const _debug = location.hostname === 'localhost';
-if (!_debug) { const _noop = () => {}; console.warn = _noop; console.error = _noop; console.log = _noop; }
+if (!_debug) { console.log = () => {}; }
 
 // ============================================================
 // SUPABASE
@@ -2540,7 +2549,7 @@ function showOnboarding() {
       step = 3;
       renderStep();
     } catch (err) {
-      if (statusEl) statusEl.innerHTML = '<div class="ai-status" style="color:var(--red)">' + esc(err.message || 'Something went wrong') + '</div>';
+      if (statusEl) statusEl.innerHTML = '<div class="ai-status" style="color:var(--red)">That didn\'t work &mdash; check your connection and try again.</div>';
       if (btn) { btn.disabled = false; btn.textContent = 'Try again'; }
     } finally {
       if (tempCreated && dumpEl.parentNode) dumpEl.parentNode.removeChild(dumpEl);
@@ -3150,20 +3159,26 @@ function renderArchive() {
   return h;
 }
 
-function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+const PRIORITY_ORDER = { urgent: 0, important: 1, normal: 2, low: 3 };
+let _todayStrCache = ''; let _todayStrTs = 0;
+function todayStr() { const now = Date.now(); if (now - _todayStrTs < 60000 && _todayStrCache) return _todayStrCache; const d = new Date(); _todayStrCache = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); _todayStrTs = now; return _todayStrCache; }
 
+let _planIndexCache = null; let _planIndexDate = '';
 function sortTasks(tasks) {
-  const po = { urgent: 0, important: 1, normal: 2, low: 3 };
-  // If a daily plan exists, boost planned tasks to the top in plan order
+  const po = PRIORITY_ORDER;
+  // If a daily plan exists, boost planned tasks to the top in plan order (cached per day)
   let planIndex = null;
-  try {
-    const planRaw = localStorage.getItem(userKey('whiteboard_plan_' + todayStr()));
+  const today = todayStr();
+  if (_planIndexDate === today && _planIndexCache !== undefined) { planIndex = _planIndexCache; }
+  else try {
+    const planRaw = localStorage.getItem(userKey('whiteboard_plan_' + today));
     if (planRaw) {
       const plan = JSON.parse(planRaw);
       planIndex = {};
       plan.forEach((p, i) => { planIndex[p.id] = i; });
     }
-  } catch(e) {}
+    _planIndexCache = planIndex; _planIndexDate = today;
+  } catch(e) { _planIndexCache = null; _planIndexDate = today; }
   return [...tasks].sort((a, b) => {
     if (planIndex) {
       const aIn = planIndex.hasOwnProperty(a.id);
@@ -3341,7 +3356,8 @@ function _renderNow() {
     if (c) c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;padding:32px;text-align:center">
       <div style="font-size:32px;filter:grayscale(1)">&#9888;</div>
       <h2 style="color:var(--text);font-size:18px">Something went wrong</h2>
-      <p style="color:var(--text3);font-size:13px;max-width:400px">${esc(err.message || String(err))}</p>
+      <p style="color:var(--text3);font-size:13px;max-width:400px">Something unexpected happened. Your data is safe &mdash; try reloading.</p>
+      <details style="margin-top:8px;font-size:11px;color:var(--text3);max-width:400px"><summary style="cursor:pointer">Technical details</summary><pre style="margin-top:4px;white-space:pre-wrap;word-break:break-all">${esc(err.message || String(err))}</pre></details>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-primary btn-sm" onclick="location.reload()">Reload</button>
         <button class="btn btn-sm" onclick="exportData()">Export Data</button>
@@ -3484,8 +3500,7 @@ function renderCalendar() {
     const sorted = tasks.sort((a,b) => {
       if (a.status === 'done' && b.status !== 'done') return 1;
       if (a.status !== 'done' && b.status === 'done') return -1;
-      const po = { urgent: 0, important: 1, normal: 2, low: 3 };
-      return (po[a.priority]||2) - (po[b.priority]||2);
+      return (PRIORITY_ORDER[a.priority]||2) - (PRIORITY_ORDER[b.priority]||2);
     });
 
     const isExpanded = calendarExpandedDay === iso;
@@ -3534,8 +3549,7 @@ function renderCalendar() {
         aTasks.sort((a,b) => {
           if (a.status === 'done' && b.status !== 'done') return 1;
           if (a.status !== 'done' && b.status === 'done') return -1;
-          const po = { urgent: 0, important: 1, normal: 2, low: 3 };
-          return (po[a.priority]||2) - (po[b.priority]||2);
+          return (PRIORITY_ORDER[a.priority]||2) - (PRIORITY_ORDER[b.priority]||2);
         });
         aTasks.forEach(t => {
           const proj = data.projects.find(p => p.id === t.project);
@@ -5227,12 +5241,16 @@ async function executeAIActions(reply) {
             if (!a.taskTitle) break;
             const match = matchTask(a.taskTitle);
             if (match && a.fields) {
-              if (a.fields.project) {
-                const p = matchProject(a.fields.project);
-                if (p) a.fields.project = p.id;
-                else delete a.fields.project;
+              // Whitelist allowed fields to prevent prototype pollution
+              const allowed = ['title','notes','priority','status','dueDate','project','phase','tags','recurrence','estimatedMinutes','subtasks','favorite'];
+              const safe = {};
+              for (const k of allowed) { if (k in a.fields) safe[k] = a.fields[k]; }
+              if (safe.project) {
+                const p = matchProject(safe.project);
+                if (p) safe.project = p.id;
+                else delete safe.project;
               }
-              updateTask(match.id, a.fields);
+              updateTask(match.id, safe);
               applied++;
             }
             break;
@@ -5403,8 +5421,8 @@ async function callAI(prompt, opts = {}) {
       body: JSON.stringify(body),
     });
     if (!resp.ok) {
-      let errMsg = `API error ${resp.status}`;
-      try { const errBody = await resp.json(); errMsg = errBody.error?.message || errMsg; } catch {}
+      let errMsg = 'Something went wrong with AI. Please try again.';
+      try { const errBody = await resp.json(); if (errBody.error?.message) errMsg = errBody.error.message; } catch {}
       // User-friendly messages for common errors
       if (resp.status === 429) errMsg = 'AI is busy right now. Please wait a moment and try again.';
       else if (resp.status === 503 || resp.status === 529) errMsg = 'AI service is temporarily unavailable. Please try again shortly.';
@@ -5413,7 +5431,7 @@ async function callAI(prompt, opts = {}) {
       const err = new Error(errMsg); err.status = resp.status; throw err;
     }
     const result = await resp.json();
-    if (!result.content || !result.content.length) throw new Error('Empty AI response');
+    if (!result.content || !result.content.length) throw new Error('AI didn\'t return a response. Try again in a moment.');
     return result.content[0].text;
   };
 
@@ -6697,6 +6715,19 @@ function handleSlashCommand(raw) {
   }
   if (cmd === 'focus') { startFocus(); return true; }
   if (cmd === 'plan') { planMyDay(); showToast('Generating day plan...', false, true); return true; }
+  if (cmd === 'brainstorm' || cmd === 'dump') {
+    setView('dump');
+    if (arg) { setTimeout(() => { const t = document.getElementById('dumpText'); if (t) { t.value = arg; t.focus(); t.dispatchEvent(new Event('input')); } }, 100); }
+    return true;
+  }
+  if (cmd === 'review') { setView('review'); return true; }
+  if (cmd === 'chat' && arg) {
+    const panel = document.getElementById('chatPanel');
+    if (panel && !panel.classList.contains('open')) toggleChat();
+    const ci = document.getElementById('chatInput');
+    if (ci) { ci.value = arg; sendChat(); }
+    return true;
+  }
   if (cmd === 'move' && arg) {
     const toMatch = arg.match(/^(.+?)\s+to\s+(.+)$/i);
     if (toMatch) {
@@ -7176,6 +7207,7 @@ Return ONLY a JSON array, no other text:
       // Validate IDs exist
       const valid = json.filter(p => data.tasks.find(t => t.id === p.id));
       localStorage.setItem(userKey('whiteboard_plan_' + todayStr()), JSON.stringify(valid));
+      _planIndexCache = null; _planIndexDate = ''; // invalidate sort cache
       render();
       showToast(`Day planned: ${valid.length} tasks`);
       notifyOverdueTasks();
@@ -7766,8 +7798,7 @@ Return JSON: { "title": "exact task title", "reason": "one sentence why this one
 
   // Fallback: pick highest priority, nearest deadline
   const sorted = [...active].sort((a, b) => {
-    const pOrd = { urgent: 0, important: 1, normal: 2, low: 3 };
-    if (pOrd[a.priority] !== pOrd[b.priority]) return pOrd[a.priority] - pOrd[b.priority];
+    if (PRIORITY_ORDER[a.priority] !== PRIORITY_ORDER[b.priority]) return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
     if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
     if (a.dueDate) return -1;
     return 1;
@@ -7868,19 +7899,19 @@ function getSmartNudges() {
   });
 
   // Overload detection
-  if (active.length > 30) nudges.push({ type: 'warning', icon: '⚡', text: `You have ${active.length} active tasks. Consider archiving or deprioritizing — focus beats volume.` });
+  if (active.length > 30) nudges.push({ type: 'warning', icon: '⚡', text: `${active.length} active tasks. Consider archiving some to stay focused.` });
 
   // Stale tasks
   if (stale.length >= 3) nudges.push({ type: 'stale', icon: '🕸', text: `${stale.length} tasks untouched for 10+ days: ${stale.slice(0, 3).map(t => t.title).join(', ')}${stale.length > 3 ? '...' : ''}. Still relevant?`, actionLabel: 'Review stale', actionFn: `nudgeFilterStale()` });
 
   // No tasks in progress
-  if (inProgress.length === 0 && active.length > 0) nudges.push({ type: 'action', icon: '▶', text: `Nothing in progress. Pick one to start — momentum beats planning.`, actionLabel: 'Start one', actionFn: `startFocus()` });
+  if (inProgress.length === 0 && active.length > 0) nudges.push({ type: 'action', icon: '▶', text: `Nothing in progress yet. Pick one to get started.`, actionLabel: 'Start one', actionFn: `startFocus()` });
 
   // Too many in progress
   if (inProgress.length > 5) nudges.push({ type: 'warning', icon: '🎪', text: `${inProgress.length} tasks in progress at once. Try finishing some before starting more.`, actionLabel: 'Focus on one', actionFn: `startFocus()` });
 
   // Overdue pileup
-  if (overdue.length >= 3) nudges.push({ type: 'urgent', icon: '🔥', text: `${overdue.length} overdue tasks. Consider rescheduling or completing — overdue items erode trust in your system.`, actionLabel: 'Review overdue', actionFn: `nudgeFilterOverdue()` });
+  if (overdue.length >= 3) nudges.push({ type: 'urgent', icon: '🔥', text: `${overdue.length} overdue tasks. Worth rescheduling ones you won't get to.`, actionLabel: 'Review overdue', actionFn: `nudgeFilterOverdue()` });
 
   // Velocity check
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -7888,7 +7919,7 @@ function getSmartNudges() {
   const doneThisWeek = done.filter(t => t.completedAt && t.completedAt.slice(0, 10) >= weekAgo).length;
   const doneLastWeek = done.filter(t => t.completedAt && t.completedAt.slice(0, 10) >= twoWeeksAgo && t.completedAt.slice(0, 10) < weekAgo).length;
   if (doneLastWeek > 0 && doneThisWeek >= doneLastWeek * 1.5) nudges.push({ type: 'positive', icon: '🚀', text: `${doneThisWeek} tasks done this week vs ${doneLastWeek} last week — you're on a roll!` });
-  else if (doneLastWeek > 3 && doneThisWeek < doneLastWeek * 0.5) nudges.push({ type: 'warning', icon: '📉', text: `Only ${doneThisWeek} done this week vs ${doneLastWeek} last week. Rough week or just getting started?` });
+  else if (doneLastWeek > 3 && doneThisWeek < doneLastWeek * 0.5) nudges.push({ type: 'warning', icon: '📉', text: `Slower week — ${doneThisWeek} done vs ${doneLastWeek} last week.` });
 
   // Unassigned tasks
   const unassigned = active.filter(t => !t.project);
@@ -8123,8 +8154,6 @@ function processRecurringTasks() {
 async function _sseFallback(r,te,cm,ct2){var c=(r.headers.get('content-type')||'');if(c.includes('text/event-stream'))return false;var j=await r.json();var f=j.content&&j.content[0]?j.content[0].text:(j.completion||JSON.stringify(j));chatHistory.push({role:'assistant',content:f,ts:Date.now()});saveChatHistory();incrementAIInteraction();var a=await executeAIActions(f);if(a.applied)render();var clean=f.replace(/```(?:actions|json)[\s\S]*?```/g,'').trim();te.innerHTML='<div class="chat-bubble ai">'+esc(clean).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'<span class="chat-ts">'+chatTimeStr()+'</span></div>';cm.scrollTop=cm.scrollHeight;clearTimeout(ct2);return true;}
 var _oB=generateAIBriefing,_oP=planMyDay,_oE=submitEndOfDay,_oR=generateWeeklyReview,_oPW=runProactiveWorker;generateAIBriefing=async function(){if(!throttleAI('b'))return;return _oB.apply(this,arguments)};planMyDay=async function(){if(!throttleAI('p'))return;return _oP.apply(this,arguments)};submitEndOfDay=async function(){if(!throttleAI('e'))return;return _oE.apply(this,arguments)};generateWeeklyReview=async function(){if(!throttleAI('r'))return;return _oR.apply(this,arguments)};runProactiveWorker=async function(){if(!throttleAI('w'))return;return _oPW.apply(this,arguments)};
 initAuth();
-function toggleHabitDay() {} // stub — habits feature removed
-function ds(d) { return d instanceof Date ? d.toISOString().slice(0,10) : String(d||''); }
 </script>
 <script src="dashboard-v2.js"></script>
 <script>var _wasOnline=false;window.addEventListener('offline',function(){if(_wasOnline&&!document.getElementById('offBnr')){var d=document.createElement('div');d.id='offBnr';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;padding:6px;text-align:center;font-size:12px;color:#f97316;background:rgba(249,115,22,0.1);border-bottom:1px solid #f97316';d.textContent="You're offline - changes saved locally";document.body.prepend(d)}});window.addEventListener('online',function(){var e=document.getElementById('offBnr');if(e)e.remove()});var _oSD=updateSyncDot;updateSyncDot=function(){_oSD.apply(this,arguments);if(syncStatus==='synced')_wasOnline=true;if(syncStatus==='offline'&&_wasOnline){if(!document.getElementById('offBnr')){var d=document.createElement('div');d.id='offBnr';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;padding:6px;text-align:center;font-size:12px;color:#f97316;background:rgba(249,115,22,0.1);border-bottom:1px solid #f97316';d.textContent="You're offline - changes saved locally";document.body.prepend(d)}}else{var e=document.getElementById('offBnr');if(e)e.remove()}}</script>
