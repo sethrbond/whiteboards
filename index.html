@@ -5484,8 +5484,17 @@ function renderDump() {
       Just let it out — stream of consciousness, project updates, documents, whatever's on your mind.<br>AI reads through everything, extracts every task and detail, spots patterns with your existing work, organizes it all by project and priority.
       ${!hasKey ? '<br><span style="color:var(--orange)">Add a Claude API key in Settings for AI parsing.</span>' : ''}
     </p>
-    <textarea class="dump-textarea" id="dumpText" placeholder="${placeholder}">${draft}</textarea>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px">Tip: paste a whole document, meeting notes, or just stream your thoughts. AI will extract tasks, assign projects, and detect what's already done.</div>
+    <div style="position:relative">
+      <textarea class="dump-textarea" id="dumpText" placeholder="${placeholder}">${draft}</textarea>
+      <div id="dumpDropOverlay" style="display:none;position:absolute;inset:0;background:rgba(var(--accent-rgb,99,102,241),.12);border:2px dashed var(--accent);border-radius:var(--radius);pointer-events:none;z-index:2;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent)">Drop file to import text</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+      <div style="font-size:11px;color:var(--text3);flex:1">Tip: paste a document, drop a file, or just stream your thoughts.</div>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);padding:4px 8px;border:1px solid var(--border);border-radius:6px;white-space:nowrap" title="Attach a text file (.txt, .md, .csv, .json)">
+        <span style="font-size:14px">📎</span> Attach file
+        <input type="file" accept=".txt,.md,.csv,.json,.log,.xml,.html,.rtf" style="display:none" onchange="handleDumpFile(this.files)">
+      </label>
+    </div>
     <div class="dump-bar">
       <button class="btn btn-primary" onclick="processDump()">${hasKey ? '✦ Analyze & Organize' : '+ Add Tasks'}</button>
       <div id="dumpStatus"></div>
@@ -5494,10 +5503,56 @@ function renderDump() {
   </div>`;
 }
 
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsText(file);
+  });
+}
+
+async function handleDumpFile(files) {
+  if (!files || !files.length) return;
+  const file = files[0];
+  const maxSize = 500 * 1024; // 500KB
+  if (file.size > maxSize) { showToast('File too large (max 500KB). Try a smaller file or paste the text directly.', true); return; }
+  try {
+    const text = await readFileAsText(file);
+    const ta = document.getElementById('dumpText');
+    if (ta) {
+      const prefix = ta.value.trim() ? ta.value.trim() + '\n\n--- Attached: ' + file.name + ' ---\n' : '';
+      ta.value = prefix + text;
+      saveDumpDraft();
+      showToast('Imported ' + file.name);
+    }
+  } catch (e) {
+    showToast('Could not read file. Try a plain text file (.txt, .md, .csv).', true);
+  }
+}
+
 function initDumpDropZone() {
   const ta = document.getElementById('dumpText');
   if (!ta) return;
   ta.addEventListener('input', () => saveDumpDraft());
+
+  const overlay = document.getElementById('dumpDropOverlay');
+
+  ta.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (overlay) overlay.style.display = 'flex';
+  });
+  ta.addEventListener('dragleave', () => {
+    if (overlay) overlay.style.display = 'none';
+  });
+  ta.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    if (overlay) overlay.style.display = 'none';
+    const files = e.dataTransfer?.files;
+    if (files && files.length) {
+      handleDumpFile(files);
+    }
+  });
 }
 
 
