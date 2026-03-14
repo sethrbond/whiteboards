@@ -23,6 +23,7 @@
 <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap" as="style">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onerror="document.getElementById('splashStatus')&&(document.getElementById('splashStatus').textContent='Loading... If this takes too long, try refreshing.')"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function(){
   var _sbTimer = setTimeout(function(){
@@ -5490,9 +5491,9 @@ function renderDump() {
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
       <div style="font-size:11px;color:var(--text3);flex:1">Tip: paste a document, drop a file, or just stream your thoughts.</div>
-      <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);padding:4px 8px;border:1px solid var(--border);border-radius:6px;white-space:nowrap" title="Attach a text file (.txt, .md, .csv, .json)">
+      <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);padding:4px 8px;border:1px solid var(--border);border-radius:6px;white-space:nowrap" title="Attach a file (.pdf, .txt, .md, .csv, .json)">
         <span style="font-size:14px">📎</span> Attach file
-        <input type="file" accept=".txt,.md,.csv,.json,.log,.xml,.html,.rtf" style="display:none" onchange="handleDumpFile(this.files)">
+        <input type="file" accept=".pdf,.txt,.md,.csv,.json,.log,.xml,.html,.rtf,.doc,.docx" style="display:none" onchange="handleDumpFile(this.files)">
       </label>
     </div>
     <div class="dump-bar">
@@ -5512,22 +5513,55 @@ function readFileAsText(file) {
   });
 }
 
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function extractPDFText(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF library not loaded');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const arrayBuffer = await readFileAsArrayBuffer(file);
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items.map(item => item.str).join(' ');
+    if (text.trim()) pages.push(text);
+  }
+  return pages.join('\n\n');
+}
+
 async function handleDumpFile(files) {
   if (!files || !files.length) return;
   const file = files[0];
   const maxSize = 10 * 1024 * 1024; // 10MB
   if (file.size > maxSize) { showToast('File too large (max 10MB). Try a smaller file or paste the text directly.', true); return; }
+  const isPDF = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
   try {
-    const text = await readFileAsText(file);
+    let text;
+    if (isPDF) {
+      showToast('Extracting text from PDF...');
+      text = await extractPDFText(file);
+      if (!text.trim()) { showToast('Could not extract text from this PDF. It may be image-based (scanned).', true); return; }
+    } else {
+      text = await readFileAsText(file);
+    }
     const ta = document.getElementById('dumpText');
     if (ta) {
       const prefix = ta.value.trim() ? ta.value.trim() + '\n\n--- Attached: ' + file.name + ' ---\n' : '';
       ta.value = prefix + text;
       saveDumpDraft();
-      showToast('Imported ' + file.name);
+      showToast('Imported ' + file.name + (isPDF ? ' (' + Math.round(text.length/1000) + 'K chars)' : ''));
     }
   } catch (e) {
-    showToast('Could not read file. Try a plain text file (.txt, .md, .csv).', true);
+    console.error('File import error:', e);
+    showToast(isPDF ? 'Could not read PDF. Try a different file.' : 'Could not read file. Try a plain text file (.txt, .md, .csv).', true);
   }
 }
 
