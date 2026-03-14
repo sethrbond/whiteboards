@@ -2362,6 +2362,16 @@ async function initAuth() {
       authInitialized = true;
       currentUser = session.user;
       loadFromCloud().then(() => showApp());
+    } else if (event === 'PASSWORD_RECOVERY') {
+      // User clicked password reset link from email — show new password form
+      var lp = document.getElementById('landingPage'); if (lp) lp.style.display = 'none';
+      document.getElementById('authScreen').style.display = 'flex';
+      document.getElementById('authError').innerHTML = '';
+      document.getElementById('authMsg').innerHTML = '<div style="background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--accent)">Set your new password below and click &ldquo;Update Password&rdquo;.</div>';
+      document.getElementById('authBtn').textContent = 'Update Password';
+      document.getElementById('authEmail').closest('.form-group').style.display = 'none';
+      document.getElementById('authPassword').focus();
+      authMode = 'recovery';
     } else if (event === 'SIGNED_OUT') {
       authInitialized = false;
       if(currentUser){const _p='wb_'+currentUser.id+'_';const _r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(_p))_r.push(k);}_r.forEach(k=>localStorage.removeItem(k));}
@@ -2583,7 +2593,7 @@ async function handleAuth(e) {
   const errEl = document.getElementById('authError');
   const msgEl = document.getElementById('authMsg');
   errEl.innerHTML = ''; msgEl.innerHTML = '';
-  btn.disabled = true; btn.textContent = authMode === 'signup' ? 'Creating...' : 'Signing in...';
+  btn.disabled = true; btn.textContent = authMode === 'signup' ? 'Creating...' : authMode === 'recovery' ? 'Updating...' : 'Signing in...';
 
   try {
     if (authMode === 'forgot') {
@@ -2593,8 +2603,16 @@ async function handleAuth(e) {
       btn.disabled = false; btn.textContent = 'Send Reset Link';
       return;
     }
+    if (authMode === 'recovery') {
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) throw error;
+      msgEl.innerHTML = '<div class="auth-msg">Password updated! Signing you in...</div>';
+      document.getElementById('authEmail').closest('.form-group').style.display = '';
+      authMode = 'login';
+      return;
+    }
     if (authMode === 'signup') {
-      const { data: signUpData, error } = await sb.auth.signUp({ email, password });
+      const { data: signUpData, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
       if (error) throw error;
       // If email confirmation is off, session comes back immediately — onAuthStateChange handles it.
       // If email confirmation is on, show the message.
@@ -2616,7 +2634,7 @@ async function handleAuth(e) {
     errEl.innerHTML = `<div class="auth-error">${esc(friendly)}</div>`;
   }
   btn.disabled = false;
-  btn.textContent = authMode === 'signup' ? 'Sign Up' : 'Sign In';
+  btn.textContent = authMode === 'signup' ? 'Sign Up' : authMode === 'recovery' ? 'Update Password' : 'Sign In';
 }
 
 function toggleAuthMode() {
@@ -2670,7 +2688,7 @@ function showTerms() {
 
 async function resendVerification(email) {
   try {
-    const { error } = await sb.auth.resend({ type: 'signup', email });
+    const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: window.location.origin } });
     if (error) throw error;
     showToast('Verification email sent!');
   } catch (err) {
@@ -3147,6 +3165,7 @@ function setView(view, projectId = null) {
   currentView = view;
   currentProject = projectId;
   expandedTask = null;
+  chatContext = null;
   closeMobileSidebar();
   render();
 }
@@ -7635,7 +7654,7 @@ function processRecurringTasks() {
     if (nextStr > today) return; // Not due yet
 
     // Check if we already created a new instance
-    const exists = data.tasks.find(x => x.title === t.title && x.status !== 'done' && x.recurrence === t.recurrence);
+    const exists = data.tasks.find(x => x.title === t.title && x.project === t.project && x.status !== 'done' && x.recurrence === t.recurrence);
     if (exists) return;
 
     const newTask = createTask({
