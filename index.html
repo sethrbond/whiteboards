@@ -5492,7 +5492,7 @@ function renderDump() {
 
   const hasKey = hasAI();
   const draft = esc(loadDumpDraft());
-  const _dumpHints = ["Brain dump, meeting notes, docs, ideas — throw it all in. AI organizes everything...","Paste notes, attach files, dump your thoughts — AI extracts tasks and sets priorities...","Write freely and drop files — AI reads everything, creates tasks, and sorts by project..."];
+  const _dumpHints = ["Meeting notes, ideas, docs, plans — throw it all in. AI organizes everything...","Paste notes, attach files, write freely — AI extracts tasks and sets priorities...","Write freely and drop files — AI reads everything, creates tasks, and sorts by project..."];
   const placeholder = _dumpHints[Math.floor(Date.now() / 60000) % _dumpHints.length];
   const attachCount = _dumpAttachments.length;
   const attachHtml = attachCount ? `<div id="dumpAttachList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${_dumpAttachments.map((a, i) =>
@@ -5506,7 +5506,7 @@ function renderDump() {
     </div>`).join('')}</div>` : '';
   return `<div class="dump-area">
     <p style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">
-      Dump your thoughts, attach files, paste notes — throw everything in. AI reads it all, extracts tasks, and organizes by project and priority.
+      Write your thoughts, attach files, paste notes — throw everything in. AI reads it all, extracts tasks, and organizes by project and priority.
       ${!hasKey ? '<br><span style="color:var(--orange)">Add a Claude API key in Settings for AI parsing.</span>' : ''}
     </p>
     ${attachHtml}

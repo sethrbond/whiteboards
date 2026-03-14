@@ -247,7 +247,7 @@ renderDashboard = function() {
       <div onclick="setView('dump')" class="brainstorm-cta-hover" style="background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);padding:32px 28px;cursor:pointer;margin-bottom:20px;text-align:left;position:relative">
         <div style="font-size:28px;margin-bottom:12px">&#9671;</div>
         <div style="font-size:17px;font-weight:600;margin-bottom:6px;color:var(--text)">Start a brainstorm</div>
-        <div style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:16px">Dump your thoughts, paste meeting notes, attach docs &mdash; all at once. AI reads everything and creates organized, prioritized tasks.</div>
+        <div style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:16px">Write your thoughts, paste meeting notes, attach docs &mdash; all at once. AI reads everything and creates organized, prioritized tasks.</div>
         <button class="btn btn-primary brainstorm-hero-btn" onclick="event.stopPropagation();setView('dump')">Open brainstorm &rarr;</button>
       </div>
       <div style="font-size:12px;color:var(--text3);margin-bottom:20px">or add a task manually with the input above</div>
@@ -328,7 +328,7 @@ renderDashboard = function() {
   }
 
   // Conversational input (replaces quick capture)
-  html += `<input class="conversational-input" id="quickCapture" placeholder="Dump anything — tasks, notes, ideas..." onkeydown="heroInputHandler(event)" oninput="previewQuickCapture()" autocomplete="off">`;
+  html += `<input class="conversational-input" id="quickCapture" placeholder="Add anything — tasks, notes, ideas..." onkeydown="heroInputHandler(event)" oninput="previewQuickCapture()" autocomplete="off">`;
   html += `<div id="quickCapturePreview" class="smart-date-preview" style="padding-left:0"></div>`;
   // Quick brainstorm hint (appears when typing 30+ words)
   html += `<div id="brainstormHint" style="display:none;font-size:11px;color:var(--accent);padding:6px 0 0;opacity:0.85;transition:opacity 0.2s"><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:inherit">Shift+Enter</kbd> &rarr; Organize with AI</div>`;
@@ -354,7 +354,7 @@ renderDashboard = function() {
     <div style="font-size:28px;flex-shrink:0">&#9671;</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">Ready to brainstorm?</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.4">${_brainstormStat ? esc(_brainstormStat) : 'Dump thoughts, paste notes, attach docs — AI extracts tasks, sets deadlines, and sorts by project.'}</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.4">${_brainstormStat ? esc(_brainstormStat) : 'Write thoughts, paste notes, attach docs — AI extracts tasks, sets deadlines, and sorts by project.'}</div>
     </div>
     <div class="brainstorm-btn-hover" style="flex-shrink:0;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;padding:8px 18px;background:var(--accent);border-radius:var(--radius-sm)">Brainstorm</div>
   </div>`;
