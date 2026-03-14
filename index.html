@@ -355,21 +355,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .dropdown-menu button:hover { background: var(--surface2); color: var(--text); }
 
 
-.dash-greeting {
-  margin-bottom: 20px;
-}
-.dash-greeting-text {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: var(--text);
-}
-.dash-greeting-sub {
-  font-size: 13px;
-  color: var(--text3);
-  margin-top: 4px;
-}
-
 /* ==================== CALENDAR ==================== */
 .cal-header {
   display: flex;
@@ -928,6 +913,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .dump-textarea:focus { border-color: var(--accent); }
 .dump-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
   align-items: center;
@@ -1469,8 +1455,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   gap: 10px;
   margin-bottom: 12px;
 }
-.briefing-title { font-size: 14px; font-weight: 700; color: var(--text); }
-.briefing-date { font-size: 11px; color: var(--text3); margin-left: auto; }
 .briefing-body { font-size: 13px; color: var(--text2); line-height: 1.7; }
 .briefing-body ul { list-style: none; padding: 0; margin: 8px 0; }
 .briefing-body li { padding: 4px 0; display: flex; align-items: flex-start; gap: 8px; }
@@ -1659,12 +1643,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 }
 
 /* ==================== QUICK CAPTURE ==================== */
-.quick-capture {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  position: relative;
-}
 .quick-capture-input {
   flex: 1;
   padding: 12px 16px;
@@ -1823,6 +1801,21 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   .auth-input, .chat-input, .dump-textarea, .onboarding-textarea,
   .eod-textarea, .quick-capture-input, .tag-add-input { font-size: 16px !important; }
   .task-action-btn { width: 44px !important; height: 44px !important; }
+  /* Touch targets — 44px minimum for all interactive elements */
+  .btn { min-height: 44px; }
+  .btn-sm { min-height: 44px; padding: 10px 14px; }
+  .chat-close { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  .chat-chip { min-height: 44px; padding: 10px 16px; }
+  .chat-send { min-height: 44px; padding: 12px 18px; }
+  .cal-today-btn { min-height: 44px; padding: 10px 14px; }
+  .view-toggle-btn { min-height: 44px; padding: 10px 14px; }
+  .cmd-item { min-height: 44px; }
+  .nav-item { min-height: 44px; }
+  .completed-toggle { min-height: 44px; }
+  /* Safe area for notched devices */
+  .header { padding-top: max(20px, env(safe-area-inset-top, 0px)); }
+  /* Onboarding card mobile padding */
+  .onboarding-card { padding: 24px 20px; }
 }
 
 /* Touch feedback for interactive elements */
@@ -1833,9 +1826,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 
 /* ==================== SMALL MOBILE ==================== */
 @media (max-width: 480px) {
-  .quick-capture { flex-wrap: wrap; gap: 8px; }
-  .quick-capture .quick-capture-input { width: 100%; min-width: unset; flex: 1 1 100%; }
-  .quick-capture .quick-capture-project { min-width: unset; flex: 1; }
   .cal-grid:not(.week-view) { display: none !important; }
   .cal-agenda-mobile { display: block !important; }
 }
@@ -2386,14 +2376,16 @@ async function initAuth() {
       document.getElementById('authError').innerHTML = '';
       document.getElementById('authMsg').innerHTML = '<div style="background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--accent)">Set your new password below and click &ldquo;Update Password&rdquo;.</div>';
       document.getElementById('authBtn').textContent = 'Update Password';
-      document.getElementById('authEmail').closest('.form-group').style.display = 'none';
+      const fgEmail = document.getElementById('authEmail').closest('.form-group');
+      if (fgEmail) fgEmail.style.display = 'none';
+      else document.getElementById('authEmail').style.display = 'none';
       document.getElementById('authPassword').focus();
       authMode = 'recovery';
     } else if (event === 'SIGNED_OUT') {
       authInitialized = false;
       if(currentUser){const _p='wb_'+currentUser.id+'_';const _r=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(_p))_r.push(k);}_r.forEach(k=>localStorage.removeItem(k));}
       currentUser = null;
-      data = { tasks: [], projects: [], habits: [] };
+      data = { tasks: [], projects: [] };
       chatHistory = [];
       settings = { ...DEFAULT_SETTINGS };
       proactiveLog = [];
@@ -2462,7 +2454,7 @@ function showOnboarding() {
     if (step === 1) {
       body = `<div class="onboarding-body">
         <div class="onboarding-title">Welcome to Whiteboards</div>
-        <div class="onboarding-desc">Your AI-powered productivity command center. Drop your thoughts here and AI organizes everything into tasks and boards automatically.</div>
+        <div class="onboarding-desc">Your space to think freely — AI handles the rest.</div>
         <div class="onboarding-actions">
           <span></span>
           <button class="btn btn-primary" onclick="onbNext()">Let's go</button>
@@ -2624,7 +2616,9 @@ async function handleAuth(e) {
       const { error } = await sb.auth.updateUser({ password });
       if (error) throw error;
       msgEl.innerHTML = '<div class="auth-msg">Password updated! Signing you in...</div>';
-      document.getElementById('authEmail').closest('.form-group').style.display = '';
+      const fgEmail2 = document.getElementById('authEmail').closest('.form-group');
+      if (fgEmail2) fgEmail2.style.display = '';
+      else document.getElementById('authEmail').style.display = '';
       authMode = 'login';
       return;
     }
@@ -2717,11 +2711,13 @@ function showForgotPassword() {
   authMode = 'forgot';
   document.getElementById('authBtn').textContent = 'Send Reset Link';
   document.getElementById('authPassword').style.display = 'none';
+  document.getElementById('authPassword').removeAttribute('required');
   document.getElementById('authSwitchText').textContent = 'Remember your password?';
   document.getElementById('authSwitchLink').textContent = 'Sign In';
   document.getElementById('authSwitchLink').onclick = () => {
     authMode = 'login';
     document.getElementById('authPassword').style.display = 'block';
+    document.getElementById('authPassword').setAttribute('required', '');
     document.getElementById('authBtn').textContent = 'Sign In';
     document.getElementById('authSwitchText').textContent = "Don't have an account?";
     document.getElementById('authSwitchLink').textContent = 'Sign Up';
@@ -2752,7 +2748,6 @@ async function loadFromCloud() {
       // Merge: cloud data wins if it exists and has content
       if (row.tasks && row.tasks.length > 0) data.tasks = row.tasks;
       if (row.projects && row.projects.length > 0) data.projects = row.projects;
-      if (row.habits && row.habits.length > 0) data.habits = row.habits;
       if (row.ai_memory && row.ai_memory.length > 0) saveAIMemory(row.ai_memory);
       if (row.ai_memory_archive && row.ai_memory_archive.length > 0) saveAIMemoryArchive(row.ai_memory_archive);
       // Note: new syncs no longer include apiKey (stays in localStorage only), but load it from cloud for backwards compat
@@ -2801,7 +2796,6 @@ async function syncToCloud() {
       user_id: currentUser.id,
       tasks: data.tasks,
       projects: data.projects,
-      habits: data.habits,
       ai_memory: getAIMemory(),
       ai_memory_archive: getAIMemoryArchive(),
       settings: { aiModel: settings.aiModel }
@@ -2871,13 +2865,12 @@ function loadData() {
   try {
     const d = JSON.parse(localStorage.getItem(userKey(STORE_KEY)));
     if (d && Array.isArray(d.tasks)) {
-      if (!d.habits) d.habits = [];
       if (!d.projects) d.projects = [];
       // goals removed — unused schema
       return d;
     }
   } catch (e) { console.warn('loadData failed:', e); }
-  return { tasks: [], projects: [], habits: [] };
+  return { tasks: [], projects: [] };
 }
 let _suppressCloudSync = false;
 function saveData(d) {
@@ -4241,11 +4234,16 @@ Commands like "break this down" or "plan this out" → use "subtasks" action.
 ONLY return JSON.`;
 
   try {
-    const content = await callAI(prompt, { maxTokens: 1024 });
+    const content = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
     const cmd = JSON.parse(content.match(/\{[\s\S]*\}/)?.[0] || '{}');
 
     if (cmd.action === 'update' || cmd.action === 'both') {
-      if (cmd.fields) updateTask(taskId, cmd.fields);
+      if (cmd.fields) {
+              const allowed = ['title','notes','priority','status','dueDate','project','phase','tags','recurrence','estimatedMinutes','subtasks','favorite'];
+              const safe = {};
+              for (const k of allowed) { if (k in cmd.fields) safe[k] = cmd.fields[k]; }
+              updateTask(taskId, safe);
+            }
     }
     if (cmd.action === 'log' || cmd.action === 'both') {
       if (!t.updates) t.updates = [];
@@ -4770,7 +4768,7 @@ async function autoClassifyTask(task) {
       'Classify this task. Title: "' + task.title + '"\nExisting projects: ' + projects +
       '\n\nReturn JSON only: {"project":"project_id or empty","priority":"urgent|important|normal|low","reason":"5 words max"}' +
       '\nRules: only use an existing project ID. Only set urgent/important if clearly warranted. If unsure, leave project empty and priority normal.',
-      { maxTokens: 100 }
+      { maxTokens: 100, temperature: 0.3 }
     );
     if (!resp) return;
     const match = resp.match(/\{[\s\S]*\}/);
@@ -4834,7 +4832,7 @@ function openEditTask(id) {
       <div id="depResults" style="max-height:120px;overflow-y:auto"></div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}');closeModal();expandedTask=null;render()">Delete</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmAction('Delete this task?').then(ok=>{if(ok){deleteTask('${t.id}');closeModal();expandedTask=null;render()}})">Delete</button>
       <div style="flex:1"></div>
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditTask('${t.id}')">Save</button>
@@ -4944,7 +4942,7 @@ async function consolidateMemories() {
   try {
     const currentBoards = data.projects.map(p => p.name).join(', ');
     const memDump = mem.map((m, i) => '[' + i + '] (' + (m.type || 'note') + ', ' + (m.date || '?') + ') ' + m.text).join('\n');
-    const reply = await callAI('You are an AI memory manager. Consolidate these memories about a user into a tighter, more useful set.\n\nCURRENT ACTIVE BOARDS: ' + currentBoards + '\n\nCURRENT MEMORIES:\n' + memDump + '\n\nRULES:\n1. Merge related memories into single, denser entries\n2. Remove truly outdated entries (old context that is clearly stale - but keep preferences and corrections forever)\n3. Elevate repeated observations into "pattern" or "rhythm" type\n4. Keep corrections and preferences as-is\n5. Cap the result at 25 memories max\n6. Valid types: preference, pattern, context, correction, rhythm, reflection, note\n7. If a memory references a board/project NOT in the current active boards, mark it "archive": true\n8. Preferences, corrections, rhythms are NEVER archived\n\nReturn ONLY a JSON array: [{ "text": "...", "type": "...", "strength": 1-3, "archive": false }]\nStrength: 1=single observation, 2=confirmed by multiple signals, 3=strong established pattern', { maxTokens: 2048 });
+    const reply = await callAI('You are an AI memory manager. Consolidate these memories about a user into a tighter, more useful set.\n\nCURRENT ACTIVE BOARDS: ' + currentBoards + '\n\nCURRENT MEMORIES:\n' + memDump + '\n\nRULES:\n1. Merge related memories into single, denser entries\n2. Remove truly outdated entries (old context that is clearly stale - but keep preferences and corrections forever)\n3. Elevate repeated observations into "pattern" or "rhythm" type\n4. Keep corrections and preferences as-is\n5. Cap the result at 25 memories max\n6. Valid types: preference, pattern, context, correction, rhythm, reflection, note\n7. If a memory references a board/project NOT in the current active boards, mark it "archive": true\n8. Preferences, corrections, rhythms are NEVER archived\n\nReturn ONLY a JSON array: [{ "text": "...", "type": "...", "strength": 1-3, "archive": false }]\nStrength: 1=single observation, 2=confirmed by multiple signals, 3=strong established pattern', { maxTokens: 2048, temperature: 0.3 });
     const jsonMatch = reply.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return;
     const consolidated = JSON.parse(jsonMatch[0]);
@@ -5312,7 +5310,10 @@ async function executeAIActions(reply) {
               const confirmed = await confirmAIAction(`AI wants to update ${targets.length} tasks. Allow?`);
               if (!confirmed) break;
             }
-            targets.forEach(t => updateTask(t.id, a.fields));
+            const batchAllowed = ['title','notes','priority','status','dueDate','project','phase','tags','recurrence','estimatedMinutes','subtasks','favorite'];
+            const batchSafe = {};
+            for (const k of batchAllowed) { if (a.fields && k in a.fields) batchSafe[k] = a.fields[k]; }
+            targets.forEach(t => updateTask(t.id, batchSafe));
             if (targets.length) applied++;
             break;
           }
@@ -5409,10 +5410,11 @@ function getAIEndpoint() {
 function hasAI() { return true; }
 
 async function callAI(prompt, opts = {}) {
-  const { system, maxTokens = 2048, messages } = opts;
+  const { system, maxTokens = 2048, messages, temperature } = opts;
   const ep = getAIEndpoint();
   const doCall = async (signal) => {
     const body = { model: settings.aiModel || 'claude-haiku-4-5-20251001', max_tokens: maxTokens };
+    if (temperature !== undefined) body.temperature = temperature;
     if (system) body.system = system;
     body.messages = messages || [{ role: 'user', content: prompt }];
     const resp = await fetch(ep.url, {
@@ -5753,7 +5755,7 @@ async function maybeClarify(text) {
   if (wordCount > 80) return null;
 
   try {
-    const reply = await callAI(`You are an executive assistant helping someone brainstorm. They just typed this into a quick capture box:
+    const reply = await callAI(`You are a sharp, direct productivity partner helping someone brainstorm. They just typed this into a quick capture box:
 
 "${text}"
 
@@ -5869,7 +5871,7 @@ async function processDump(skipClarifyPass) {
   const taskNote = existingTasks.length > 150 ? `\n(showing 150 most recent of ${existingTasks.length} total tasks)` : '';
   const projectCompact = existingProjects.map(p => `${p.id}|${p.name}`).join('\n');
 
-  const prompt = `You are the world's best executive assistant. You have been handed a brainstorm — it could be a stream of consciousness, a formal project document, meeting notes, a status update, or anything in between. Your job: extract EVERYTHING useful and organize it perfectly.
+  const dumpSystemPrompt = `You are a sharp, direct productivity partner. You have been handed a brainstorm — it could be a stream of consciousness, a formal project document, meeting notes, a status update, or anything in between. Your job: extract EVERYTHING useful and organize it perfectly.
 
 ## YOUR EXTRACTION PHILOSOPHY
 - Extract ALL discrete items — things to DO, things already DONE, things IN PROGRESS.
@@ -5937,14 +5939,6 @@ For every task, estimate how many minutes it will take. Use your best judgment:
   - "description" = a SUBTITLE for the project card. MAXIMUM 12 WORDS. Example: "Nonprofit advancing immigration justice through trust-based philanthropy." NEVER include team names, financials, phases, dates, status updates, or any detail. If your description is longer than 12 words, it is WRONG. Rewrite it shorter.
   - "background" = ALL detailed info using ## section headers (Origin, Where It's Going, Roadblocks, Next Steps, Notes). Mission, team roster, phase, decisions, context, financials, timelines, compliance — EVERYTHING detailed goes HERE. This is a collapsible dropdown, so be thorough.
 
-EXISTING TASKS (id|title|status|notes_preview):
-${existingCompact || '(none)'}${taskNote}
-
-EXISTING PROJECTS (id|name):
-${projectCompact || '(none)'}
-
-TODAY: ${todayStr()}
-
 ## OUTPUT FORMAT — Return ONLY this JSON object, nothing else:
 {
   "projectUpdates": [
@@ -5970,7 +5964,15 @@ TODAY: ${todayStr()}
   ]
 }
 
-For updates to existing tasks, use: { "action": "update", "id": "existing_task_id", "updateFields": { "status": "done" } }
+For updates to existing tasks, use: { "action": "update", "id": "existing_task_id", "updateFields": { "status": "done" } }`;
+
+  const dumpUserPrompt = `EXISTING TASKS (id|title|status|notes_preview):
+${existingCompact || '(none)'}${taskNote}
+
+EXISTING PROJECTS (id|name):
+${projectCompact || '(none)'}
+
+TODAY: ${todayStr()}
 
 Brainstorm input:
 ${text}${getDumpAttachmentText()}`;
@@ -5983,13 +5985,12 @@ ${text}${getDumpAttachmentText()}`;
 
     if (chunks.length <= 1) {
       // Single call for small inputs
-      const finalPrompt = prompt;
       const _ep = getAIEndpoint();
       const resp = await fetch(_ep.url, {
         method: 'POST',
         signal: dumpAbort.signal,
         headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', ..._ep.headers },
-        body: JSON.stringify({ model: settings.aiModel || 'claude-haiku-4-5-20251001', max_tokens: 16384, messages: [{ role: 'user', content: finalPrompt }] }),
+        body: JSON.stringify({ model: settings.aiModel || 'claude-haiku-4-5-20251001', max_tokens: 16384, temperature: 0.3, system: dumpSystemPrompt, messages: [{ role: 'user', content: dumpUserPrompt }] }),
       });
       if (!resp.ok) throw new Error(resp.status === 429 ? 'AI is busy. Please wait a moment.' : 'AI service error. Please try again.');
       const result = await resp.json();
@@ -6001,13 +6002,13 @@ ${text}${getDumpAttachmentText()}`;
       for (let i = 0; i < chunks.length; i++) {
         if (dumpAbort.signal.aborted) throw new Error('Cancelled');
         if (statusEl) statusEl.innerHTML = `<div class="ai-status"><div class="spinner"></div>Processing chunk ${i + 1} of ${chunks.length}...<button class="btn btn-sm" style="margin-left:12px;font-size:10px;color:var(--red);border-color:var(--red)" onclick="cancelDump()">Cancel</button></div>`;
-        // Replace input text in the prompt template with this chunk
-        const chunkPrompt = prompt.replace(fullInput, chunks[i] + `\n\n[Chunk ${i + 1} of ${chunks.length}]`);
+        // Replace input text in the user prompt with this chunk
+        const chunkUserPrompt = dumpUserPrompt.replace(fullInput, chunks[i] + `\n\n[Chunk ${i + 1} of ${chunks.length}]`);
         const resp = await fetch(_ep.url, {
           method: 'POST',
           signal: dumpAbort.signal,
           headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', ..._ep.headers },
-          body: JSON.stringify({ model: settings.aiModel || 'claude-haiku-4-5-20251001', max_tokens: 16384, messages: [{ role: 'user', content: chunkPrompt }] }),
+          body: JSON.stringify({ model: settings.aiModel || 'claude-haiku-4-5-20251001', max_tokens: 16384, temperature: 0.3, system: dumpSystemPrompt, messages: [{ role: 'user', content: chunkUserPrompt }] }),
         });
         if (!resp.ok) throw new Error(resp.status === 429 ? 'AI is busy. Please wait a moment.' : 'AI service error. Please try again.');
         const result = await resp.json();
@@ -6368,7 +6369,7 @@ Rules:
 - 3-10 changes max, only high-confidence ones`;
 
   try {
-    const content = await callAI(prompt, { maxTokens: 2048 });
+    const content = await callAI(prompt, { maxTokens: 2048, temperature: 0.3 });
 
     let changes;
     try { changes = JSON.parse(content); } catch {
@@ -6521,7 +6522,6 @@ function importData(input) {
         });
       }
       data = d;
-      if (!data.habits) data.habits = [];
       if (!data.projects) data.projects = [];
       ensureLifeProject();
       saveData(data);
@@ -6764,7 +6764,7 @@ If this seems like it needs more detail (e.g., the user asked to "email someone"
 { "notes": "draft content or helpful context", "subtasks": ["step 1", "step 2"] }
 
 If the task is simple and doesn't need enhancement, return: { "notes": "", "subtasks": [] }
-Keep notes concise and actionable. Today is ${todayStr()}.`, { maxTokens: 512 }).then(reply => {
+Keep notes concise and actionable. Today is ${todayStr()}.`, { maxTokens: 512, temperature: 0.3 }).then(reply => {
     try {
       const enhanced = JSON.parse(reply.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim());
       const t = data.tasks.find(x => x.id === taskId);
@@ -6776,36 +6776,6 @@ Keep notes concise and actionable. Today is ${todayStr()}.`, { maxTokens: 512 })
       if (enhanced.notes || enhanced.subtasks?.length) { saveData(data); render(); showToast('AI enhanced task with details', false, true); }
     } catch (e) { /* AI enhancement failed silently */ }
   }).catch(() => {});
-}
-
-function quickAddFromCapture() {
-  const input = document.getElementById('quickCapture');
-  const raw = input?.value?.trim();
-  if (!raw) return;
-  // Handle slash commands first
-  if (raw.startsWith('/')) {
-    const handled = handleSlashCommand(raw);
-    if (handled) { input.value = ''; previewQuickCapture(); return; }
-    showToast('Commands: /done, /urgent, /focus, /plan, /move ... to ...', true);
-    return;
-  }
-  const parsed = parseQuickInput(raw);
-  const dropdownProject = document.getElementById('quickCaptureProject')?.value || '';
-  const project = parsed.quickProject ? parsed.quickProject.id : dropdownProject;
-  const newTask = createTask({
-    title: parsed.title,
-    priority: parsed.priority || 'normal',
-    dueDate: parsed.dueDate || '',
-    project
-  });
-  addTask(newTask);
-  input.value = '';
-  const projName = parsed.quickProject ? parsed.quickProject.name : '';
-  showToast(`+ ${parsed.title}${parsed.dueDate ? ' (due ' + parsed.dueDate + ')' : ''}${parsed.priority && parsed.priority !== 'normal' ? ' [' + parsed.priority + ']' : ''}${projName ? ' → ' + projName : ''}`, false, true);
-  render();
-  // If the original input was complex, AI-enhance the task in the background
-  if (isComplexInput(raw)) { aiEnhanceTask(newTask.id, raw); }
-  maybeProactiveEnhance(newTask);
 }
 
 function quickAddToProject(input, projectId) {
@@ -7073,9 +7043,7 @@ function discussReview() {
   const body = document.getElementById('reviewBody');
   const reviewText = body ? body.textContent : '';
   if (!reviewText || reviewText.startsWith('Click Generate')) { showToast('Generate a review first', true); return; }
-  chatHistory = [
-    { role: 'user', content: 'I just read my weekly review. Here\'s what it said:\n\n' + reviewText + '\n\nI want to discuss it.', ts: Date.now() }
-  ];
+  chatHistory.push({ role: 'user', content: 'I just read my weekly review. Here\'s what it said:\n\n' + reviewText + '\n\nI want to discuss it.', ts: Date.now() });
   saveChatHistory();
   _chatSessionStarted = false;
   const panel = document.getElementById('chatPanel');
@@ -7083,7 +7051,7 @@ function discussReview() {
   _chatSessionStarted = true;
   const messagesEl = document.getElementById('chatMessages');
   if (messagesEl) {
-    messagesEl.innerHTML = '<div class="chat-msg user">I just read my weekly review and want to discuss it.<span class="chat-ts">' + chatTimeStr() + '</span></div>';
+    messagesEl.innerHTML = chatHistory.map(function(m) { return '<div class="chat-msg ' + (m.role === 'user' ? 'user' : 'ai') + '">' + esc(m.content.length > 500 ? m.content.slice(0, 500) + '...' : m.content) + '<span class="chat-ts">' + chatTimeStr(m.ts ? new Date(m.ts) : undefined) + '</span></div>'; }).join('');
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
   document.getElementById('chatTitle').textContent = 'AI Assistant';
@@ -7201,7 +7169,7 @@ Return ONLY a JSON array, no other text:
 ]`;
 
   try {
-    const reply = await callAI(prompt, { maxTokens: 2048 });
+    const reply = await callAI(prompt, { maxTokens: 2048, temperature: 0.3 });
     const json = JSON.parse(reply.replace(/```json?\s*/g, '').replace(/```/g, '').trim());
     if (Array.isArray(json) && json.length) {
       // Validate IDs exist
@@ -7228,7 +7196,7 @@ function matchProactivePattern(t){return PROACTIVE_PATTERNS.find(p=>p.regex.test
 function saveProactiveLog(){try{localStorage.setItem(userKey('wb_proactive_log_'+todayStr()),JSON.stringify(proactiveLog));}catch(e){}}
 function getAIPreparedTaskIds(){return new Set(proactiveLog.map(l=>l.taskId));}
 function filterAIPrepared(){var ids=getAIPreparedTaskIds();if(!ids.size){showToast('No AI-prepared tasks today');return;}var tasks=data.tasks.filter(function(t){return ids.has(t.id)&&t.status!=='done';});if(!tasks.length){showToast('No active AI-prepared tasks');return;}var h='<div style="padding:20px"><h3 style="margin-bottom:16px;color:var(--accent)">AI Prepared Tasks ('+tasks.length+')</h3>';tasks.forEach(function(t){h+='<div class="task-row" data-task="'+t.id+'" style="cursor:pointer" onclick="closeModal();expandedTask=\''+t.id+'\';render()"><div class="task-body"><div class="task-title">'+esc(t.title)+'</div></div></div>';});h+='</div>';$('#modalRoot').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px">'+h+'</div></div>';}
-function maybeProactiveEnhance(tk){if(!hasAI()||!tk)return;var m=matchProactivePattern(tk.title);if(!m)return;setTimeout(async()=>{try{var t=data.tasks.find(x=>x.id===tk.id);if(!t||t.status==='done'||(t.notes&&t.notes.length>50))return;var r=await callAI('Draft:'+t.title+' Type:'+m.type,{maxTokens:2048});if(!r)return;updateTask(tk.id,{notes:(t.notes||'')+'\n**AI Draft:**\n'+r.trim()});proactiveLog.push({taskId:tk.id,taskTitle:t.title,action:m.action,timestamp:Date.now()});saveProactiveLog();render();}catch(e){}},3000);}
+function maybeProactiveEnhance(tk){if(!hasAI()||!tk)return;var m=matchProactivePattern(tk.title);if(!m)return;setTimeout(async()=>{try{var t=data.tasks.find(x=>x.id===tk.id);if(!t||t.status==='done'||(t.notes&&t.notes.length>50))return;var r=await callAI('Draft:'+t.title+' Type:'+m.type,{maxTokens:2048,systemPrompt:'You are a sharp, direct productivity assistant. Draft a brief, actionable expansion of this task. 2-3 bullet points max. No preamble.'});if(!r)return;updateTask(tk.id,{notes:(t.notes||'')+'\n**AI Draft:**\n'+r.trim()});proactiveLog.push({taskId:tk.id,taskTitle:t.title,action:m.action,timestamp:Date.now()});saveProactiveLog();render();}catch(e){}},3000);}
 async function runProactiveWorker() {
   if (!hasAI()) return;
   const flagKey = userKey('whiteboard_proactive_' + todayStr());
@@ -7268,7 +7236,7 @@ Type: ${matched.type}
 Instruction: ${matched.instruction}`;
     }).join('\n\n');
 
-    const prompt = `You are the user's executive assistant who already started the work. For each task below, generate the most useful head start. Be specific and actionable — write as if you've already begun doing the task for them.
+    const prompt = `You are the user's productivity partner who already started the work. For each task below, generate the most useful head start. Be specific and actionable — write as if you've already begun doing the task for them.
 
 ${taskDescriptions}
 
@@ -7288,7 +7256,7 @@ RULES:
 - Use markdown formatting (headers, bullets, bold) for readability
 - Do NOT wrap in code fences`;
 
-    const reply = await callAI(prompt, { maxTokens: 4096 });
+    const reply = await callAI(prompt, { maxTokens: 4096, temperature: 0.3 });
     const json = JSON.parse(reply.replace(/```json?\s*/g, '').replace(/```/g, '').trim());
 
     if (Array.isArray(json) && json.length) {
@@ -7324,6 +7292,7 @@ function snoozePlanTask(taskId) {
     const plan = JSON.parse(localStorage.getItem(planKey) || '[]');
     const updated = plan.filter(p => p.id !== taskId);
     localStorage.setItem(planKey, JSON.stringify(updated));
+    _planIndexCache = null; _planIndexDate = '';
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + String(tomorrow.getDate()).padStart(2, '0');
@@ -7335,6 +7304,7 @@ function snoozePlanTask(taskId) {
 
 function replanDay() {
   localStorage.removeItem(userKey('whiteboard_plan_' + todayStr()));
+  _planIndexCache = null; _planIndexDate = '';
   _planGenerating = true;
   render();
   planMyDay().finally(() => { _planGenerating = false; });
@@ -7486,11 +7456,16 @@ function openProjectChat(projectId) {
   document.getElementById('chatInput').focus();
 }
 
+let _chatSending = false;
 async function sendChat() {
+  if (_chatSending) return;
   const input = document.getElementById('chatInput');
   const msg = input.value.trim();
   if (!msg) return;
   if (!hasAI()) return;
+  _chatSending = true;
+  const sendBtn = document.querySelector('.chat-send');
+  if (sendBtn) sendBtn.disabled = true;
 
   const chatMsgs = document.getElementById('chatMessages');
   chatMsgs.innerHTML += `<div class="chat-msg user">${esc(msg)}<span class="chat-ts">${chatTimeStr()}</span></div>`;
@@ -7653,6 +7628,9 @@ ${context}`;
     typingEl.innerHTML = `<span style="color:var(--red)">Error: ${esc(errMsg)}</span>`;
   } finally {
     clearTimeout(chatTimeout);
+    _chatSending = false;
+    const _sendBtn = document.querySelector('.chat-send');
+    if (_sendBtn) _sendBtn.disabled = false;
   }
 }
 
@@ -7763,10 +7741,12 @@ function saveProjectBackground(projectId) {
 // ============================================================
 let focusTask = null;
 let focusStartTime = null;
+let _focusSkipped = [];
 
 async function startFocus(projectId) {
-  const active = projectId ? activeTasks(projectId) : activeTasks();
-  if (!active.length) { showToast('No active tasks to focus on'); return; }
+  let active = projectId ? activeTasks(projectId) : activeTasks();
+  if (_focusSkipped.length) active = active.filter(t => !_focusSkipped.includes(t.id));
+  if (!active.length) { _focusSkipped = []; showToast('No more tasks to focus on'); return; }
 
   // If AI available, let it pick the best task with reasoning
   if (hasAI()) {
@@ -7788,7 +7768,7 @@ Pick the ONE task this person should work on RIGHT NOW. Consider: urgency, deadl
 
 Tasks:\n${taskList}
 
-Return JSON: { "title": "exact task title", "reason": "one sentence why this one" }`, { maxTokens: 256 });
+Return JSON: { "title": "exact task title", "reason": "one sentence why this one" }`, { maxTokens: 256, temperature: 0.3 });
       const json = JSON.parse(reply.replace(/```json?\s*/g, '').replace(/```/g, '').trim());
       const pick = (json.title || '').replace(/^["'\s]+|["'\s]+$/g, '').trim();
       const match = matchTask(pick) || active.find(t => t.title.toLowerCase().includes(pick.toLowerCase().slice(0, 20)));
@@ -7872,13 +7852,18 @@ function completeFocusTask() {
 }
 
 function skipFocusTask() {
-  closeFocus();
+  if (focusTask) _focusSkipped.push(focusTask);
+  focusTask = null;
+  focusStartTime = null;
+  if (window._focusInterval) clearInterval(window._focusInterval);
+  $('#modalRoot').innerHTML = '';
   startFocus(); // Pick next one
 }
 
 function closeFocus() {
   focusTask = null;
   focusStartTime = null;
+  _focusSkipped = [];
   if (window._focusInterval) clearInterval(window._focusInterval);
   $('#modalRoot').innerHTML = '';
 }
@@ -7913,13 +7898,10 @@ function getSmartNudges() {
   // Overdue pileup
   if (overdue.length >= 3) nudges.push({ type: 'urgent', icon: '🔥', text: `${overdue.length} overdue tasks. Worth rescheduling ones you won't get to.`, actionLabel: 'Review overdue', actionFn: `nudgeFilterOverdue()` });
 
-  // Velocity check
+  // Weekly completion count (no comparison)
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-  const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
   const doneThisWeek = done.filter(t => t.completedAt && t.completedAt.slice(0, 10) >= weekAgo).length;
-  const doneLastWeek = done.filter(t => t.completedAt && t.completedAt.slice(0, 10) >= twoWeeksAgo && t.completedAt.slice(0, 10) < weekAgo).length;
-  if (doneLastWeek > 0 && doneThisWeek >= doneLastWeek * 1.5) nudges.push({ type: 'positive', icon: '🚀', text: `${doneThisWeek} tasks done this week vs ${doneLastWeek} last week — you're on a roll!` });
-  else if (doneLastWeek > 3 && doneThisWeek < doneLastWeek * 0.5) nudges.push({ type: 'warning', icon: '📉', text: `Slower week — ${doneThisWeek} done vs ${doneLastWeek} last week.` });
+  if (doneThisWeek > 0) nudges.push({ type: 'positive', icon: '✓', text: `${doneThisWeek} task${doneThisWeek === 1 ? '' : 's'} completed this week.` });
 
   // Unassigned tasks
   const unassigned = active.filter(t => !t.project);
@@ -7931,19 +7913,6 @@ function getSmartNudges() {
 
 
   return nudges.slice(0, 4); // Max 4 nudges at a time
-}
-
-function renderNudgeBar() {
-  const nudges = getSmartNudges();
-  if (!nudges.length) return '';
-  const colorMap = { urgent: 'var(--red)', warning: 'var(--orange)', action: 'var(--accent)', positive: 'var(--green)', stale: 'var(--text3)', habit: 'var(--purple)' };
-  return `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
-    ${nudges.map(n => `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-radius:var(--radius-xs);border-left:3px solid ${colorMap[n.type] || 'var(--accent)'}">
-      <span style="flex-shrink:0">${n.icon}</span>
-      <span style="font-size:12px;color:var(--text2);line-height:1.4;flex:1">${n.text}</span>
-      ${n.actionLabel ? `<button class="btn btn-sm" onclick="${n.actionFn}" style="flex-shrink:0;font-size:11px;padding:3px 10px;white-space:nowrap">${n.actionLabel}</button>` : ''}
-    </div>`).join('')}
-  </div>`;
 }
 
 function nudgeFilterOverdue() {
@@ -7965,16 +7934,6 @@ function nudgeFilterUnassigned() {
   setView('dashboard');
   render();
   showToast('Showing unassigned tasks');
-}
-
-function clearNudgeFilter() {
-  _nudgeFilter = '';
-  render();
-}
-
-function toggleTagFilter() {
-  _showTagFilter = !_showTagFilter;
-  render();
 }
 
 // ============================================================
@@ -8053,22 +8012,6 @@ function getStuckTasks() {
     }
     return true;
   });
-}
-
-function renderStuckNudges() {
-  const stuck = getStuckTasks();
-  if (!stuck.length) return '';
-  return stuck.slice(0, 2).map(t => {
-    const lastTouch = t.updates?.length ? t.updates[t.updates.length - 1].date : t.createdAt;
-    const days = Math.floor((Date.now() - new Date(lastTouch).getTime()) / 86400000);
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;background:var(--surface);border-radius:var(--radius-xs);border-left:3px solid var(--amber);margin-bottom:6px">
-      <span style="flex-shrink:0">◇</span>
-      <div style="font-size:12px;color:var(--text2);line-height:1.4">
-        <strong>${esc(t.title)}</strong> has been in-progress for ${days} days.
-        ${hasAI() ? `<span style="color:var(--accent);cursor:pointer" onclick="event.stopPropagation();offerStuckHelp('${t.id}')">Want to think through what's blocking it?</span>` : 'Is something blocking it?'}
-      </div>
-    </div>`;
-  }).join('');
 }
 
 async function offerStuckHelp(taskId) {

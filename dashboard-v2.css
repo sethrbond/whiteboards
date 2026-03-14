@@ -229,3 +229,37 @@
   100% { transform: scale(1); box-shadow: none; }
 }
 .task-check.done { animation: checkPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ==================== HOVER CLASSES (converted from inline JS) ==================== */
+
+/* Empty-state brainstorm CTA card */
+.brainstorm-cta-hover { transition: all 0.2s; }
+.brainstorm-cta-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(129,140,248,0.15); }
+
+/* Empty-state template cards */
+.dashboard-card-hover { transition: all 0.2s; }
+.dashboard-card-hover:hover { border-color: var(--accent) !important; transform: translateY(-2px); }
+
+/* Brainstorm CTA on main dashboard */
+.brainstorm-cta-main:hover { border-color: var(--accent) !important; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(129,140,248,0.12) !important; }
+
+/* Brainstorm button pill */
+.brainstorm-btn-hover { transition: all 0.15s; }
+.brainstorm-btn-hover:hover { filter: brightness(1.1); transform: scale(1.02); }
+
+/* Snooze button */
+.snooze-btn-hover { transition: color 0.15s; }
+.snooze-btn-hover:hover { color: var(--accent) !important; }
+
+/* ==================== DASHBOARD MOBILE ==================== */
+@media (max-width: 768px) {
+  .ai-hero-card { padding: 18px 16px; }
+  .ai-hero-greeting { font-size: 18px; }
+  .ai-hero-sub { font-size: 12px; }
+  .conversational-input { font-size: 16px !important; }
+  .today-card { padding: 16px; }
+  .ai-hero-nudge { padding: 10px 12px; min-height: 44px; }
+  .ai-hero-nudge .btn-sm { min-height: 44px; padding: 10px 14px; }
+  .smart-feed-more { min-height: 44px; padding: 12px 0; }
+  .briefing-generate { min-height: 44px; padding: 12px 18px; }
+}

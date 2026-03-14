@@ -252,19 +252,19 @@ renderDashboard = function() {
     return `<div style="max-width:540px;margin:48px auto;text-align:center">
       <div id="welcomeTyping" style="font-size:22px;font-weight:600;margin-bottom:6px;min-height:32px" data-phrases='${JSON.stringify(_emptyPhrases)}'></div>
       <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Drop everything on your mind. AI turns it into organized tasks.</p>
-      <div onclick="setView('dump')" style="background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);padding:32px 28px;cursor:pointer;transition:all 0.2s;margin-bottom:20px;text-align:left;position:relative" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 32px rgba(129,140,248,0.15)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">
+      <div onclick="setView('dump')" class="brainstorm-cta-hover" style="background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);padding:32px 28px;cursor:pointer;margin-bottom:20px;text-align:left;position:relative">
         <div style="font-size:28px;margin-bottom:12px">&#9671;</div>
         <div style="font-size:17px;font-weight:600;margin-bottom:6px;color:var(--text)">Start a brainstorm</div>
         <div style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:16px">Write freely &mdash; plans, ideas, notes, goals. AI will organize everything into tasks and boards.</div>
         <div style="font-size:13px;color:var(--accent);font-weight:500">Open brainstorm &rarr;</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;text-align:left">
-        <div onclick="setView('dump');setTimeout(()=>{const t=document.getElementById('dumpText');if(t){t.value='Here are my plans for the week:\\n- ';t.focus();t.setSelectionRange(t.value.length,t.value.length)}},100)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+        <div onclick="setView('dump');setTimeout(()=>{const t=document.getElementById('dumpText');if(t){t.value='Here are my plans for the week:\\n- ';t.focus();t.setSelectionRange(t.value.length,t.value.length)}},100)" class="dashboard-card-hover" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer">
           <div style="font-size:24px;margin-bottom:10px">&#9671;</div>
           <div style="font-size:13px;font-weight:600;margin-bottom:4px">Plan my week</div>
           <div style="font-size:12px;color:var(--text3);line-height:1.5">Drop your weekly goals and let AI organize them</div>
         </div>
-        <div onclick="setView('dump')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+        <div onclick="setView('dump')" class="dashboard-card-hover" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer">
           <div style="font-size:24px;margin-bottom:10px">&#8623;</div>
           <div style="font-size:13px;font-weight:600;margin-bottom:4px">Import from notes</div>
           <div style="font-size:12px;color:var(--text3);line-height:1.5">Paste meeting notes, docs, or ideas &mdash; AI extracts tasks</div>
@@ -339,7 +339,7 @@ renderDashboard = function() {
   html += `<div id="quickCapturePreview" class="smart-date-preview" style="padding-left:0"></div>`;
   // Quick brainstorm hint (appears when typing 30+ words)
   html += `<div id="brainstormHint" style="display:none;font-size:11px;color:var(--accent);padding:6px 0 0;opacity:0.85;transition:opacity 0.2s">Looks like a brainstorm &mdash; press <kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:inherit">Shift+Enter</kbd> to organize with AI</div>`;
-  // Hidden project dropdown (still accessible, used by quickAddFromCapture fallback and #hashtag)
+  // Hidden project dropdown (used by #hashtag project assignment)
   const projOpts = data.projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   html += `<select class="quick-capture-project" id="quickCaptureProject" style="display:none">${projOpts}</select>`;
 
@@ -357,13 +357,13 @@ renderDashboard = function() {
       _brainstormStat = `Last: ${last.tasksCreated} task${last.tasksCreated !== 1 ? 's' : ''} from ${last.wordCount} words, ${agoStr}`;
     }
   }
-  html += `<div onclick="setView('dump')" style="background:linear-gradient(135deg,rgba(129,140,248,.06),rgba(168,85,247,.03));border:1px solid ${_showDumpInvite ? 'var(--accent)' : 'rgba(129,140,248,0.2)'};border-radius:var(--radius);padding:20px 24px;cursor:pointer;transition:all 0.2s;margin-bottom:20px;display:flex;align-items:center;gap:16px;${_showDumpInvite ? 'box-shadow:0 0 0 1px rgba(129,140,248,0.1),0 4px 20px rgba(129,140,248,0.08)' : ''}" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 32px rgba(129,140,248,0.12)'" onmouseout="this.style.borderColor='${_showDumpInvite ? 'var(--accent)' : 'rgba(129,140,248,0.2)'}';this.style.transform='none';this.style.boxShadow='${_showDumpInvite ? '0 0 0 1px rgba(129,140,248,0.1),0 4px 20px rgba(129,140,248,0.08)' : 'none'}'">
+  html += `<div onclick="setView('dump')" class="brainstorm-cta-main" style="background:linear-gradient(135deg,rgba(129,140,248,.06),rgba(168,85,247,.03));border:1px solid ${_showDumpInvite ? 'var(--accent)' : 'rgba(129,140,248,0.2)'};border-radius:var(--radius);padding:20px 24px;cursor:pointer;transition:all 0.2s;margin-bottom:20px;display:flex;align-items:center;gap:16px;${_showDumpInvite ? 'box-shadow:0 0 0 1px rgba(129,140,248,0.1),0 4px 20px rgba(129,140,248,0.08)' : ''}">
     <div style="font-size:28px;flex-shrink:0">&#9671;</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">Got something on your mind?</div>
       <div style="font-size:12px;color:var(--text3);line-height:1.4">${_brainstormStat ? esc(_brainstormStat) : 'Drop your thoughts, plans, or notes &mdash; AI organizes them into tasks'}</div>
     </div>
-    <div style="flex-shrink:0;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;padding:8px 18px;background:var(--accent);border-radius:var(--radius-sm);transition:all 0.15s" onmouseover="this.style.filter='brightness(1.1)';this.style.transform='scale(1.02)'" onmouseout="this.style.filter='none';this.style.transform='none'">Brainstorm</div>
+    <div class="brainstorm-btn-hover" style="flex-shrink:0;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;padding:8px 18px;background:var(--accent);border-radius:var(--radius-sm)">Brainstorm</div>
   </div>`;
 
   // ===== Nudge filter indicator =====
@@ -481,7 +481,7 @@ renderDashboard = function() {
           html += `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:2px;${isDone ? 'text-decoration:line-through;opacity:0.5' : ''}">
             <span style="font-size:11px;color:var(--text3);min-width:18px;padding-top:10px">${i + 1}.</span>
             <div style="flex:1">${renderTaskRow(t, true)}</div>
-            ${!isDone ? `<button onclick="snoozePlanTask('${p.id}')" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:8px 4px;white-space:nowrap;flex-shrink:0" title="Snooze to tomorrow" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">snooze</button>` : ''}
+            ${!isDone ? `<button onclick="snoozePlanTask('${p.id}')" class="snooze-btn-hover" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:8px 4px;white-space:nowrap;flex-shrink:0" title="Snooze to tomorrow">snooze</button>` : ''}
           </div>`;
           if (p.why) html += `<div style="margin-left:28px;font-size:11px;color:var(--text3);margin-bottom:8px;margin-top:-4px;font-style:italic">↳ ${esc(p.why)}</div>`;
         });
@@ -520,7 +520,8 @@ renderDashboard = function() {
   const eodKey = userKey('wb_eod_' + todayStr());
   const cachedEod = localStorage.getItem(eodKey);
   const completedToday = data.tasks.filter(t => t.status === 'done' && t.completedAt && t.completedAt.slice(0, 10) === todayStr());
-  if (new Date().getHours() >= 17 && hasAI() && completedToday.length >= 1) {
+  const eodDismissedKey = userKey('whiteboard_eod_dismissed_' + todayStr());
+  if (new Date().getHours() >= 17 && hasAI() && completedToday.length >= 1 && !localStorage.getItem(eodDismissedKey)) {
     if (cachedEod) {
       html += `<div class="eod-card">
         <div class="eod-header">
@@ -539,7 +540,7 @@ renderDashboard = function() {
         <textarea class="eod-textarea" id="eodInput" rows="3" placeholder="What went well? What was hard? Anything on your mind..."></textarea>
         <div style="display:flex;gap:8px">
           <button class="briefing-generate" onclick="submitEndOfDay()" id="eodBtn" style="color:var(--purple);border-color:rgba(168,85,247,0.2)">Wrap up</button>
-          <button class="briefing-generate" onclick="document.getElementById('eodCard').remove()" style="color:var(--text3);border-color:var(--border)">Skip</button>
+          <button class="briefing-generate" onclick="localStorage.setItem(userKey('whiteboard_eod_dismissed_'+todayStr()),'1');document.getElementById('eodCard').remove()" style="color:var(--text3);border-color:var(--border)">Skip</button>
         </div>
       </div>`;
     }
