@@ -5861,11 +5861,11 @@ async function processDump(skipClarifyPass) {
 
   const existingTasks = data.tasks.map(t => ({ id: t.id, title: t.title, project: t.project, priority: t.priority, status: t.status, notes: t.notes, createdAt: t.createdAt }));
   const existingProjects = data.projects.map(p => ({ id: p.id, name: p.name, description: (p.description || '').slice(0, 200) }));
-  // Build a compact summary of existing data — cap at 150 most recent to avoid prompt overflow
+  // Build a compact summary of existing data — cap at 75 most recent to stay within proxy limits
   const sortedTasks = existingTasks.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  const cappedTasks = sortedTasks.slice(0, 150);
-  const existingCompact = cappedTasks.map(t => `${t.id}|${t.title}|${t.status}|${(t.notes||'').slice(0,60)}`).join('\n');
-  const taskNote = existingTasks.length > 150 ? `\n(showing 150 most recent of ${existingTasks.length} total tasks)` : '';
+  const cappedTasks = sortedTasks.slice(0, 75);
+  const existingCompact = cappedTasks.map(t => `${t.id}|${t.title}|${t.status}`).join('\n');
+  const taskNote = existingTasks.length > 75 ? `\n(showing 75 most recent of ${existingTasks.length} total tasks)` : '';
   const projectCompact = existingProjects.map(p => `${p.id}|${p.name}`).join('\n');
 
   const dumpSystemPrompt = `You are a sharp, direct productivity partner. You have been handed a brainstorm — it could be a stream of consciousness, a formal project document, meeting notes, a status update, or anything in between. Your job: extract EVERYTHING useful and organize it perfectly.
