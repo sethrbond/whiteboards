@@ -80,6 +80,7 @@
   --z-landing: 310;
   --z-splash: 400;
   --z-skip: 999;
+  --z-offline: 500;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2096,7 +2097,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 </style><link rel="stylesheet" href="dashboard-v2.css">
 </head>
 <body>
-<a href="#content" class="skip-link" style="position:absolute;top:-40px;left:0;background:var(--accent);color:#fff;padding:8px 16px;z-index:999;font-size:13px;border-radius:0 0 var(--radius-xs) 0;transition:top 0.2s" onfocus="this.style.top='0'" onblur="this.style.top='-40px'">Skip to content</a>
+<a href="#content" class="skip-link" style="position:absolute;top:-40px;left:0;background:var(--accent);color:#fff;padding:8px 16px;z-index:var(--z-skip);font-size:13px;border-radius:0 0 var(--radius-xs) 0;transition:top 0.2s" onfocus="this.style.top='0'" onblur="this.style.top='-40px'">Skip to content</a>
 <div id="ariaLive" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap"></div>
 
 <!-- Splash Screen (first load only) -->
@@ -2960,6 +2961,7 @@ function updateTask(id, u) {
   if (u.status === 'done' && !t.completedAt) t.completedAt = new Date().toISOString();
   if (u.status && u.status !== 'done') t.completedAt = null;
   saveData(data);
+  render();
   // Trigger reflection on meaningful completions (not every time)
   if (wasNotDone && u.status === 'done') { maybeReflect(t); maybeLearnPattern(); }
   // If completing a task that's in today's plan, refresh the plan
@@ -3275,7 +3277,7 @@ function _renderNow() {
       $('#viewTitle').textContent = p.name;
       $('#viewSub').textContent = '';
       const vm = projectViewMode[p.id] || 'list';
-      ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${vm==='list'?'active':''}" onclick="projectViewMode['${p.id}']='list';render()">List</button><button class="view-toggle-btn ${vm==='board'?'active':''}" onclick="projectViewMode['${p.id}']='board';render()">Board</button></div><button class="btn btn-sm${bulkMode?' btn-active':''}" onclick="toggleBulkMode()" title="Select multiple tasks">☰ Bulk</button><button class="btn btn-sm" onclick="openProjectChat('${p.id}')">✦ AI</button><button class="btn btn-primary btn-sm" onclick="openNewTask('${p.id}')">+ Task</button><div class="dropdown" style="position:relative"><button class="btn btn-sm" onclick="this.parentElement.classList.toggle('open')">···</button><div class="dropdown-menu"><button onclick="startFocus('${p.id}');this.closest('.dropdown').classList.remove('open')">◎ Focus Mode</button><button onclick="aiReorganize('${p.id}');this.closest('.dropdown').classList.remove('open')">✦ Reorganize</button><button onclick="openEditProject('${p.id}');this.closest('.dropdown').classList.remove('open')">Edit Board</button></div></div>`;
+      ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${vm==='list'?'active':''}" onclick="projectViewMode['${esc(p.id)}']='list';render()">List</button><button class="view-toggle-btn ${vm==='board'?'active':''}" onclick="projectViewMode['${esc(p.id)}']='board';render()">Board</button></div><button class="btn btn-sm${bulkMode?' btn-active':''}" onclick="toggleBulkMode()" title="Select multiple tasks">☰ Bulk</button><button class="btn btn-sm" onclick="openProjectChat('${esc(p.id)}')">✦ AI</button><button class="btn btn-primary btn-sm" onclick="openNewTask('${esc(p.id)}')">+ Task</button><div class="dropdown" style="position:relative"><button class="btn btn-sm" onclick="this.parentElement.classList.toggle('open')">···</button><div class="dropdown-menu"><button onclick="startFocus('${esc(p.id)}');this.closest('.dropdown').classList.remove('open')">◎ Focus Mode</button><button onclick="aiReorganize('${esc(p.id)}');this.closest('.dropdown').classList.remove('open')">✦ Reorganize</button><button onclick="openEditProject('${esc(p.id)}');this.closest('.dropdown').classList.remove('open')">Edit Board</button></div></div>`;
       c.innerHTML = renderProject(p);
       break;
     case 'dump':
@@ -3593,8 +3595,8 @@ function renderProject(p) {
       <div class="project-info-dot" style="background:${p.color}">${p.name.charAt(0).toUpperCase()}</div>
       <div style="flex:1">
         <div class="project-info-name">${esc(p.name)}</div>
-        ${p.description ? `<div class="project-info-desc">${esc(p.description.length > 150 ? p.description.slice(0, 150) + '...' : p.description)}</div>` : `<div class="project-info-desc" style="color:var(--text3);font-style:italic">No description — <span style="cursor:pointer;color:var(--accent)" onclick="openEditProject('${p.id}')">add one</span></div>`}
-        <div class="project-bg-toggle" onclick="showProjectBg['${p.id}']=!showProjectBg['${p.id}'];render()">
+        ${p.description ? `<div class="project-info-desc">${esc(p.description.length > 150 ? p.description.slice(0, 150) + '...' : p.description)}</div>` : `<div class="project-info-desc" style="color:var(--text3);font-style:italic">No description — <span style="cursor:pointer;color:var(--accent)" onclick="openEditProject('${esc(p.id)}')">add one</span></div>`}
+        <div class="project-bg-toggle" onclick="showProjectBg['${esc(p.id)}']=!showProjectBg['${esc(p.id)}'];render()">
           <span class="chevron ${bgOpen ? 'open' : ''}">▸</span> Board Background
         </div>
       </div>
@@ -3607,13 +3609,13 @@ function renderProject(p) {
         ${bg.nextSteps ? `<div class="bg-section"><div class="bg-label">Next Steps</div><div class="bg-text">${esc(bg.nextSteps)}</div></div>` : ''}
         ${bg.notes ? `<div class="bg-section"><div class="bg-label">Notes</div><div class="bg-text">${esc(bg.notes)}</div></div>` : ''}
         <div class="project-bg-actions">
-          <button class="btn btn-sm" onclick="editProjectBackground('${p.id}')">Edit</button>
+          <button class="btn btn-sm" onclick="editProjectBackground('${esc(p.id)}')">Edit</button>
         </div>
       </div>` : `<div class="project-bg-content">
         <div style="text-align:center;padding:8px 0">
           <div style="color:var(--text3);font-size:12px;margin-bottom:10px">No background yet.</div>
           <div class="project-bg-actions" style="justify-content:center;border:none;padding:0;margin:0">
-            <button class="btn btn-sm" onclick="editProjectBackground('${p.id}')">Write background</button>
+            <button class="btn btn-sm" onclick="editProjectBackground('${esc(p.id)}')">Write background</button>
           </div>
         </div>
       </div>`}
@@ -3709,7 +3711,7 @@ function renderProject(p) {
   }
 
   if (active.length === 0 && done.length === 0) {
-    html += `<div class="empty"><div class="empty-icon">✦</div><div class="empty-text">No tasks yet. Add one above, or start a Brainstorm to get everything out at once.</div><button class="btn btn-primary" onclick="openNewTask('${p.id}')">+ Add Task</button></div>`;
+    html += `<div class="empty"><div class="empty-icon">✦</div><div class="empty-text">No tasks yet. Add one above, or start a Brainstorm to get everything out at once.</div><button class="btn btn-primary" onclick="openNewTask('${esc(p.id)}')">+ Add Task</button></div>`;
   }
 
   // Completed
@@ -4204,7 +4206,7 @@ async function runTaskCmdAI(taskId, input) {
   const projects = data.projects.map(p => ({ id: p.id, name: p.name }));
   const proj = data.projects.find(p => p.id === t.project);
 
-  const prompt = `You are a task command interpreter embedded in Whiteboards. The user typed a natural language command about this task.
+  const prompt = `${AI_PERSONA_SHORT}\n\nYou are a task command interpreter. The user typed a natural language command about this task.
 
 TASK: "${t.title}" (priority: ${t.priority}, status: ${t.status}, project: ${proj ? proj.name : 'none'}, due: ${t.dueDate || 'none'}, notes: ${(t.notes || '').slice(0, 200) || 'none'}, subtasks: ${t.subtasks?.length || 0})
 
@@ -4591,7 +4593,7 @@ function renderSearchResults(query) {
     if (projectResults.length) {
       html += '<div class="cmd-section-label">Boards</div>';
       projectResults.forEach(p => {
-        html += `<div class="cmd-item ${idx === 0 ? 'active' : ''}" onclick="closeModal();setView('project','${p.id}')">
+        html += `<div class="cmd-item ${idx === 0 ? 'active' : ''}" onclick="closeModal();setView('project','${esc(p.id)}')">
           <div class="cmd-item-dot" style="background:${p.color}"></div>
           <span class="cmd-item-label">${highlightMatch(esc(p.name), q)}</span>
           <span class="cmd-item-meta">${activeTasks(p.id).length} tasks</span>
@@ -4651,7 +4653,7 @@ async function cmdPaletteAI(query) {
 
 function cmdTaskItem(t, p, q, isFirst) {
   const priColors = { urgent: 'var(--red)', important: 'var(--orange)', normal: 'var(--accent)', low: 'var(--text3)' };
-  return `<div class="cmd-item ${isFirst ? 'active' : ''}" onclick="closeModal();${p ? `setView('project','${p.id}')` : `setView('dashboard')`};setTimeout(()=>{expandedTask='${t.id}';render()},50)">
+  return `<div class="cmd-item ${isFirst ? 'active' : ''}" onclick="closeModal();${p ? `setView('project','${esc(p.id)}')` : `setView('dashboard')`};setTimeout(()=>{expandedTask='${esc(t.id)}';render()},50)">
     <div class="cmd-item-pri" style="background:${priColors[t.priority] || 'var(--accent)'}"></div>
     <span class="cmd-item-label ${t.status === 'done' ? 'cmd-done' : ''}">${q ? highlightMatch(esc(t.title), q) : esc(t.title)}</span>
     ${p ? `<span class="cmd-item-meta">${esc(p.name)}</span>` : ''}
@@ -4696,10 +4698,10 @@ function openEditProject(id) {
     <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" id="fDesc">${esc(p.description)}</textarea></div>
     <div class="form-group"><label class="form-label">Color</label><div style="display:flex;gap:6px" id="fColors">${PROJECT_COLORS.map(c => `<div style="width:24px;height:24px;border-radius:6px;background:${c};cursor:pointer;border:2px solid ${c===p.color?'#fff':'transparent'}" onclick="document.querySelectorAll('#fColors div').forEach(d=>d.style.borderColor='transparent');this.style.borderColor='#fff';this.dataset.picked='1'" data-color="${c}" ${c===p.color?'data-picked="1"':''}></div>`).join('')}</div></div>
     <div class="modal-actions">
-      <button class="btn btn-danger btn-sm" onclick="confirmDeleteProject('${p.id}')">Delete Project</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteProject('${esc(p.id)}')">Delete Project</button>
       <div style="flex:1"></div>
       <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditProject('${p.id}')">Save</button>
+      <button class="btn btn-primary" onclick="saveEditProject('${esc(p.id)}')">Save</button>
     </div>
   </div></div>`;
 }
@@ -5490,7 +5492,7 @@ function renderDump() {
 
   const hasKey = hasAI();
   const draft = esc(loadDumpDraft());
-  const _dumpHints = ["What's on your mind? Drop notes, ideas, plans — AI organizes everything...","Paste meeting notes, project docs, or just brain dump — AI handles the rest...","Drop files or write freely — AI reads everything, extracts tasks, and organizes by project..."];
+  const _dumpHints = ["Brain dump, meeting notes, docs, ideas — throw it all in. AI organizes everything...","Paste notes, attach files, dump your thoughts — AI extracts tasks and sets priorities...","Write freely and drop files — AI reads everything, creates tasks, and sorts by project..."];
   const placeholder = _dumpHints[Math.floor(Date.now() / 60000) % _dumpHints.length];
   const attachCount = _dumpAttachments.length;
   const attachHtml = attachCount ? `<div id="dumpAttachList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${_dumpAttachments.map((a, i) =>
@@ -5504,7 +5506,7 @@ function renderDump() {
     </div>`).join('')}</div>` : '';
   return `<div class="dump-area">
     <p style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">
-      Drop files or add your thoughts — AI reads everything, extracts tasks, and organizes by project and priority.
+      Dump your thoughts, attach files, paste notes — throw everything in. AI reads it all, extracts tasks, and organizes by project and priority.
       ${!hasKey ? '<br><span style="color:var(--orange)">Add a Claude API key in Settings for AI parsing.</span>' : ''}
     </p>
     ${attachHtml}
@@ -6085,7 +6087,7 @@ function showDumpReviewModal(parsed, inputText) {
     if (applyBtn) applyBtn.textContent = `Apply Selected (${checked})`;
   };
 
-  $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this){closeModal();undo()}" style="z-index:9999">
+  $('#modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this){closeModal();undo()}" style="z-index:var(--z-modal)">
     <div class="modal" style="max-width:560px;max-height:85vh;display:flex;flex-direction:column;padding:0">
       <div style="padding:20px 24px 0;flex-shrink:0">
         <div class="modal-title" style="margin-bottom:4px">Review extracted tasks</div>
@@ -7097,7 +7099,7 @@ Write a weekly review with these sections:
 Keep it under 200 words. Be direct and honest.`;
 
   try {
-    let text = await callAI(prompt, { maxTokens: 1024 });
+    let text = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
     text = esc(text).replace(/^[-•*]\s*/gm, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     const reviewKey = userKey('whiteboard_review_' + weekStart);
     localStorage.setItem(reviewKey, text);
@@ -7126,7 +7128,7 @@ Keep it under 200 words. Be direct and honest.`;
 async function planMyDay() {
   if (!hasAI()) return;
   const active = data.tasks.filter(t => t.status !== 'done');
-  if (active.length === 0) return; // Nothing to plan
+  if (active.length === 0) { showToast('No active tasks to plan — add some tasks first'); return; }
   const btn = document.getElementById('planBtn');
   if (btn) btn.innerHTML = '<div class="spinner"></div> Planning...';
 
@@ -7193,7 +7195,7 @@ function matchProactivePattern(t){return PROACTIVE_PATTERNS.find(p=>p.regex.test
 function saveProactiveLog(){try{localStorage.setItem(userKey('wb_proactive_log_'+todayStr()),JSON.stringify(proactiveLog));}catch(e){}}
 function getAIPreparedTaskIds(){return new Set(proactiveLog.map(l=>l.taskId));}
 function filterAIPrepared(){var ids=getAIPreparedTaskIds();if(!ids.size){showToast('No AI-prepared tasks today');return;}var tasks=data.tasks.filter(function(t){return ids.has(t.id)&&t.status!=='done';});if(!tasks.length){showToast('No active AI-prepared tasks');return;}var h='<div style="padding:20px"><h3 style="margin-bottom:16px;color:var(--accent)">AI Prepared Tasks ('+tasks.length+')</h3>';tasks.forEach(function(t){h+='<div class="task-row" data-task="'+t.id+'" style="cursor:pointer" onclick="closeModal();expandedTask=\''+t.id+'\';render()"><div class="task-body"><div class="task-title">'+esc(t.title)+'</div></div></div>';});h+='</div>';$('#modalRoot').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px">'+h+'</div></div>';}
-function maybeProactiveEnhance(tk){if(!hasAI()||!tk)return;var m=matchProactivePattern(tk.title);if(!m)return;setTimeout(async()=>{try{var t=data.tasks.find(x=>x.id===tk.id);if(!t||t.status==='done'||(t.notes&&t.notes.length>50))return;var r=await callAI('Draft:'+t.title+' Type:'+m.type,{maxTokens:2048,system:'You are a sharp, direct productivity assistant. Draft a brief, actionable expansion of this task. 2-3 bullet points max. No preamble.'});if(!r)return;updateTask(tk.id,{notes:(t.notes||'')+'\n**AI Draft:**\n'+r.trim()});proactiveLog.push({taskId:tk.id,taskTitle:t.title,action:m.action,timestamp:Date.now()});saveProactiveLog();render();}catch(e){}},3000);}
+function maybeProactiveEnhance(tk){if(!hasAI()||!tk)return;var m=matchProactivePattern(tk.title);if(!m)return;setTimeout(async()=>{try{var t=data.tasks.find(x=>x.id===tk.id);if(!t||t.status==='done'||(t.notes&&t.notes.length>50))return;var r=await callAI('Draft:'+t.title+' Type:'+m.type,{maxTokens:2048,system:AI_PERSONA_SHORT+'\n\nDraft a brief, actionable expansion of this task. 2-3 bullet points max. No preamble.'});if(!r)return;updateTask(tk.id,{notes:(t.notes||'')+'\n**AI Draft:**\n'+r.trim()});proactiveLog.push({taskId:tk.id,taskTitle:t.title,action:m.action,timestamp:Date.now()});saveProactiveLog();render();}catch(e){}},3000);}
 async function runProactiveWorker() {
   if (!hasAI()) return;
   const flagKey = userKey('whiteboard_proactive_' + todayStr());
@@ -7333,7 +7335,7 @@ STRUCTURE (use all 4 sections, 1-2 bullets each):
 Be direct. Use task names. Under 200 words. No fluff. You're not a reporter — you're their assistant.`;
 
   try {
-    let text = await callAI(prompt, { maxTokens: 1024 });
+    let text = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
     text = text.replace(/^[-•*]\s*/gm, '');
     const briefingKey = userKey('whiteboard_briefing_' + todayStr());
     localStorage.setItem(briefingKey, text);
@@ -7362,7 +7364,7 @@ async function submitEndOfDay() {
   const eodOverdue = eodOpen.filter(t => t.dueDate && t.dueDate < today);
   const eodPrompt = AI_PERSONA_SHORT + '\n\nThe user is wrapping up their day. Here\'s what they said about today:\n"' + userInput + '"\n\nContext:\n- Completed today: ' + eodCompleted.map(t => t.title).join(', ') + '\n- Still open: ' + eodOpen.length + ' tasks\n- Overdue: ' + eodOverdue.length + ' tasks\n\nRespond in 2-3 sentences. Acknowledge what was done. If they mentioned blockers or feelings, respond warmly. Suggest ONE thing for tomorrow morning. Be genuine, not performative.';
   try {
-    let reply = await callAI(eodPrompt, { maxTokens: 256 });
+    let reply = await callAI(eodPrompt, { maxTokens: 256, temperature: 0.3 });
     localStorage.setItem(userKey('wb_eod_' + today), reply);
     addAIMemory(userInput + ' — AI: ' + reply.replace(/\n/g, ' ').slice(0, 150), 'reflection');
     const card = document.getElementById('eodCard');
@@ -7718,7 +7720,7 @@ function editProjectBackground(projectId) {
       <textarea id="bgEditor" class="form-input" style="height:280px;font-size:12px;line-height:1.6;font-family:inherit;resize:vertical">${esc(existing)}</textarea>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
         <button class="btn" onclick="$('#modalRoot').innerHTML=''">Cancel</button>
-        <button class="btn btn-primary" onclick="saveProjectBackground('${p.id}')">Save</button>
+        <button class="btn btn-primary" onclick="saveProjectBackground('${esc(p.id)}')">Save</button>
       </div>
     </div>
   </div>`;
@@ -7985,7 +7987,7 @@ ONE sentence max. Be genuine, not performative. No "Great job!" energy.`;
 
 function showReflectionToast(text) {
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:300;max-width:420px;text-align:center;box-shadow:var(--shadow);line-height:1.4;animation:toastIn 0.3s ease';
+  el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:12px 20px;border-radius:var(--radius);font-size:13px;z-index:var(--z-toast);max-width:420px;text-align:center;box-shadow:var(--shadow);line-height:1.4;animation:toastIn 0.3s ease';
   el.innerHTML = `<span style="color:var(--accent);margin-right:6px">✦</span>${esc(text)}`;
   document.body.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.5s'; setTimeout(() => el.remove(), 500); }, 6000);
@@ -8096,6 +8098,6 @@ var _oB=generateAIBriefing,_oP=planMyDay,_oE=submitEndOfDay,_oR=generateWeeklyRe
 initAuth();
 </script>
 <script src="dashboard-v2.js"></script>
-<script>var _wasOnline=false;window.addEventListener('offline',function(){if(_wasOnline&&!document.getElementById('offBnr')){var d=document.createElement('div');d.id='offBnr';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;padding:6px;text-align:center;font-size:12px;color:#f97316;background:rgba(249,115,22,0.1);border-bottom:1px solid #f97316';d.textContent="You're offline - changes saved locally";document.body.prepend(d)}});window.addEventListener('online',function(){var e=document.getElementById('offBnr');if(e)e.remove()});var _oSD=updateSyncDot;updateSyncDot=function(){_oSD.apply(this,arguments);if(syncStatus==='synced')_wasOnline=true;if(syncStatus==='offline'&&_wasOnline){if(!document.getElementById('offBnr')){var d=document.createElement('div');d.id='offBnr';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;padding:6px;text-align:center;font-size:12px;color:#f97316;background:rgba(249,115,22,0.1);border-bottom:1px solid #f97316';d.textContent="You're offline - changes saved locally";document.body.prepend(d)}}else{var e=document.getElementById('offBnr');if(e)e.remove()}}</script>
+<script>var _wasOnline=false;window.addEventListener('offline',function(){if(_wasOnline&&!document.getElementById('offBnr')){var d=document.createElement('div');d.id='offBnr';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:var(--z-offline);padding:6px;text-align:center;font-size:12px;color:#f97316;background:rgba(249,115,22,0.1);border-bottom:1px solid #f97316';d.textContent="You're offline - changes saved locally";document.body.prepend(d)}});window.addEventListener('online',function(){var e=document.getElementById('offBnr');if(e)e.remove()});var _oSD=updateSyncDot;updateSyncDot=function(){_oSD.apply(this,arguments);if(syncStatus==='synced')_wasOnline=true;if(syncStatus==='offline'&&_wasOnline){if(!document.getElementById('offBnr')){var d=document.createElement('div');d.id='offBnr';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:var(--z-offline);padding:6px;text-align:center;font-size:12px;color:#f97316;background:rgba(249,115,22,0.1);border-bottom:1px solid #f97316';d.textContent="You're offline - changes saved locally";document.body.prepend(d)}}else{var e=document.getElementById('offBnr');if(e)e.remove()}}</script>
 </body>
 </html>
