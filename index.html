@@ -68,6 +68,18 @@
   --radius-xs: 6px;
   --shadow: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+  --z-dropdown: 50;
+  --z-chat-fab: 60;
+  --z-mobile-overlay: 79;
+  --z-sidebar: 80;
+  --z-chat-panel: 90;
+  --z-modal: 100;
+  --z-onboarding: 200;
+  --z-auth: 300;
+  --z-toast: 300;
+  --z-landing: 310;
+  --z-splash: 400;
+  --z-skip: 999;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -335,7 +347,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   padding: 4px;
   min-width: 160px;
   box-shadow: var(--shadow-lg);
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 .dropdown.open .dropdown-menu { display: block; }
 .dropdown-menu button {
@@ -635,7 +647,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .tag-chip.selected { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
 .tag-add-input { font-size: 11px; padding: 2px 8px; border: 1px dashed var(--border); border-radius: 10px; background: transparent; color: var(--text2); width: 80px; outline: none; font-family: inherit; }
 .tag-add-input:focus { border-color: var(--accent); }
-.bulk-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 10px; z-index: 80; box-shadow: 0 -2px 12px rgba(0,0,0,0.15); animation: toastIn 0.2s ease; }
+.bulk-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 10px; z-index: var(--z-sidebar); box-shadow: 0 -2px 12px rgba(0,0,0,0.15); animation: toastIn 0.2s ease; }
 .bulk-bar-count { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 80px; }
 .bulk-check { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--border2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; flex-shrink: 0; transition: all 0.15s; }
 .bulk-check.on { background: var(--accent); border-color: var(--accent); }
@@ -653,7 +665,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .task-title-editable { cursor: text; border-radius: 3px; padding: 1px 3px; margin: -1px -3px; transition: background 0.15s; }
 .task-title-editable:hover { background: var(--surface3); }
 .task-title-editable:focus { background: var(--surface); outline: 1px solid var(--accent); }
-.task-tooltip { position: absolute; z-index: 100; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 8px 12px; font-size: 12px; color: var(--text2); max-width: 280px; box-shadow: var(--shadow); pointer-events: none; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.task-tooltip { position: absolute; z-index: var(--z-modal); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 8px 12px; font-size: 12px; color: var(--text2); max-width: 280px; box-shadow: var(--shadow); pointer-events: none; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
 
 .task-nudge {
   font-size: 10px;
@@ -932,7 +944,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: var(--z-modal);
   animation: fadeIn 0.12s;
   backdrop-filter: blur(4px);
   transition: opacity 0.15s;
@@ -943,7 +955,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .modal {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   width: 480px;
   max-height: 85vh;
   overflow-y: auto;
@@ -1013,7 +1025,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   padding: 12px 18px;
   font-size: 13px;
   color: var(--text);
-  z-index: 300;
+  z-index: var(--z-toast);
   animation: toastIn 0.25s ease-out;
   box-shadow: var(--shadow-lg);
   transition: opacity 0.3s, transform 0.3s;
@@ -1064,7 +1076,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: var(--z-onboarding);
   backdrop-filter: blur(8px);
   animation: fadeIn 0.3s;
 }
@@ -1072,7 +1084,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .onboarding-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   width: 520px;
   max-width: 92vw;
   padding: 40px;
@@ -1282,7 +1294,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   font-size: 22px;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(129,140,248,0.25);
-  z-index: 60;
+  z-index: var(--z-chat-fab);
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   align-items: center;
@@ -1302,7 +1314,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   width: 400px; height: 100dvh; height: 100vh;
   background: var(--surface);
   border-left: 1px solid var(--border);
-  z-index: 90;
+  z-index: var(--z-chat-panel);
   display: flex;
   flex-direction: column;
   transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
@@ -1334,7 +1346,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 .chat-msg {
   max-width: 90%;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   font-size: 13px;
   line-height: 1.6;
   animation: fadeIn 0.2s;
@@ -1455,10 +1467,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   gap: 10px;
   margin-bottom: 12px;
 }
-.briefing-body { font-size: 13px; color: var(--text2); line-height: 1.7; }
-.briefing-body ul { list-style: none; padding: 0; margin: 8px 0; }
-.briefing-body li { padding: 4px 0; display: flex; align-items: flex-start; gap: 8px; }
-.briefing-body li::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 7px; }
 .briefing-generate {
   margin-top: 12px;
   padding: 6px 14px;
@@ -1520,7 +1528,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   max-width: 92vw;
   background: var(--surface);
   border: 1px solid var(--border2);
-  border-radius: 16px;
+  border-radius: var(--radius);
   overflow: hidden;
   box-shadow: 0 16px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(129,140,248,0.06);
   animation: cmdIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -1642,24 +1650,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   font-style: italic;
 }
 
-/* ==================== QUICK CAPTURE ==================== */
-.quick-capture-input {
-  flex: 1;
-  padding: 12px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.quick-capture-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
-.quick-capture-input::placeholder { color: var(--text3); }
 .subtask-progress { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 10px; color: var(--text3); }
 .subtask-bar { flex: 0 0 48px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
 .subtask-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.3s ease; }
@@ -1753,7 +1743,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 
 /* ==================== MOBILE ==================== */
 @media (max-width: 768px) {
-  .sidebar { position: fixed; left: -260px; z-index: 80; height: 100dvh; height: 100vh; transition: left 0.3s; padding-bottom: env(safe-area-inset-bottom, 0); width: 240px !important; min-width: 240px !important; }
+  .sidebar { position: fixed; left: -260px; z-index: var(--z-sidebar); height: 100dvh; height: 100vh; transition: left 0.3s; padding-bottom: env(safe-area-inset-bottom, 0); width: 240px !important; min-width: 240px !important; }
   .sidebar-collapse-btn { display: none !important; }
   .sidebar.open { left: 0; }
   .main { padding-bottom: env(safe-area-inset-bottom, 0); }
@@ -1775,7 +1765,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.5);
-    z-index: 79;
+    z-index: var(--z-mobile-overlay);
   }
   .content { padding: 16px !important; }
   .header { padding: 12px 16px !important; }
@@ -1790,7 +1780,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   .cal-task { font-size: 10px; padding: 3px 5px; }
   .cal-period { font-size: 11px; min-width: 110px; }
   .cal-nav-btn { padding: 10px 14px; min-height: 44px; }
-  .task-check { width: 24px !important; height: 24px !important; }
+  .task-check { width: 24px !important; height: 24px !important; min-width: 44px; min-height: 44px; }
+  .tag-chip { min-height: 32px; padding: 6px 10px; }
   .task-action-btn { width: 36px; height: 36px; }
   .task-row { flex-wrap: wrap; position: relative; }
   .task-row .task-tags { display: flex !important; width: 100%; margin-top: 4px; padding-left: 36px; }
@@ -1799,7 +1790,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   /* Prevent iOS Safari auto-zoom on input focus */
   input, textarea, select, .form-input, .form-select, .form-textarea,
   .auth-input, .chat-input, .dump-textarea, .onboarding-textarea,
-  .eod-textarea, .quick-capture-input, .tag-add-input { font-size: 16px !important; }
+  .eod-textarea, .tag-add-input { font-size: 16px !important; }
   .task-action-btn { width: 44px !important; height: 44px !important; }
   /* Touch targets — 44px minimum for all interactive elements */
   .btn { min-height: 44px; }
@@ -1835,7 +1826,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 
 /* ==================== LANDING PAGE ==================== */
 .landing-page {
-  position: fixed; inset: 0; z-index: 310;
+  position: fixed; inset: 0; z-index: var(--z-landing);
   background: var(--bg);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -1990,7 +1981,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 
 /* ==================== AUTH SCREEN ==================== */
 .auth-screen {
-  position: fixed; inset: 0; z-index: 300;
+  position: fixed; inset: 0; z-index: var(--z-auth);
   background: var(--bg);
   display: none; align-items: center; justify-content: center;
   font-family: 'Inter', sans-serif;
@@ -1999,7 +1990,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
   width: 380px; max-width: 90vw;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 36px 32px;
 }
 .auth-logo {
@@ -2065,7 +2056,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 
 /* ==================== SPLASH SCREEN ==================== */
 #splashScreen {
-  position: fixed; inset: 0; z-index: 400;
+  position: fixed; inset: 0; z-index: var(--z-splash);
   background: var(--bg);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -2073,7 +2064,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 }
 #splashScreen.fade-out { opacity: 0; pointer-events: none; }
 .splash-logo {
-  width: 56px; height: 56px; border-radius: 14px;
+  width: 56px; height: 56px; border-radius: var(--radius);
   background: linear-gradient(135deg, var(--accent), var(--purple));
   display: flex; align-items: center; justify-content: center;
   font-size: 26px; font-weight: 700; color: #fff;
@@ -2735,6 +2726,7 @@ async function signOut() {
 
 // --- Cloud Sync ---
 async function loadFromCloud() {
+  if (syncTimer) clearTimeout(syncTimer);
   if (!currentUser) return;
   // Show loading indicator
   const mainEl = document.querySelector('.main .content');
@@ -5117,7 +5109,7 @@ function buildAIContext(scope = 'all', projectId = null, detail = 'standard') {
 }
 
 // --- Shared AI Persona ---
-const AI_PERSONA = `You are the user's strategic partner — a smart assistant embedded in their productivity system called Whiteboards. You have full read/write access to their tasks, boards (projects), and AI memory.
+const AI_PERSONA = `You are the user's productivity partner — a smart assistant embedded in their productivity system called Whiteboards. You have full read/write access to their tasks, boards (projects), and AI memory.
 
 PERSONALITY:
 - Direct and concise. Default to short responses. "Done." / "Got it." / "Moved to urgent."
@@ -5145,7 +5137,7 @@ PROACTIVE BEHAVIOR:
 - When the user seems stuck, offer a concrete first step — not a lecture.
 - When workload is unbalanced, say so. "You have 12 tasks in Life and 0 in [Board] — that board needs attention."`;
 
-const AI_PERSONA_SHORT = 'You are a sharp, direct productivity assistant. One sentence responses unless asked for more. No preamble.';
+const AI_PERSONA_SHORT = 'You are a sharp, direct productivity partner. One sentence responses unless asked for more. No preamble.';
 
 // --- Action Definitions (shared across all AI touchpoints) ---
 const AI_ACTIONS_SPEC = `
@@ -5327,7 +5319,7 @@ async function executeAIActions(reply) {
           case 'update_project': {
             if (!a.name) break;
             const match = matchProject(a.name);
-            if (match && a.fields) { updateProject(match.id, a.fields); applied++; }
+            if (match && a.fields) { const allowed = ['title','color','description']; const filtered = {}; for (const k of allowed) { if (k in a.fields) filtered[k] = a.fields[k]; } if (Object.keys(filtered).length) { updateProject(match.id, filtered); applied++; } }
             break;
           }
           case 'update_background': {
@@ -5460,7 +5452,7 @@ let dumpAbort = null; // AbortController for cancelling brainstorm
 let _dumpInProgress = false; // true while brainstorm is processing (survives navigation)
 let lastDumpResult = null; // { wordCount, tasksCreated, tasksDone, tasksInProgress, tasksTodo, boardsCreated, boardsUpdated, inputSnippet }
 
-function saveDumpDraft() { const ta = document.getElementById('dumpText'); if (ta) localStorage.setItem(userKey(DUMP_DRAFT_KEY), ta.value); }
+function saveDumpDraft() { const ta = document.getElementById('dumpText'); if (ta) { let val = ta.value; if (val.length > 100000) { console.warn('Dump draft truncated from', val.length, 'to 100000 chars'); val = val.slice(0, 100000); } localStorage.setItem(userKey(DUMP_DRAFT_KEY), val); } }
 function loadDumpDraft() { return localStorage.getItem(userKey(DUMP_DRAFT_KEY)) || ''; }
 function clearDumpDraft() { localStorage.removeItem(userKey(DUMP_DRAFT_KEY)); }
 const DUMP_HISTORY_KEY='wb_dump_history',DUMP_LAST_TS_KEY='wb_last_dump';
@@ -5487,7 +5479,7 @@ function renderDump() {
           ${boardText.length ? `<div class="dump-result-stat"><div style="font-size:32px;font-weight:700;color:var(--purple)">${r.boardsCreated + r.boardsUpdated}</div><div style="font-size:12px;color:var(--text3)">boards (${boardText.join(', ')})</div></div>` : ''}
         </div>
         ${statusParts.length ? `<div style="font-size:12px;color:var(--text3);margin-bottom:20px">${statusParts.join(' \u00b7 ')}</div>` : ''}
-        ${r.tasksByBoard&&Object.keys(r.tasksByBoard).length?`<div style="margin-bottom:16px"><button class="btn btn-sm" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'Hide details':'What changed'" style="font-size:11px;color:var(--text3)">What changed</button><div class="dump-what-changed"><div style="text-align:left;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">${Object.entries(r.tasksByBoard).map(([b,c])=>'<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--text2)">'+esc(b)+'</span><span style="color:var(--accent)">'+c+'</span></div>').join('')}</div></div></div>`:``}
+        ${r.tasksByBoard&&Object.keys(r.tasksByBoard).length?`<div style="margin-bottom:16px"><button class="btn btn-sm" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'Hide details':'What changed'" style="font-size:11px;color:var(--text3)">Hide details</button><div class="dump-what-changed open"><div style="text-align:left;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">${Object.entries(r.tasksByBoard).map(([b,c])=>'<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--text2)">'+esc(b)+'</span><span style="color:var(--accent)">'+c+'</span></div>').join('')}</div></div></div>`:``}
         <div style="display:flex;gap:8px;justify-content:center">
           <button class="btn btn-primary" onclick="lastDumpResult=null;setView('dashboard')">View organized tasks →</button>
           <button class="btn" onclick="lastDumpResult=null;render()">New brainstorm</button>
@@ -5820,6 +5812,8 @@ function skipClarify() {
 }
 
 async function processDump(skipClarifyPass) {
+  if (_dumpInProgress) return;
+
   const text = ($('#dumpText')?.value?.trim() || '') + (_dumpAttachments.length ? '' : '');
   if (!text && !_dumpAttachments.length) { showToast('Write something or attach a file first', true); return; }
 
@@ -5832,7 +5826,7 @@ async function processDump(skipClarifyPass) {
     return;
   }
 
-  if (!hasAI()) { processDumpManual(text); return; }
+  if (!hasAI()) { showToast('Add a Claude API key in Settings for AI-powered brainstorm parsing', false); processDumpManual(text); return; }
 
   // Curiosity pass — ask clarifying questions for vague input
   if (!skipClarifyPass) {
@@ -5854,7 +5848,8 @@ async function processDump(skipClarifyPass) {
   const _dumpStart = Date.now();
   const _dumpPhases = ['Reading your input...', 'Extracting tasks and context...', 'Organizing by project and priority...', 'Detecting patterns and duplicates...'];
   let _dumpPhase = 0;
-  const _dumpTimer = setInterval(() => {
+  if (window._dumpTimer) clearInterval(window._dumpTimer);
+  const _dumpTimer = window._dumpTimer = setInterval(() => {
     if (!statusEl) return;
     const elapsed = Math.round((Date.now() - _dumpStart) / 1000);
     _dumpPhase = Math.min(_dumpPhase + 1, _dumpPhases.length - 1);
@@ -5926,13 +5921,13 @@ For every task, estimate how many minutes it will take. Use your best judgment:
 
 ## DEDUPLICATION — THIS IS CRITICAL
 - Before creating ANY task, check the existing tasks list below. If a task with a similar meaning already exists (even with different wording), use "action": "update" with the existing task's ID instead of creating a new one.
-- "Call with Drew re: Executive Assistant role at Aleo" and "Call with Drew Hettenbach re: Aleo EA/CEO Director role" = SAME TASK. Update, don't create.
+- "Schedule meeting with client about Q2 roadmap" and "Meeting with client re: Q2 roadmap planning" = SAME TASK. Update, don't create.
 - Prefer updating existing tasks over creating new ones. When in doubt, UPDATE.
 - Use exact IDs from the existing tasks list when updating.
 
 ## PROJECT ASSIGNMENT — BE CONSERVATIVE
 - Only create a new project via projectUpdates if the input clearly describes a substantial new workstream with multiple tasks.
-- A single phone call, meeting, or task about a company (like "Aleo") does NOT warrant its own project. Put it in "${LIFE_PROJECT_NAME}" or an existing project.
+- A single phone call, meeting, or task about a company does NOT warrant its own project. Put it in "${LIFE_PROJECT_NAME}" or an existing project.
 - If items are random personal stuff (gym, errands, appointments, calls), assign to "${LIFE_PROJECT_NAME}".
 - Match existing project names FUZZILY — "Career Tracker" matches "Seth Bond Program Tracker & Career Vision".
 - CRITICAL — "description" vs "background":
@@ -6217,13 +6212,15 @@ function applyDumpResults() {
       updateTask(item.id, { status: 'done' });
       completed++;
     } else if (item.action === 'update' && item.id) {
-      const fields = item.updateFields || {};
-      if (item.dueDate) fields.dueDate = item.dueDate;
-      if (item.priority) fields.priority = item.priority;
+      const rawFields = item.updateFields || {};
+      if (item.dueDate) rawFields.dueDate = item.dueDate;
+      if (item.priority) rawFields.priority = item.priority;
       if (item.notes) {
         const t = data.tasks.find(x => x.id === item.id);
         if (t) { if (!t.updates) t.updates = []; t.updates.push({ date: todayStr(), text: item.notes }); }
       }
+      const allowed = ['title','notes','priority','status','dueDate','project','phase','tags','recurrence','estimatedMinutes','subtasks','favorite'];
+      const fields = {}; for (const k of allowed) { if (k in rawFields) fields[k] = rawFields[k]; }
       updateTask(item.id, fields);
       updated++;
     } else if (item.title) {
@@ -6774,8 +6771,8 @@ Keep notes concise and actionable. Today is ${todayStr()}.`, { maxTokens: 512, t
         t.subtasks = enhanced.subtasks.map(s => ({ id: genId('st'), title: s, done: false }));
       }
       if (enhanced.notes || enhanced.subtasks?.length) { saveData(data); render(); showToast('AI enhanced task with details', false, true); }
-    } catch (e) { /* AI enhancement failed silently */ }
-  }).catch(() => {});
+    } catch (e) { console.warn('AI enhancement failed:', e.message); }
+  }).catch(e => console.warn('AI call failed:', e.message));
 }
 
 function quickAddToProject(input, projectId) {
@@ -7075,7 +7072,7 @@ async function generateWeeklyReview() {
   const overdue = data.tasks.filter(t => t.status !== 'done' && t.dueDate && t.dueDate < todayStr());
   const active = activeTasks();
 
-  const prompt = `You are a thoughtful productivity coach writing a weekly review. Be warm, concise, and actionable. Use bullet points and short paragraphs.
+  const prompt = `You are a thoughtful productivity partner writing a weekly review. Be warm, concise, and actionable. Use bullet points and short paragraphs.
 
 WEEK: ${weekStart} to ${weekEnd}
 
@@ -7092,12 +7089,12 @@ PROJECTS: ${data.projects.map(p => p.name + ': ' + activeTasks(p.id).length + ' 
 ${(() => { const rm = getAIMemory().filter(m => ['pattern','rhythm','preference'].includes(m.type)); return rm.length ? 'AI MEMORY (known patterns about this user):\n' + rm.map(m => '- [' + m.type + '] ' + m.text).join('\n') : ''; })()}
 
 Write a weekly review with these sections:
-1. **Wins** — What was accomplished, celebrate progress
+1. **Wins** — What was accomplished and why it matters
 2. **Patterns** — Any themes you notice (busy week? lots of new work? overdue piling up? reference known patterns from AI Memory if relevant)
 3. **Next Week Focus** — Top 2-3 priorities based on what's active and overdue
 4. **One Suggestion** — One specific, actionable improvement
 
-Keep it under 200 words. Be encouraging but honest.`;
+Keep it under 200 words. Be direct and honest.`;
 
   try {
     let text = await callAI(prompt, { maxTokens: 1024 });
@@ -7196,7 +7193,7 @@ function matchProactivePattern(t){return PROACTIVE_PATTERNS.find(p=>p.regex.test
 function saveProactiveLog(){try{localStorage.setItem(userKey('wb_proactive_log_'+todayStr()),JSON.stringify(proactiveLog));}catch(e){}}
 function getAIPreparedTaskIds(){return new Set(proactiveLog.map(l=>l.taskId));}
 function filterAIPrepared(){var ids=getAIPreparedTaskIds();if(!ids.size){showToast('No AI-prepared tasks today');return;}var tasks=data.tasks.filter(function(t){return ids.has(t.id)&&t.status!=='done';});if(!tasks.length){showToast('No active AI-prepared tasks');return;}var h='<div style="padding:20px"><h3 style="margin-bottom:16px;color:var(--accent)">AI Prepared Tasks ('+tasks.length+')</h3>';tasks.forEach(function(t){h+='<div class="task-row" data-task="'+t.id+'" style="cursor:pointer" onclick="closeModal();expandedTask=\''+t.id+'\';render()"><div class="task-body"><div class="task-title">'+esc(t.title)+'</div></div></div>';});h+='</div>';$('#modalRoot').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:600px">'+h+'</div></div>';}
-function maybeProactiveEnhance(tk){if(!hasAI()||!tk)return;var m=matchProactivePattern(tk.title);if(!m)return;setTimeout(async()=>{try{var t=data.tasks.find(x=>x.id===tk.id);if(!t||t.status==='done'||(t.notes&&t.notes.length>50))return;var r=await callAI('Draft:'+t.title+' Type:'+m.type,{maxTokens:2048,systemPrompt:'You are a sharp, direct productivity assistant. Draft a brief, actionable expansion of this task. 2-3 bullet points max. No preamble.'});if(!r)return;updateTask(tk.id,{notes:(t.notes||'')+'\n**AI Draft:**\n'+r.trim()});proactiveLog.push({taskId:tk.id,taskTitle:t.title,action:m.action,timestamp:Date.now()});saveProactiveLog();render();}catch(e){}},3000);}
+function maybeProactiveEnhance(tk){if(!hasAI()||!tk)return;var m=matchProactivePattern(tk.title);if(!m)return;setTimeout(async()=>{try{var t=data.tasks.find(x=>x.id===tk.id);if(!t||t.status==='done'||(t.notes&&t.notes.length>50))return;var r=await callAI('Draft:'+t.title+' Type:'+m.type,{maxTokens:2048,system:'You are a sharp, direct productivity assistant. Draft a brief, actionable expansion of this task. 2-3 bullet points max. No preamble.'});if(!r)return;updateTask(tk.id,{notes:(t.notes||'')+'\n**AI Draft:**\n'+r.trim()});proactiveLog.push({taskId:tk.id,taskTitle:t.title,action:m.action,timestamp:Date.now()});saveProactiveLog();render();}catch(e){}},3000);}
 async function runProactiveWorker() {
   if (!hasAI()) return;
   const flagKey = userKey('whiteboard_proactive_' + todayStr());
@@ -7274,7 +7271,7 @@ RULES:
       if (filled > 0) {
         saveProactiveLog();
         proactiveResults={count:filled,taskIds:json.map(function(x){return x.id;}),date:todayStr()};
-        showToast(`AI pre-filled ${filled} task${filled > 1 ? 's' : ''} with drafts`);
+        showToast('\u2726 AI prepared ' + filled + ' task' + (filled > 1 ? 's' : '') + ' with smart suggestions', false);
         render();
       }
     }
@@ -7825,7 +7822,7 @@ function renderFocusOverlay() {
       const focusPrompt = `${AI_PERSONA_SHORT}\n\nThe user just entered Focus Mode on: "${t.title}"${t.notes ? '\nNotes: ' + t.notes : ''}${t.subtasks?.length ? '\nSubtasks: ' + t.subtasks.map(s => (s.done ? '✓' : '○') + ' ' + s.title).join(', ') : ''}\n\nGive ONE sentence of tactical advice to help them START right now. What's the very first action? Be specific and concrete. No preamble.`;
       callAI(focusPrompt, { maxTokens: 100 }).then(tip => {
         if (focusTipEl) focusTipEl.textContent = '✦ ' + tip.replace(/\n/g, ' ').trim();
-      }).catch(() => { if (focusTipEl) focusTipEl.textContent = ''; });
+      }).catch(e => { console.warn('AI call failed:', e.message); if (focusTipEl) focusTipEl.textContent = ''; });
     }
   }
 
@@ -7887,7 +7884,7 @@ function getSmartNudges() {
   if (active.length > 30) nudges.push({ type: 'warning', icon: '⚡', text: `${active.length} active tasks. Consider archiving some to stay focused.` });
 
   // Stale tasks
-  if (stale.length >= 3) nudges.push({ type: 'stale', icon: '🕸', text: `${stale.length} tasks untouched for 10+ days: ${stale.slice(0, 3).map(t => t.title).join(', ')}${stale.length > 3 ? '...' : ''}. Still relevant?`, actionLabel: 'Review stale', actionFn: `nudgeFilterStale()` });
+  if (stale.length >= 3) nudges.push({ type: 'stale', icon: '🕸', text: `${stale.length} tasks untouched for 10+ days: ${stale.slice(0, 3).map(t => esc(t.title)).join(', ')}${stale.length > 3 ? '...' : ''}. Still relevant?`, actionLabel: 'Review stale', actionFn: `nudgeFilterStale()` });
 
   // No tasks in progress
   if (inProgress.length === 0 && active.length > 0) nudges.push({ type: 'action', icon: '▶', text: `Nothing in progress yet. Pick one to get started.`, actionLabel: 'Start one', actionFn: `startFocus()` });
@@ -7909,7 +7906,7 @@ function getSmartNudges() {
 
   // Big tasks without subtasks
   const bigNoSubs = active.filter(t => t.title.length > 40 && (!t.subtasks || t.subtasks.length === 0));
-  if (bigNoSubs.length >= 2) nudges.push({ type: 'action', icon: '✂', text: `"${bigNoSubs[0].title.slice(0, 35)}..." looks complex. Break it into subtasks?` });
+  if (bigNoSubs.length >= 2) nudges.push({ type: 'action', icon: '✂', text: `"${esc(bigNoSubs[0].title.slice(0, 35))}..." looks complex. Break it into subtasks?` });
 
 
   return nudges.slice(0, 4); // Max 4 nudges at a time
@@ -7983,7 +7980,7 @@ ONE sentence max. Be genuine, not performative. No "Great job!" energy.`;
         addAIMemory(clean, 'reflection');
       }
     }
-  }).catch(() => {});
+  }).catch(e => console.warn('AI call failed:', e.message));
 }
 
 function showReflectionToast(text) {

@@ -251,6 +251,27 @@
 .snooze-btn-hover { transition: color 0.15s; }
 .snooze-btn-hover:hover { color: var(--accent) !important; }
 
+/* Brainstorm hero button (zero-task empty state) */
+.brainstorm-hero-btn {
+  font-size: 16px;
+  padding: 14px 28px;
+  min-height: 48px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* AI status item styling */
+.ai-status-item {
+  background: rgba(99,102,241,0.06);
+  border-radius: var(--radius-xs, 6px);
+  padding: 6px 10px;
+  margin-bottom: 4px;
+}
+.ai-status-item .status-icon {
+  color: var(--accent);
+  font-size: 14px;
+}
+
 /* ==================== DASHBOARD MOBILE ==================== */
 @media (max-width: 768px) {
   .ai-hero-card { padding: 18px 16px; }
@@ -262,4 +283,9 @@
   .ai-hero-nudge .btn-sm { min-height: 44px; padding: 10px 14px; }
   .smart-feed-more { min-height: 44px; padding: 12px 0; }
   .briefing-generate { min-height: 44px; padding: 12px 18px; }
+  .brainstorm-hero-btn {
+    width: 100%;
+    font-size: 15px;
+    padding: 12px 20px;
+  }
 }

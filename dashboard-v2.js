@@ -1,14 +1,6 @@
 // AI-first dashboard redesign — loaded via <script> tag
 // Overrides renderDashboard() with the new AI-first layout
 
-// Keyboard shortcut: Cmd+J / Ctrl+J to toggle chat panel
-document.addEventListener('keydown', function(e) {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
-    e.preventDefault();
-    if (typeof toggleChat === 'function') toggleChat();
-  }
-});
-
 // State for smart feed and briefing expand/collapse
 let _smartFeedExpanded = false;
 let _todayBriefingExpanded = false;
@@ -251,13 +243,14 @@ renderDashboard = function() {
     const _emptyPhrase = _emptyPhrases[Math.floor(Math.random() * _emptyPhrases.length)];
     return `<div style="max-width:540px;margin:48px auto;text-align:center">
       <div id="welcomeTyping" style="font-size:22px;font-weight:600;margin-bottom:6px;min-height:32px" data-phrases='${JSON.stringify(_emptyPhrases)}'></div>
-      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Drop everything on your mind. AI turns it into organized tasks.</p>
+      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Write freely &mdash; plans, ideas, meeting notes, anything. AI organizes everything into tasks and projects.</p>
       <div onclick="setView('dump')" class="brainstorm-cta-hover" style="background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);padding:32px 28px;cursor:pointer;margin-bottom:20px;text-align:left;position:relative">
         <div style="font-size:28px;margin-bottom:12px">&#9671;</div>
         <div style="font-size:17px;font-weight:600;margin-bottom:6px;color:var(--text)">Start a brainstorm</div>
-        <div style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:16px">Write freely &mdash; plans, ideas, notes, goals. AI will organize everything into tasks and boards.</div>
-        <div style="font-size:13px;color:var(--accent);font-weight:500">Open brainstorm &rarr;</div>
+        <div style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:16px">Write freely &mdash; plans, ideas, meeting notes, anything. AI organizes everything into tasks and projects.</div>
+        <button class="btn btn-primary brainstorm-hero-btn" onclick="event.stopPropagation();setView('dump')">Open brainstorm &rarr;</button>
       </div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:20px">or add a task manually with the input above</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;text-align:left">
         <div onclick="setView('dump');setTimeout(()=>{const t=document.getElementById('dumpText');if(t){t.value='Here are my plans for the week:\\n- ';t.focus();t.setSelectionRange(t.value.length,t.value.length)}},100)" class="dashboard-card-hover" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer">
           <div style="font-size:24px;margin-bottom:10px">&#9671;</div>
@@ -305,7 +298,7 @@ renderDashboard = function() {
   if (statusItems.length > 0) {
     html += `<div class="ai-hero-status">`;
     statusItems.forEach(item => {
-      html += `<div class="ai-hero-status-item"><div class="status-dot"></div>${esc(item.text)}</div>`;
+      html += `<div class="ai-hero-status-item ai-status-item"><span class="status-icon">${item.icon}</span>${esc(item.text)}</div>`;
     });
     html += `</div>`;
   }
@@ -361,7 +354,7 @@ renderDashboard = function() {
     <div style="font-size:28px;flex-shrink:0">&#9671;</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">Got something on your mind?</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.4">${_brainstormStat ? esc(_brainstormStat) : 'Drop your thoughts, plans, or notes &mdash; AI organizes them into tasks'}</div>
+      <div style="font-size:12px;color:var(--text3);line-height:1.4">${_brainstormStat ? esc(_brainstormStat) : 'Your AI partner reads everything, asks smart questions, and turns chaos into organized tasks.'}</div>
     </div>
     <div class="brainstorm-btn-hover" style="flex-shrink:0;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;padding:8px 18px;background:var(--accent);border-radius:var(--radius-sm)">Brainstorm</div>
   </div>`;
@@ -450,7 +443,7 @@ renderDashboard = function() {
       } else {
         html += `<div style="font-size:13px;color:var(--text2);line-height:1.7;max-height:2.8em;overflow:hidden;position:relative;cursor:pointer" onclick="_todayBriefingExpanded=true;render()" id="briefingBody">
           ${sanitizeAIHTML(cachedBriefing)}
-          <div style="position:absolute;bottom:0;left:0;right:0;height:1.4em;background:linear-gradient(transparent,rgba(19,19,22,.9));pointer-events:none"></div>
+          <div style="position:absolute;bottom:0;left:0;right:0;height:1.4em;background:linear-gradient(transparent,var(--bg));pointer-events:none"></div>
         </div>`;
         html += `<button class="briefing-generate" onclick="_todayBriefingExpanded=true;render()" style="font-size:11px;margin-top:4px;margin-bottom:8px">Read more</button>`;
       }
