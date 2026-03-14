@@ -2458,7 +2458,7 @@ function showOnboarding() {
         const parts = [];
         if (dumpResult.tasks) parts.push(dumpResult.tasks + ' task' + (dumpResult.tasks === 1 ? '' : 's'));
         if (dumpResult.projects) parts.push('across ' + dumpResult.projects + ' board' + (dumpResult.projects === 1 ? '' : 's'));
-        msg = 'Created ' + parts.join(' ') + '. Your AI co-pilot is ready.';
+        msg = 'Created ' + parts.join(' ') + '. Your AI assistant is ready.';
       } else {
         msg = 'You can brainstorm anytime from the sidebar. Try adding your first task below.';
       }
@@ -2547,7 +2547,7 @@ function showFeatureTips() {
   if (localStorage.getItem(userKey('wb_tips_seen'))) return;
   localStorage.setItem(userKey('wb_tips_seen'), '1');
   const tips = [
-    { icon: '&#x2726;', title: 'AI Chat Assistant', desc: 'Click the chat button (bottom-right) or press <kbd>Cmd+J</kbd> to talk to your AI co-pilot.' },
+    { icon: '&#x2726;', title: 'AI Chat Assistant', desc: 'Click the chat button (bottom-right) or press <kbd>Cmd+J</kbd> to talk to your AI assistant.' },
     { icon: '&#x2318;', title: 'Command Palette', desc: 'Press <kbd>Cmd+K</kbd> to search, switch views, and run commands instantly.' },
     { icon: '&#x25B6;', title: 'Focus Mode', desc: 'Type <kbd>/focus</kbd> in the command palette to get AI-picked deep work sessions.' },
     { icon: '?', title: 'Keyboard Shortcuts', desc: 'Press <kbd>?</kbd> anytime to see all available shortcuts.' },
@@ -5018,7 +5018,7 @@ function buildAIContext(scope = 'all', projectId = null, detail = 'standard') {
 }
 
 // --- Shared AI Persona ---
-const AI_PERSONA = `You are the user's strategic partner — not just an assistant, but a co-pilot embedded in their productivity system called Whiteboards. You have full read/write access to their tasks, boards (projects), and AI memory.
+const AI_PERSONA = `You are the user's strategic partner — a smart assistant embedded in their productivity system called Whiteboards. You have full read/write access to their tasks, boards (projects), and AI memory.
 
 PERSONALITY:
 - Direct and concise. Default to short responses. "Done." / "Got it." / "Moved to urgent."
@@ -5046,7 +5046,7 @@ PROACTIVE BEHAVIOR:
 - When the user seems stuck, offer a concrete first step — not a lecture.
 - When workload is unbalanced, say so. "You have 12 tasks in Life and 0 in [Board] — that board needs attention."`;
 
-const AI_PERSONA_SHORT = 'You are a sharp, direct productivity co-pilot. One sentence responses unless asked for more. No preamble.';
+const AI_PERSONA_SHORT = 'You are a sharp, direct productivity assistant. One sentence responses unless asked for more. No preamble.';
 
 // --- Action Definitions (shared across all AI touchpoints) ---
 const AI_ACTIONS_SPEC = `
@@ -6883,7 +6883,7 @@ STRUCTURE (use all 4 sections, 1-2 bullets each):
 
 **Push** — One specific thing I should do today that I probably won't unless you tell me. Could be: break down a vague task, set a deadline on something that's been floating, reach out to someone, or just knock out that one annoying 5-minute task.
 
-Be direct. Use task names. Under 200 words. No fluff. You're not a reporter — you're a co-pilot.`;
+Be direct. Use task names. Under 200 words. No fluff. You're not a reporter — you're their assistant.`;
 
   try {
     let text = await callAI(prompt, { maxTokens: 1024 });
@@ -6962,7 +6962,7 @@ function toggleChat() {
       messagesEl.scrollTop = messagesEl.scrollHeight;
       updateChatChips();
     } else if (messagesEl && messagesEl.children.length === 0) {
-      messagesEl.innerHTML = '<div class="chat-msg ai stagger chat-welcome-msg">Hey! I\'m your AI co-pilot. Ask me anything about your tasks, or try:<div class="chat-welcome-hint">&quot;Plan my day&quot;, &quot;What\'s overdue?&quot;, &quot;Help me with [task]&quot;</div><span class="chat-ts">' + chatTimeStr() + '</span></div>';
+      messagesEl.innerHTML = '<div class="chat-msg ai stagger chat-welcome-msg">Hey! I\'m your AI assistant. Ask me anything about your tasks, or try:<div class="chat-welcome-hint">&quot;Plan my day&quot;, &quot;What\'s overdue?&quot;, &quot;Help me with [task]&quot;</div><span class="chat-ts">' + chatTimeStr() + '</span></div>';
     }
   }
 }

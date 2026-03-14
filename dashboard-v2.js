@@ -165,7 +165,7 @@ renderDashboard = function() {
   if (data.tasks.length === 0 && data.projects.length <= 1) {
     return `<div style="max-width:540px;margin:48px auto;text-align:center">
       <div id="welcomeTyping" style="font-size:22px;font-weight:600;margin-bottom:6px;min-height:32px"></div>
-      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Your AI co-pilot is ready. Pick a way to begin.</p>
+      <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Your AI assistant is ready. Pick a way to begin.</p>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:left">
         <div onclick="setView('dump');setTimeout(()=>{const t=document.getElementById('dumpText');if(t){t.value='Here are my plans for the week:\\n- ';t.focus();t.setSelectionRange(t.value.length,t.value.length)}},100)" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
           <div style="font-size:24px;margin-bottom:10px">&#9671;</div>
