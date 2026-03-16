@@ -222,6 +222,12 @@ export function createActions(deps) {
       case 'toggle-chat':
         toggleChat();
         break;
+      case 'toggle-ai-insights': {
+        const cur = localStorage.getItem(userKey('wb_ai_insights_expanded'));
+        localStorage.setItem(userKey('wb_ai_insights_expanded'), cur === 'false' ? 'true' : 'false');
+        render();
+        break;
+      }
       case 'send-chat':
         sendChat();
         break;

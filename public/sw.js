@@ -1,5 +1,5 @@
 // Service Worker — cache-first for static assets, network-first for API calls
-const CACHE_NAME = 'whiteboards-v1';
+const CACHE_NAME = 'whiteboards-v2';
 
 // App shell files to pre-cache on install
 const APP_SHELL = [

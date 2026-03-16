@@ -66,7 +66,6 @@ export function createDashboard(deps) {
     getSmartFeedItems,
     getSmartNudges,
     getStuckTasks,
-    maybeShowCheckIn,
     detectVagueTasks,
     nudgeFilterOverdue,
     nudgeFilterStale,
@@ -102,7 +101,6 @@ export function createDashboard(deps) {
     handleSlashCommand,
     aiEnhanceTask,
     getEscalationBanner,
-    getFocusStats,
     getAIMemory,
     extractMemoryInsights,
   } = deps;
@@ -502,7 +500,7 @@ export function createDashboard(deps) {
     const _estTotal = activeTasks().reduce((s, t) => s + (t.estimatedMinutes || 0), 0);
     const _estStr = _estTotal > 0 ? ` \u00b7 ~${Math.round((_estTotal / 60) * 10) / 10}h estimated` : '';
     $('#viewSub').textContent = `${activeTasks().length} active tasks across ${data.projects.length} boards${_estStr}`;
-    ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${dashViewMode === 'list' ? 'active' : ''}" data-action="dash-view" data-mode="list">List</button><button class="view-toggle-btn ${dashViewMode === 'week' ? 'active' : ''}" data-action="dash-view" data-mode="week">Week</button><button class="view-toggle-btn ${dashViewMode === 'month' ? 'active' : ''}" data-action="dash-view" data-mode="month">Month</button></div><button class="btn btn-sm${bulkMode ? ' btn-active' : ''}" data-action="toggle-bulk" title="Select multiple tasks">\u2630 Bulk</button><button class="btn btn-sm" data-action="start-focus">\u25ce Focus</button><button class="btn btn-sm" data-action="toggle-chat">\u2726 Ask AI</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
+    ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${dashViewMode === 'list' ? 'active' : ''}" data-action="dash-view" data-mode="list">List</button><button class="view-toggle-btn ${dashViewMode === 'week' ? 'active' : ''}" data-action="dash-view" data-mode="week">Week</button><button class="view-toggle-btn ${dashViewMode === 'month' ? 'active' : ''}" data-action="dash-view" data-mode="month">Month</button></div><button class="btn btn-sm${bulkMode ? ' btn-active' : ''}" data-action="toggle-bulk" title="Select multiple tasks">\u2630 Bulk</button><button class="btn btn-sm" data-action="toggle-chat">\u2726 Ask AI</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
     c.innerHTML = dashViewMode === 'list' ? renderDashboard() : renderCalendar();
   }
 
@@ -932,80 +930,6 @@ export function createDashboard(deps) {
     return html;
   }
 
-  function _renderDashboardNudges() {
-    let html = '';
-    const nudges = getSmartNudges();
-    const stuckTasks = getStuckTasks();
-    const colorMap = {
-      urgent: 'var(--red)',
-      warning: 'var(--orange)',
-      action: 'var(--accent)',
-      positive: 'var(--green)',
-      stale: 'var(--text3)',
-      habit: 'var(--purple)',
-    };
-
-    if (nudges.length > 0 || stuckTasks.length > 0) {
-      html += `<div class="ai-hero-nudges">`;
-      nudges.forEach((n) => {
-        html += `<div class="ai-hero-nudge" style="border-left:3px solid ${colorMap[n.type] || 'var(--accent)'}">
-          <span style="flex-shrink:0">${n.icon}</span>
-          <span style="font-size:12px;color:var(--text2);line-height:1.4;flex:1">${n.text}</span>
-          ${n.actionLabel ? `<button class="btn btn-sm" data-nudge-action="${esc(n.actionFn)}" style="flex-shrink:0;font-size:11px;padding:3px 10px;white-space:nowrap">${n.actionLabel}</button>` : ''}
-        </div>`;
-      });
-      stuckTasks.slice(0, 2).forEach((t) => {
-        const lastTouch = t.updates?.length ? t.updates[t.updates.length - 1].date : t.createdAt;
-        const days = Math.floor((Date.now() - new Date(lastTouch).getTime()) / MS_PER_DAY);
-        html += `<div class="ai-hero-nudge" style="border-left:3px solid var(--amber)">
-          <span style="flex-shrink:0">◇</span>
-          <span style="font-size:12px;color:var(--text2);line-height:1.4;flex:1">
-            <strong>${esc(t.title)}</strong> has been in-progress for ${days} days.
-            ${hasAI() ? `<span style="color:var(--accent);cursor:pointer" data-stuck-task-id="${esc(t.id)}">Think through it?</span>` : ''}
-          </span>
-        </div>`;
-      });
-      html += `</div>`;
-    }
-
-    // Nudge filter indicator
-    const _nudgeFilter = getNudgeFilter();
-    if (_nudgeFilter) {
-      const nfLabels = { overdue: 'Overdue tasks', stale: 'Stale tasks (10+ days)', unassigned: 'Unassigned tasks' };
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:12px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius-xs)">
-        <span style="font-size:12px;color:var(--accent);font-weight:500">Filtering: ${nfLabels[_nudgeFilter] || _nudgeFilter}</span>
-        <span style="font-size:11px;color:var(--accent);cursor:pointer;margin-left:auto" data-nudge-action="clearNudgeFilter()">Clear filter</span>
-      </div>`;
-    }
-
-    // Tag filter
-    const allTags = getAllTags();
-    const activeTagFilter = getActiveTagFilter();
-    if (allTags.length) {
-      if (activeTagFilter) {
-        html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-          <span style="font-size:10px;color:var(--text3);margin-right:4px">Tag:</span>
-          <span class="tag-chip tag-filter-btn selected" style="background:${getTagColor(activeTagFilter).bg};color:${getTagColor(activeTagFilter).color};font-size:10px" data-tag="${esc(activeTagFilter)}">${esc(activeTagFilter)}</span>
-          <span style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:4px" data-action="clear-tag-filter">✕ clear</span>
-        </div>`;
-      } else {
-        const _showTagFilterVal = getShowTagFilter();
-        html += `<div style="margin-bottom:8px"><span data-action="toggle-tag-filter" style="font-size:10px;color:var(--text3);cursor:pointer;user-select:none">${_showTagFilterVal ? '▾' : '▸'} Filter by tag</span></div>`;
-        if (_showTagFilterVal) {
-          html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-            ${allTags
-              .map((tag) => {
-                const c = getTagColor(tag);
-                return `<span class="tag-chip tag-filter-btn" style="background:${c.bg};color:${c.color};font-size:10px" data-tag="${esc(tag)}">${esc(tag)}</span>`;
-              })
-              .join('')}
-          </div>`;
-        }
-      }
-    }
-    return html;
-  }
-
   function _renderDashboardSmartFeed() {
     let html = '';
     const _nudgeFilter = getNudgeFilter();
@@ -1194,58 +1118,8 @@ export function createDashboard(deps) {
     return html;
   }
 
-  function _renderFocusStatsCard() {
-    if (!getFocusStats) return '';
-    let stats;
-    try {
-      stats = getFocusStats();
-    } catch (_e) {
-      return '';
-    }
-    if (!stats || stats.totalSessions < 3) return '';
-    const todayMin = Math.round(stats.todayFocusTime / 60);
-    const weekMin = Math.round(stats.weekFocusTime / 60);
-    const weekHr = weekMin >= 60 ? `${Math.floor(weekMin / 60)}h ${weekMin % 60}m` : `${weekMin}m`;
-    const avgMin = Math.round(stats.avgSessionLength / 60);
-    let productiveLabel = '';
-    if (stats.mostProductiveHour !== null) {
-      const h = stats.mostProductiveHour;
-      productiveLabel = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
-    }
-    return `<div class="focus-stats-card">
-      <div class="focus-stats-header">
-        <span class="focus-stats-icon">\u25CE</span>
-        <span class="focus-stats-title">Focus Stats</span>
-      </div>
-      <div class="focus-stats-grid">
-        <div class="focus-stat-item">
-          <div class="focus-stat-value">${todayMin}<span style="font-size:12px;font-weight:400;color:var(--text3)"> min</span></div>
-          <div class="focus-stat-label">Today (${stats.todayCompleted} tasks)</div>
-        </div>
-        <div class="focus-stat-item">
-          <div class="focus-stat-value">${weekHr}</div>
-          <div class="focus-stat-label">This week (${stats.weekCompletionRate}% done)</div>
-        </div>
-        <div class="focus-stat-item">
-          <div class="focus-stat-value">${avgMin}<span style="font-size:12px;font-weight:400;color:var(--text3)"> min</span></div>
-          <div class="focus-stat-label">Avg session</div>
-        </div>
-        <div class="focus-stat-item">
-          <div class="focus-stat-value">${stats.completionRate}<span style="font-size:12px;font-weight:400;color:var(--text3)">%</span></div>
-          <div class="focus-stat-label">Completion rate</div>
-        </div>
-      </div>
-      <div class="focus-stats-footer">
-        ${stats.streak > 0 ? `<div class="focus-streak-badge">\u{1F525} ${stats.streak} day streak</div>` : '<div></div>'}
-        <button class="btn btn-primary btn-sm" data-action="start-focus">Start Focus</button>
-      </div>
-      ${productiveLabel ? `<div style="font-size:11px;color:var(--text3);margin-top:10px;text-align:center">Most productive: ${productiveLabel}</div>` : ''}
-    </div>`;
-  }
-
   function _renderDashboardToday(data) {
     let html = '';
-    html += _renderFocusStatsCard();
     html += _renderTodayBriefingAndPlan();
     html += _renderEndOfDay(data);
     return html;
@@ -1326,6 +1200,165 @@ export function createDashboard(deps) {
     return html;
   }
 
+  // --- AI Insights: collapsible section consolidating all AI/proactive cards ---
+  function _renderAIInsights(data) {
+    // Collect all AI insight content
+    const parts = [];
+
+    // Escalation banner
+    if (getEscalationBanner) {
+      const eb = getEscalationBanner();
+      if (eb) parts.push(eb);
+    }
+
+    // Stuck tasks
+    const _stuckForCard = getStuckTasks();
+    if (_stuckForCard.length > 0) {
+      let sh = '<div class="stuck-card" style="margin-bottom:0">';
+      sh +=
+        '<div class="stuck-header"><span style="font-size:14px">&#9888;</span><span class="stuck-title">Stuck Tasks</span><span style="font-size:11px;color:var(--text3);margin-left:auto">' +
+        _stuckForCard.length +
+        ' task' +
+        (_stuckForCard.length > 1 ? 's' : '') +
+        '</span></div>';
+      _stuckForCard.forEach(function (t) {
+        const lastTouch = t.updates && t.updates.length ? t.updates[t.updates.length - 1].date : t.createdAt;
+        const days = Math.floor((Date.now() - new Date(lastTouch).getTime()) / 86400000);
+        sh += '<div class="stuck-task-row">';
+        sh +=
+          '<div class="stuck-task-info"><span class="stuck-task-title">' +
+          esc(t.title) +
+          '</span><span class="stuck-task-days">' +
+          days +
+          'd in-progress</span></div>';
+        sh += '<div class="stuck-task-actions">';
+        sh +=
+          '<button class="btn btn-sm" data-action="stuck-help" data-task-id="' +
+          t.id +
+          '" style="font-size:10px;padding:2px 8px">Get Help</button>';
+        sh +=
+          '<button class="btn btn-sm" data-action="stuck-breakdown" data-task-id="' +
+          t.id +
+          '" style="font-size:10px;padding:2px 8px">Break Down</button>';
+        sh +=
+          '<button class="btn btn-sm" data-action="stuck-reschedule" data-task-id="' +
+          t.id +
+          '" style="font-size:10px;padding:2px 8px">Reschedule</button>';
+        sh += '</div></div>';
+      });
+      sh += '</div>';
+      parts.push(sh);
+    }
+
+    // Vague task suggestion
+    if (typeof detectVagueTasks === 'function') {
+      const vagueTask = detectVagueTasks();
+      if (vagueTask) {
+        let vh =
+          '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;display:flex;align-items:center;gap:12px">';
+        vh += '<span style="font-size:14px;flex-shrink:0">&#9986;</span>';
+        vh +=
+          '<span style="font-size:12px;color:var(--text2);flex:1">&ldquo;' +
+          esc(vagueTask.title.slice(0, 50)) +
+          (vagueTask.title.length > 50 ? '...' : '') +
+          '&rdquo; seems vague. Break it down?</span>';
+        vh +=
+          '<button class="btn btn-sm" data-action="breakdown-task" data-task-id="' +
+          vagueTask.id +
+          '" style="font-size:11px;padding:3px 10px;flex-shrink:0">Break Down</button>';
+        vh +=
+          '<button class="btn btn-sm" data-action="breakdown-dismiss" data-task-id="' +
+          vagueTask.id +
+          '" style="font-size:11px;padding:3px 10px;flex-shrink:0;color:var(--text3)">Dismiss</button>';
+        vh += '</div>';
+        parts.push(vh);
+      }
+    }
+
+    // Memory insights
+    const mic = renderMemoryInsightsCard();
+    if (mic) parts.push(mic);
+
+    // Briefing, plan, EOD
+    const todayHtml = _renderDashboardToday(data);
+    if (todayHtml) parts.push(todayHtml);
+
+    // Nudges (without tag filter — that stays outside)
+    const nudgesHtml = _renderDashboardNudgesInner();
+    if (nudgesHtml) parts.push(nudgesHtml);
+
+    if (!parts.length) return '';
+
+    // Build summary line for collapsed state
+    const summaryItems = [];
+    if (_stuckForCard.length > 0) summaryItems.push(_stuckForCard.length + ' stuck');
+    const nudges = getSmartNudges();
+    if (nudges.length > 0) summaryItems.push(nudges.length + ' nudge' + (nudges.length > 1 ? 's' : ''));
+    const briefingKey = userKey('whiteboard_briefing_' + todayStr());
+    if (localStorage.getItem(briefingKey)) summaryItems.push('briefing');
+    const planKey = userKey('whiteboard_plan_' + todayStr());
+    if (localStorage.getItem(planKey)) summaryItems.push('day plan');
+    const summaryText = summaryItems.length ? summaryItems.join(', ') : 'AI coaching & insights';
+
+    const expanded = localStorage.getItem(userKey('wb_ai_insights_expanded')) !== 'false';
+
+    let html = '<div class="ai-insights-section" style="margin-bottom:20px">';
+    html += `<div class="ai-insights-toggle" data-action="toggle-ai-insights" role="button" tabindex="0" aria-expanded="${expanded}" style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;user-select:none">
+      <span style="font-size:14px;color:var(--accent)">\u2726</span>
+      <span style="font-size:13px;font-weight:600;color:var(--text)">AI Insights</span>
+      <span style="font-size:11px;color:var(--text3)">${esc(summaryText)}</span>
+      <span style="margin-left:auto;font-size:10px;color:var(--text3);transition:transform 0.2s${expanded ? ';transform:rotate(90deg)' : ''}">\u25b8</span>
+    </div>`;
+
+    if (expanded) {
+      html += '<div class="ai-insights-body" style="display:flex;flex-direction:column;gap:12px">';
+      html += parts.join('');
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  // Inner nudges rendering (without tag/nudge filter UI — those stay at dashboard level)
+  function _renderDashboardNudgesInner() {
+    let html = '';
+    const nudges = getSmartNudges();
+    const stuckTasks = getStuckTasks();
+    const colorMap = {
+      urgent: 'var(--red)',
+      warning: 'var(--orange)',
+      action: 'var(--accent)',
+      positive: 'var(--green)',
+      stale: 'var(--text3)',
+      habit: 'var(--purple)',
+    };
+
+    if (nudges.length > 0 || stuckTasks.length > 0) {
+      html += `<div class="ai-hero-nudges">`;
+      nudges.forEach((n) => {
+        html += `<div class="ai-hero-nudge" style="border-left:3px solid ${colorMap[n.type] || 'var(--accent)'}">
+          <span style="flex-shrink:0">${n.icon}</span>
+          <span style="font-size:12px;color:var(--text2);line-height:1.4;flex:1">${n.text}</span>
+          ${n.actionLabel ? `<button class="btn btn-sm" data-nudge-action="${esc(n.actionFn)}" style="flex-shrink:0;font-size:11px;padding:3px 10px;white-space:nowrap">${n.actionLabel}</button>` : ''}
+        </div>`;
+      });
+      stuckTasks.slice(0, 2).forEach((t) => {
+        const lastTouch = t.updates?.length ? t.updates[t.updates.length - 1].date : t.createdAt;
+        const days = Math.floor((Date.now() - new Date(lastTouch).getTime()) / MS_PER_DAY);
+        html += `<div class="ai-hero-nudge" style="border-left:3px solid var(--amber)">
+          <span style="flex-shrink:0">◇</span>
+          <span style="font-size:12px;color:var(--text2);line-height:1.4;flex:1">
+            <strong>${esc(t.title)}</strong> has been in-progress for ${days} days.
+            ${hasAI() ? `<span style="color:var(--accent);cursor:pointer" data-stuck-task-id="${esc(t.id)}">Think through it?</span>` : ''}
+          </span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    return html;
+  }
+
   function renderDashboard() {
     const data = getData();
     const urgent = urgentTasks();
@@ -1342,7 +1375,6 @@ export function createDashboard(deps) {
         'Things I need to get done...',
         'Brainstorm everything...',
       ];
-      const _emptyPhrase = _emptyPhrases[Math.floor(Math.random() * _emptyPhrases.length)];
       return `<div style="max-width:540px;margin:48px auto;text-align:center">
         <div id="welcomeTyping" style="font-size:22px;font-weight:600;margin-bottom:6px;min-height:32px" data-phrases='${JSON.stringify(_emptyPhrases)}'></div>
         <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Write freely &mdash; plans, ideas, meeting notes, anything. AI organizes everything into tasks and projects.</p>
@@ -1370,81 +1402,58 @@ export function createDashboard(deps) {
 
     let html = '';
     html += _renderDashboardHero(data, active, done, inProgress, urgent);
-    if (getEscalationBanner) html += getEscalationBanner();
 
-    // Mid-day check-in card
-    if (typeof maybeShowCheckIn === 'function') {
-      const checkinHtml = maybeShowCheckIn();
-      if (checkinHtml) html += checkinHtml;
+    // Consolidated AI Insights section (collapsible)
+    html += _renderAIInsights(data);
+
+    // Tag & nudge filters (stay at dashboard level, outside AI Insights)
+    html += _renderDashboardFilters();
+
+    // Primary content: task feed + boards
+    html += _renderDashboardSmartFeed();
+    html += _renderDashboardBoards(data);
+    return html;
+  }
+
+  // Tag and nudge filter controls (extracted from _renderDashboardNudges)
+  function _renderDashboardFilters() {
+    let html = '';
+
+    // Nudge filter indicator
+    const _nudgeFilter = getNudgeFilter();
+    if (_nudgeFilter) {
+      const nfLabels = { overdue: 'Overdue tasks', stale: 'Stale tasks (10+ days)', unassigned: 'Unassigned tasks' };
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:12px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius-xs)">
+        <span style="font-size:12px;color:var(--accent);font-weight:500">Filtering: ${nfLabels[_nudgeFilter] || _nudgeFilter}</span>
+        <span style="font-size:11px;color:var(--accent);cursor:pointer;margin-left:auto" data-nudge-action="clearNudgeFilter()">Clear filter</span>
+      </div>`;
     }
 
-    // Stuck tasks card
-    const _stuckForCard = getStuckTasks();
-    if (_stuckForCard.length > 0) {
-      html += '<div class="stuck-card">';
-      html +=
-        '<div class="stuck-header"><span style="font-size:14px">&#9888;</span><span class="stuck-title">Stuck Tasks</span><span style="font-size:11px;color:var(--text3);margin-left:auto">' +
-        _stuckForCard.length +
-        ' task' +
-        (_stuckForCard.length > 1 ? 's' : '') +
-        '</span></div>';
-      _stuckForCard.forEach(function (t) {
-        const lastTouch = t.updates && t.updates.length ? t.updates[t.updates.length - 1].date : t.createdAt;
-        const days = Math.floor((Date.now() - new Date(lastTouch).getTime()) / 86400000);
-        html += '<div class="stuck-task-row">';
-        html +=
-          '<div class="stuck-task-info"><span class="stuck-task-title">' +
-          esc(t.title) +
-          '</span><span class="stuck-task-days">' +
-          days +
-          'd in-progress</span></div>';
-        html += '<div class="stuck-task-actions">';
-        html +=
-          '<button class="btn btn-sm" data-action="stuck-help" data-task-id="' +
-          t.id +
-          '" style="font-size:10px;padding:2px 8px">Get Help</button>';
-        html +=
-          '<button class="btn btn-sm" data-action="stuck-breakdown" data-task-id="' +
-          t.id +
-          '" style="font-size:10px;padding:2px 8px">Break Down</button>';
-        html +=
-          '<button class="btn btn-sm" data-action="stuck-reschedule" data-task-id="' +
-          t.id +
-          '" style="font-size:10px;padding:2px 8px">Reschedule</button>';
-        html += '</div></div>';
-      });
-      html += '</div>';
-    }
-
-    // Vague task breakdown suggestion
-    if (typeof detectVagueTasks === 'function') {
-      const vagueTask = detectVagueTasks();
-      if (vagueTask) {
-        html +=
-          '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px">';
-        html += '<span style="font-size:14px;flex-shrink:0">&#9986;</span>';
-        html +=
-          '<span style="font-size:12px;color:var(--text2);flex:1">&ldquo;' +
-          esc(vagueTask.title.slice(0, 50)) +
-          (vagueTask.title.length > 50 ? '...' : '') +
-          '&rdquo; seems vague. Break it down?</span>';
-        html +=
-          '<button class="btn btn-sm" data-action="breakdown-task" data-task-id="' +
-          vagueTask.id +
-          '" style="font-size:11px;padding:3px 10px;flex-shrink:0">Break Down</button>';
-        html +=
-          '<button class="btn btn-sm" data-action="breakdown-dismiss" data-task-id="' +
-          vagueTask.id +
-          '" style="font-size:11px;padding:3px 10px;flex-shrink:0;color:var(--text3)">Dismiss</button>';
-        html += '</div>';
+    // Tag filter
+    const allTags = getAllTags();
+    const activeTagFilter = getActiveTagFilter();
+    if (allTags.length) {
+      if (activeTagFilter) {
+        html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <span style="font-size:10px;color:var(--text3);margin-right:4px">Tag:</span>
+          <span class="tag-chip tag-filter-btn selected" style="background:${getTagColor(activeTagFilter).bg};color:${getTagColor(activeTagFilter).color};font-size:10px" data-tag="${esc(activeTagFilter)}">${esc(activeTagFilter)}</span>
+          <span style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:4px" data-action="clear-tag-filter">\u2715 clear</span>
+        </div>`;
+      } else {
+        const _showTagFilterVal = getShowTagFilter();
+        html += `<div style="margin-bottom:8px"><span data-action="toggle-tag-filter" style="font-size:10px;color:var(--text3);cursor:pointer;user-select:none">${_showTagFilterVal ? '\u25be' : '\u25b8'} Filter by tag</span></div>`;
+        if (_showTagFilterVal) {
+          html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+            ${allTags
+              .map((tag) => {
+                const c = getTagColor(tag);
+                return `<span class="tag-chip tag-filter-btn" style="background:${c.bg};color:${c.color};font-size:10px" data-tag="${esc(tag)}">${esc(tag)}</span>`;
+              })
+              .join('')}
+          </div>`;
+        }
       }
     }
-
-    html += renderMemoryInsightsCard();
-    html += _renderDashboardNudges();
-    html += _renderDashboardSmartFeed();
-    html += _renderDashboardToday(data);
-    html += _renderDashboardBoards(data);
     return html;
   }
 

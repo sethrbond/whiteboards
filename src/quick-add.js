@@ -293,7 +293,7 @@ Keep notes concise and actionable. Today is ${todayStr()}.`,
     if (typeof getSmartDefaults === 'function' && val.length >= 5) {
       const sd = getSmartDefaults(val);
       if (sd.suggestedPriority)
-        parts.push(`<span style="color:var(--accent)">✦ ${sd.suggestedPriority} (AI suggested)</span>`);
+        parts.push(`<span style="color:var(--accent)">✦ ${esc(sd.suggestedPriority)} (AI suggested)</span>`);
       if (sd.suggestedProjectName)
         parts.push(`<span style="color:var(--accent)">✦ ${esc(sd.suggestedProjectName)} (AI suggested)</span>`);
     }
@@ -345,14 +345,18 @@ Keep notes concise and actionable. Today is ${todayStr()}.`,
           const hints = [];
           if (defaults.suggestedPriority)
             hints.push(
-              '<span style="color:var(--accent)">\u2726 AI: ' + defaults.suggestedPriority + ' priority</span>',
+              '<span style="color:var(--accent)">\u2726 AI: ' + esc(defaults.suggestedPriority) + ' priority</span>',
             );
           if (defaults.suggestedDueDate)
             hints.push(
-              '<span style="color:var(--accent)">\u2726 AI: due in ~' + defaults.suggestedDueDays + 'd</span>',
+              '<span style="color:var(--accent)">\u2726 AI: due in ~' +
+                Math.round(defaults.suggestedDueDays) +
+                'd</span>',
             );
           if (defaults.suggestedEstimate)
-            hints.push('<span style="color:var(--accent)">\u2726 AI: ~' + defaults.suggestedEstimate + 'min</span>');
+            hints.push(
+              '<span style="color:var(--accent)">\u2726 AI: ~' + Math.round(defaults.suggestedEstimate) + 'min</span>',
+            );
           if (hints.length) {
             prev.innerHTML = (prev.innerHTML ? prev.innerHTML + ' ' : '') + hints.join(' ');
             prev.style.display = 'block';

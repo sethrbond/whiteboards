@@ -802,9 +802,6 @@ async function _handleGoalPick(...args) {
 async function _handleGoalStart() {
   return (await _loadFocus()).handleGoalStart();
 }
-async function getFocusStats() {
-  return (await _loadFocus()).getFocusStats();
-}
 
 // ============================================================
 // QUICK ADD
@@ -1123,7 +1120,6 @@ function showFollowUpToast(suggestions) {
     setTimeout(() => el.remove(), 500);
   }, 6000);
 }
-const maybeShowCheckIn = _proactive.maybeShowCheckIn;
 const dismissCheckIn = _proactive.dismissCheckIn;
 const detectVagueTasks = _proactive.detectVagueTasks;
 const breakdownTask = _proactive.breakdownTask;
@@ -1205,7 +1201,6 @@ const _dashboard = createDashboard({
   getSmartNudges,
   getStuckTasks,
   isWeekOverloaded,
-  maybeShowCheckIn,
   detectVagueTasks,
   nudgeFilterOverdue,
   nudgeFilterStale,
@@ -1243,7 +1238,6 @@ const _dashboard = createDashboard({
   handleSlashCommand,
   aiEnhanceTask,
   getEscalationBanner: () => (typeof renderEscalationBanner === 'function' ? renderEscalationBanner() : ''),
-  getFocusStats: (...args) => getFocusStats(...args),
   getAIMemory: () => (typeof getAIMemory === 'function' ? getAIMemory() : []),
   extractMemoryInsights: (...args) =>
     typeof extractMemoryInsights === 'function'
