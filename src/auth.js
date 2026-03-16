@@ -529,6 +529,12 @@ export function createAuth(deps) {
     btn.textContent = authMode === 'signup' ? 'Creating...' : authMode === 'recovery' ? 'Updating...' : 'Signing in...';
 
     try {
+      if (!sb) {
+        errEl.innerHTML = '<div class="auth-error">Cannot connect to server — check your connection and reload.</div>';
+        btn.disabled = false;
+        btn.textContent = authMode === 'signup' ? 'Sign Up' : 'Sign In';
+        return;
+      }
       if (authMode === 'forgot') {
         const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
         if (error) throw error;
