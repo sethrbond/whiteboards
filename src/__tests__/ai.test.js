@@ -31,11 +31,12 @@ describe('ai.js — createAICaller()', () => {
       expect(ep.headers.apikey).toBe('test-key');
     });
 
-    it('uses direct Anthropic API when apiKey is set', () => {
+    it('routes through proxy with user API key when apiKey is set', () => {
       mockSettings.apiKey = 'sk-test-123';
       const ep = ai.getAIEndpoint();
-      expect(ep.url).toBe('https://api.anthropic.com/v1/messages');
-      expect(ep.headers['x-api-key']).toBe('sk-test-123');
+      expect(ep.url).toBe('https://example.com/ai-proxy');
+      expect(ep.headers['x-user-api-key']).toBe('sk-test-123');
+      expect(ep.headers.apikey).toBe('test-key');
       mockSettings.apiKey = ''; // reset
     });
   });

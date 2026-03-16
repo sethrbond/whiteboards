@@ -673,6 +673,8 @@ const _settingsMod = createSettings({
   getTemplates,
   deleteTemplate,
   updateTemplate,
+  getStorageUsage: () => _dataLayer.getStorageUsage(),
+  cleanupStorage: () => _dataLayer.cleanupStorage(),
 });
 const openSettings = _settingsMod.openSettings;
 const deleteAIMemory = _settingsMod.deleteAIMemory;
@@ -1503,6 +1505,7 @@ exposeWindowAPI(
     saveEditProject,
     saveEditTask,
     exportData,
+    cleanupStorage: () => _dataLayer.cleanupStorage(),
     confirmAction,
     confirmDeleteProject,
     confirmClearMemories,

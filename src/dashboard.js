@@ -107,6 +107,11 @@ export function createDashboard(deps) {
 
   const TASKS_PER_PAGE = 50;
 
+  // --- Render memoization ---
+  // Skip redundant sidebar/content DOM rebuilds when nothing changed.
+  let _lastSidebarState = null;
+  let _lastContentState = null;
+
   // --- Plan index cache for sortTasks ---
   let _planIndexCache = null;
   let _planIndexDate = '';
@@ -195,6 +200,14 @@ export function createDashboard(deps) {
   }
 
   function renderSidebar() {
+    // --- Memoization: skip if nothing affecting the sidebar changed ---
+    const _dv = sortTasksDeps.getDataVersion();
+    const _bsMod = getBrainstormModule();
+    const _dumpInProgress = _bsMod && typeof _bsMod.isDumpInProgress === 'function' && _bsMod.isDumpInProgress();
+    const sidebarState = getCurrentView() + '|' + (getCurrentProject() || '') + '|' + _dv + '|' + _dumpInProgress;
+    if (sidebarState === _lastSidebarState) return;
+    _lastSidebarState = sidebarState;
+
     // Active states
     $$('.nav-item[data-view]').forEach((n) =>
       n.classList.toggle('active', n.dataset.view === getCurrentView() && !getCurrentProject()),
@@ -204,8 +217,7 @@ export function createDashboard(deps) {
     const dumpNav = $('.nav-item[data-view="dump"]');
     if (dumpNav) {
       let dumpSpinner = dumpNav.querySelector('.dump-spinner');
-      const _bsMod = getBrainstormModule();
-      if (_bsMod && typeof _bsMod.isDumpInProgress === 'function' && _bsMod.isDumpInProgress()) {
+      if (_dumpInProgress) {
         if (!dumpSpinner) {
           dumpSpinner = document.createElement('span');
           dumpSpinner.className = 'dump-spinner';
@@ -572,6 +584,41 @@ export function createDashboard(deps) {
 
     // Skip render if user is mid-inline-edit to avoid destroying contenteditable
     if (document.querySelector('[contenteditable="true"].task-title-editable')) return;
+
+    // --- Memoization: skip full content rebuild if nothing changed ---
+    const _currentProject = getCurrentProject();
+    const _dv = sortTasksDeps.getDataVersion();
+    const contentState =
+      currentView +
+      '|' +
+      (dashViewMode || '') +
+      '|' +
+      bulkMode +
+      '|' +
+      (_currentProject || '') +
+      '|' +
+      _dv +
+      '|' +
+      getShowCompleted(currentView === 'project' ? _currentProject : 'dash') +
+      '|' +
+      (getProjectViewMode(_currentProject || '') || '') +
+      '|' +
+      (getActiveTagFilter() || '') +
+      '|' +
+      (getNudgeFilter() || '') +
+      '|' +
+      getSmartFeedExpanded() +
+      '|' +
+      getTodayBriefingExpanded() +
+      '|' +
+      getShowTagFilter() +
+      '|' +
+      getSectionShowCount('dash') +
+      '|' +
+      getArchiveShowCount();
+    if (contentState === _lastContentState) return;
+    _lastContentState = contentState;
+
     try {
       renderSidebar();
       const c = $('#content');
@@ -1463,6 +1510,12 @@ export function createDashboard(deps) {
     _planIndexDate = date;
   }
 
+  /** Reset render memoization so the next _renderNow/renderSidebar always runs. */
+  function invalidateRenderMemo() {
+    _lastSidebarState = null;
+    _lastContentState = null;
+  }
+
   return {
     renderProject,
     renderDashboard,
@@ -1478,5 +1531,6 @@ export function createDashboard(deps) {
     heroInputHandler,
     setPlanIndexCache,
     renderMemoryInsightsCard,
+    invalidateRenderMemo,
   };
 }

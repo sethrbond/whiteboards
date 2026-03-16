@@ -15,12 +15,9 @@ export function createAICaller(config) {
 
   function getAIEndpoint() {
     const s = getSettings();
-    if (s.apiKey)
-      return {
-        url: 'https://api.anthropic.com/v1/messages',
-        headers: { 'x-api-key': s.apiKey, 'anthropic-dangerous-direct-browser-access': 'true' },
-      };
-    return { url: proxyUrl, headers: { apikey: proxyKey } };
+    const headers = { apikey: proxyKey };
+    if (s.apiKey) headers['x-user-api-key'] = s.apiKey;
+    return { url: proxyUrl, headers };
   }
 
   function hasAI() {

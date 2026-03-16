@@ -45,7 +45,29 @@ export function createSettings(deps) {
     getTemplates,
     deleteTemplate: _deleteTemplate,
     updateTemplate,
+    getStorageUsage,
+    cleanupStorage: _cleanupStorage,
   } = deps;
+
+  function _buildStorageHTML() {
+    if (typeof getStorageUsage !== 'function') return '';
+    const usage = getStorageUsage();
+    const usedMB = (usage.usedBytes / 1024 / 1024).toFixed(1);
+    const maxMB = 5;
+    const pct = Math.min(100, Math.round((usage.usedBytes / (maxMB * 1024 * 1024)) * 100));
+    const barColor = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--orange)' : 'var(--accent)';
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label class="form-label" style="margin:0">Storage</label>
+        <button class="btn btn-sm" data-action="cleanup-storage" style="font-size:10px">Clean up</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">${usedMB} MB of ~${maxMB} MB (${usage.totalKeys} keys)</div>
+      <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.3s"></div>
+      </div>
+      ${pct > 80 ? '<div style="font-size:10px;color:var(--red);margin-top:4px">Storage is getting full. Click "Clean up" to free space.</div>' : ''}
+    </div>`;
+  }
 
   function _buildArchiveHTML() {
     const a = getAIMemoryArchive();
@@ -152,7 +174,7 @@ export function createSettings(deps) {
       `<div class="modal-overlay" data-action="close-modal" data-click-self="true"><div class="modal" style="max-width:540px" aria-labelledby="modal-title-settings">
     <h2 class="modal-title" id="modal-title-settings">Settings</h2>
     <div class="form-group"><label class="form-label">Claude API Key <span style="color:var(--text3);font-weight:400">(optional)</span></label><div style="position:relative"><input class="form-input" id="fApiKey" type="password" value="${esc(settings.apiKey)}" placeholder="Leave blank to use shared AI" aria-label="Claude API Key" style="font-family:monospace;padding-right:40px"><button type="button" data-action="toggle-api-key-vis" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:4px">show</button></div></div>
-    <p style="font-size:11px;color:var(--text3);margin-bottom:16px">Free AI included (shared quota). Add your own API key from <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent)">console.anthropic.com</a> for unlimited personal use. Your key is stored locally only and never sent to our servers.</p>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:16px">Free AI included (shared quota). Add your own API key from <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent)">console.anthropic.com</a> for unlimited personal use. Your key is stored locally and sent securely through our proxy to Anthropic.</p>
 
     <div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -165,6 +187,7 @@ export function createSettings(deps) {
     ${_buildArchiveHTML()}
     ${renderNotificationSettings ? renderNotificationSettings() : ''}
     ${_buildTemplatesHTML()}
+    ${_buildStorageHTML()}
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
       <button class="btn btn-sm" data-action="export-data">Export JSON</button>
       <button class="btn btn-sm" data-action="export-calendar">Export to Calendar (.ics)</button>

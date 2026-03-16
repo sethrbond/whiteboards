@@ -361,6 +361,14 @@ export function createActions(deps) {
       case 'export-data':
         exportData();
         break;
+      case 'cleanup-storage':
+        if (typeof deps.cleanupStorage === 'function') {
+          const freed = deps.cleanupStorage();
+          const freedKB = Math.round(freed / 1024);
+          showToast(freedKB > 0 ? `Freed ${freedKB} KB of storage` : 'Nothing to clean up');
+          if (typeof deps.openSettings === 'function') deps.openSettings();
+        }
+        break;
       // Project view
       case 'project-view-mode':
         setProjectViewMode(actionEl.dataset.projectId, actionEl.dataset.mode);

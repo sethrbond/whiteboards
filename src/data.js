@@ -243,9 +243,19 @@ export function createDataLayer(deps) {
       try {
         localStorage.setItem(userKey(STORE_KEY), JSON.stringify(d));
       } catch (e) {
-        getShowToast()('Storage full — export your data from Settings', true);
-        console.error('Save failed:', e);
-        return false;
+        const freed = cleanupStorage();
+        if (freed > 0) {
+          try {
+            localStorage.setItem(userKey(STORE_KEY), JSON.stringify(d));
+          } catch (_e2) {
+            getShowToast()('Storage full — export your data from Settings', true);
+            return false;
+          }
+        } else {
+          getShowToast()('Storage full — export your data from Settings', true);
+          console.error('Save failed:', e);
+          return false;
+        }
       }
       if (!getSuppressCloudSync() && !getBatchMode()) {
         const scheduleSyncToCloud = getScheduleSyncToCloud();
@@ -263,9 +273,19 @@ export function createDataLayer(deps) {
       try {
         localStorage.setItem(userKey(STORE_KEY), JSON.stringify(d));
       } catch (e) {
-        getShowToast()('Storage full — export your data from Settings', true);
-        console.error('Save failed:', e);
-        return false;
+        const freed = cleanupStorage();
+        if (freed > 0) {
+          try {
+            localStorage.setItem(userKey(STORE_KEY), JSON.stringify(d));
+          } catch (_e2) {
+            getShowToast()('Storage full — export your data from Settings', true);
+            return false;
+          }
+        } else {
+          getShowToast()('Storage full — export your data from Settings', true);
+          console.error('Save failed:', e);
+          return false;
+        }
       }
       if (!getSuppressCloudSync() && !getBatchMode()) {
         const scheduleSyncToCloud = getScheduleSyncToCloud();
@@ -649,6 +669,7 @@ export function createDataLayer(deps) {
   }
   function setData(d) {
     data = d;
+    _dataVersion++; // Invalidate render memoization caches
   }
   function getSettings() {
     return settings;
@@ -685,6 +706,77 @@ export function createDataLayer(deps) {
     } catch (_e) {
       /* ignore */
     }
+  }
+
+  // --- Storage monitoring & cleanup ---
+  function getStorageUsage() {
+    const prefix = userKey('');
+    let totalBytes = 0;
+    let totalKeys = 0;
+    const breakdown = { data: 0, backup: 0, undo: 0, chat: 0, settings: 0, other: 0 };
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      const val = localStorage.getItem(key) || '';
+      const bytes = (key.length + val.length) * 2;
+      totalBytes += bytes;
+      totalKeys++;
+      if (key.includes('_undo')) breakdown.undo += bytes;
+      else if (key.includes('_backup')) breakdown.backup += bytes;
+      else if (key.includes('chat')) breakdown.chat += bytes;
+      else if (key.includes('settings')) breakdown.settings += bytes;
+      else if (key.includes(STORE_KEY) && !key.includes('_backup')) breakdown.data += bytes;
+      else breakdown.other += bytes;
+    }
+    return { usedBytes: totalBytes, totalKeys, breakdown };
+  }
+
+  function cleanupStorage() {
+    let freed = 0;
+    const prefix = userKey('');
+    // Remove backup older than 24h
+    const backupKey = userKey(STORE_KEY) + '_backup';
+    const backup = localStorage.getItem(backupKey);
+    if (backup) {
+      freed += (backupKey.length + backup.length) * 2;
+      localStorage.removeItem(backupKey);
+    }
+    // Trim chat history to 50 messages
+    const chatKey = userKey('wb_chat_history');
+    const chatRaw = localStorage.getItem(chatKey);
+    if (chatRaw) {
+      try {
+        const msgs = JSON.parse(chatRaw);
+        if (Array.isArray(msgs) && msgs.length > 50) {
+          const trimmed = msgs.slice(-50);
+          const oldSize = chatRaw.length * 2;
+          const newVal = JSON.stringify(trimmed);
+          localStorage.setItem(chatKey, newVal);
+          freed += oldSize - newVal.length * 2;
+        }
+      } catch (_e) {
+        /* skip */
+      }
+    }
+    // Remove stale proactive/dismissal keys older than 30 days
+    const cutoff = Date.now() - 30 * MS_PER_DAY;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      if (key.includes('_dismissed_') || key.includes('_checkin_') || key.includes('_eod_dismissed_')) {
+        // These keys contain date strings — try to parse
+        const dateMatch = key.match(/\d{4}-\d{2}-\d{2}/);
+        if (dateMatch) {
+          const keyDate = new Date(dateMatch[0]).getTime();
+          if (!isNaN(keyDate) && keyDate < cutoff) {
+            const val = localStorage.getItem(key) || '';
+            freed += (key.length + val.length) * 2;
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    }
+    return freed;
   }
 
   // Initialize
@@ -752,5 +844,8 @@ export function createDataLayer(deps) {
     // Corruption recovery
     restoreFromBackup,
     dismissCorruption,
+    // Storage monitoring
+    getStorageUsage,
+    cleanupStorage,
   };
 }

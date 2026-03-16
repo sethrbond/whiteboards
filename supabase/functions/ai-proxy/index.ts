@@ -39,7 +39,7 @@ function getCorsHeaders(req: Request) {
   const origin = req.headers.get('origin') || ''
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://www.whiteboards.dev',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, content-type, anthropic-version',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, content-type, anthropic-version, apikey, x-user-api-key',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   }
 }
@@ -208,7 +208,11 @@ serve(async (req) => {
     return new Response('Forbidden', { status: 403 })
   }
 
-  if (!ANTHROPIC_API_KEY) {
+  // Use user's own API key if provided, otherwise fall back to server key
+  const userApiKey = req.headers.get('x-user-api-key')
+  const apiKeyToUse = userApiKey || ANTHROPIC_API_KEY
+
+  if (!apiKeyToUse) {
     return jsonError('API key not configured on server', 500, req)
   }
 
@@ -311,7 +315,7 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': apiKeyToUse,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify(anthropicBody),
