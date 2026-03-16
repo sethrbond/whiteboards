@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+# Least-privilege: only allow reading repo contents (no write access)
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Deploy
+        run: |
+          echo "========================================="
+          echo "  Deploy to hosting provider"
+          echo "========================================="
+          echo ""
+          echo "Build output is in ./dist/"
+          echo "Replace this step with your hosting provider deploy action."
+          echo ""
+          echo "Examples:"
+          echo "  - Vercel:    vercel --prod"
+          echo "  - Netlify:   netlify deploy --prod --dir=dist"
+          echo "  - Firebase:  firebase deploy"
+          echo "  - AWS S3:    aws s3 sync dist/ s3://your-bucket"
+          echo ""
+          echo "Skipping actual deploy (no hosting configured)."
