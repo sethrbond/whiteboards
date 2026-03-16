@@ -102,10 +102,12 @@ export function createBrainstorm(deps) {
     if (!h.length) return '';
     let o =
       '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:8px">Recent storms</div>';
-    h.forEach((x) => {
+    h.forEach((x, i) => {
       const d = new Date(x.date);
       o +=
-        '<div class="dump-history-item"><span>' +
+        '<div class="dump-history-item" data-action="load-dump-history" data-dump-index="' +
+        i +
+        '" role="button" tabindex="0" style="cursor:pointer"><span>' +
         d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
         ' ' +
         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) +

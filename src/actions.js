@@ -826,6 +826,25 @@ export function createActions(deps) {
       case 'go-dump':
         setView('dump');
         break;
+      case 'load-dump-history': {
+        setView('dump');
+        const idx = parseInt(actionEl.dataset.dumpIndex, 10);
+        setTimeout(() => {
+          const bsMod = typeof deps.getBrainstormModule === 'function' ? deps.getBrainstormModule() : null;
+          if (bsMod && typeof bsMod.getDumpHistory === 'function') {
+            const history = bsMod.getDumpHistory();
+            const entry = history[idx];
+            if (entry && entry.inputSnippet) {
+              const t = document.getElementById('dumpText');
+              if (t) {
+                t.value = entry.inputSnippet;
+                t.focus();
+              }
+            }
+          }
+        }, 100);
+        break;
+      }
       case 'go-dump-weekly': {
         setView('dump');
         setTimeout(() => {

@@ -68,6 +68,9 @@ jobs:
 
       - name: Run unit tests with coverage
         run: npm run test:coverage
+        env:
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_ANON: test-anon-key
 
       - name: Upload coverage report
         if: always()
@@ -97,6 +100,9 @@ jobs:
 
       - name: Run E2E tests
         run: npm run test:e2e
+        env:
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_ANON: test-anon-key
 
       - name: Upload Playwright report
         if: always()
