@@ -578,4 +578,19 @@ describe('command-palette.js — createCommandPalette()', () => {
     const taskItems = results.querySelectorAll('[data-action="cmd-go-task"]');
     expect(taskItems.length).toBe(12);
   });
+
+  // ── Command rendering ──────────────────────────────────────────
+  it('renders all commands with cmd-exec action and cmd-key', () => {
+    cp.openSearch();
+    cp.renderSearchResults('>');
+    const items = document.querySelectorAll('#searchResults [data-action="cmd-exec"]');
+    expect(items.length).toBeGreaterThan(5);
+    // Each has a unique cmd-key
+    const keys = [...items].map((el) => el.dataset.cmdKey);
+    expect(new Set(keys).size).toBe(keys.length);
+    // Each has a label
+    items.forEach((el) => {
+      expect(el.dataset.cmdLabel).toBeTruthy();
+    });
+  });
 });
