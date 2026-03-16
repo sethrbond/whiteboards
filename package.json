@@ -27,6 +27,7 @@
     "src/**/*.css": "prettier --write"
   },
   "dependencies": {
+    "@sentry/browser": "^10.43.0",
     "@supabase/supabase-js": "^2.49.1"
   },
   "devDependencies": {
