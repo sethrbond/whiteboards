@@ -578,11 +578,19 @@ export function createAuth(deps) {
       // SIGNED_OUT handler does the cleanup
     } catch (e) {
       console.error('Sign out error:', e);
-      // Still clear local auth state so user isn't stuck
-      getSyncModule().resetSyncQueue();
+      // Full cleanup so user isn't stuck — mirror SIGNED_OUT handler
       setCurrentUser(null);
+      setData({ tasks: [], projects: [] });
+      getChatModule().resetChatState();
+      setSettings({ ...DEFAULT_SETTINGS });
+      setCurrentView('dump');
+      document.querySelector('.sidebar').style.display = 'none';
+      document.querySelector('.main').style.display = 'none';
+      document.getElementById('chatToggle').style.display = 'none';
+      const lp = document.getElementById('landingPage');
+      if (lp) lp.style.display = '';
       document.getElementById('authScreen').style.display = '';
-      showToast('Signed out locally', true);
+      showToast('Signed out');
     }
   }
 

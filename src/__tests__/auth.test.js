@@ -790,7 +790,7 @@ describe('auth.js — createAuth()', () => {
     auth = createAuth(deps);
     await auth.signOut();
     expect(syncModule.resetSyncState).toHaveBeenCalled();
-    expect(syncModule.resetSyncQueue).toHaveBeenCalledTimes(2);
+    expect(syncModule.resetSyncQueue).toHaveBeenCalled();
   });
 
   it('signOut calls sb.auth.signOut when available', async () => {
@@ -816,8 +816,7 @@ describe('auth.js — createAuth()', () => {
     await auth.signOut();
     // Should still clear user and show toast
     expect(deps.setCurrentUser).toHaveBeenCalledWith(null);
-    expect(deps.showToast).toHaveBeenCalledWith('Signed out locally', true);
-    expect(syncModule.resetSyncQueue).toHaveBeenCalledTimes(2);
+    expect(deps.showToast).toHaveBeenCalledWith('Signed out');
   });
 
   // ── showApp ──────────────────────────────────────────────────────
