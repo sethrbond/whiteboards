@@ -24,9 +24,9 @@ export function createAuth(deps) {
     processRecurringTasks,
     cleanupArchive,
     requestNotificationPermission,
-    hasAI,
-    processDump,
-    processDumpManual,
+    hasAI: _hasAI,
+    processDump: _processDump,
+    processDumpManual: _processDumpManual,
     // Getters
     getData,
     getCurrentUser,
@@ -324,146 +324,17 @@ export function createAuth(deps) {
     setCurrentView(localStorage.getItem(userKey('whiteboard_plan_' + todayStr())) ? 'dashboard' : 'dump');
     render();
     if (!localStorage.getItem(userKey('wb_onboarding_done')) && data.tasks.length === 0 && data.projects.length <= 1) {
-      setTimeout(function () {
-        showOnboarding();
-      }, 200);
+      showOnboarding();
     }
   }
 
   function showOnboarding() {
-    let step = 1;
-    let dumpResult = null;
-
-    function renderStep() {
-      const dots = [1, 2, 3]
-        .map((i) => `<div class="onboarding-dot ${i === step ? 'active' : i < step ? 'done' : ''}"></div>`)
-        .join('');
-
-      let body = '';
-
-      if (step === 1) {
-        body = `<div class="onboarding-body">
-          <div class="onboarding-title">Welcome to Whiteboards</div>
-          <div class="onboarding-desc">Your space to think freely — AI handles the rest.</div>
-          <div class="onboarding-actions">
-            <span></span>
-            <button class="btn btn-primary" data-action="onb-next">Let's go</button>
-          </div>
-        </div>`;
-      } else if (step === 2) {
-        body = `<div class="onboarding-body">
-          <div class="onboarding-title">Try your first brainstorm</div>
-          <div class="onboarding-desc">Paste anything &mdash; meeting notes, a project plan, a to-do list, a stream of consciousness. AI will organize it into tasks and boards.</div>
-          <textarea class="onboarding-textarea" id="onbDumpText" placeholder="e.g. I need to finish the quarterly report by Friday, schedule a dentist appointment, research flights to Tokyo for April..." aria-label="Brainstorm input for onboarding"></textarea>
-          <div id="onbDumpStatus" aria-live="polite"></div>
-          <div class="onboarding-actions">
-            <button class="onboarding-skip" data-action="onb-next">Skip &mdash; I'll add tasks manually</button>
-            <button class="btn btn-primary" id="onbOrganizeBtn" data-action="onb-process-dump">Organize this</button>
-          </div>
-        </div>`;
-      } else if (step === 3) {
-        let msg = '';
-        if (dumpResult) {
-          const parts = [];
-          if (dumpResult.tasks) parts.push(dumpResult.tasks + ' task' + (dumpResult.tasks === 1 ? '' : 's'));
-          if (dumpResult.projects)
-            parts.push('across ' + dumpResult.projects + ' board' + (dumpResult.projects === 1 ? '' : 's'));
-          msg = 'Created ' + parts.join(' ') + '. Your AI assistant is ready.';
-        } else {
-          msg = 'You can brainstorm anytime from the sidebar. Try adding your first task below.';
-        }
-        body = `<div class="onboarding-body">
-          <div class="onboarding-title">You're set</div>
-          <div class="onboarding-result">${msg}</div>
-          <div class="onboarding-actions">
-            <span></span>
-            <button class="btn btn-primary" data-action="onb-finish">Go to Dashboard</button>
-          </div>
-        </div>`;
-      }
-
-      document.getElementById('modalRoot').innerHTML = `<div class="onboarding-overlay"><div class="onboarding-card">
-          <div class="onboarding-step-indicator">${dots}</div>${body}
-        </div></div>`;
-    }
-
-    window.onbNext = function () {
-      step++;
-      if (step > 3) {
-        window.onbFinish();
-        return;
-      }
-      renderStep();
-    };
-
-    window.onbProcessDump = async function () {
-      const text = document.getElementById('onbDumpText') ? document.getElementById('onbDumpText').value.trim() : '';
-      if (!text) {
-        showToast('Write or paste something first', true);
-        return;
-      }
-
-      const btn = document.getElementById('onbOrganizeBtn');
-      const statusEl = document.getElementById('onbDumpStatus');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML =
-          '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;margin-right:6px"></span>Organizing...';
-      }
-
-      const data = getData();
-      const tasksBefore = data.tasks.length;
-      const projsBefore = data.projects.length;
-      let dumpEl = document.getElementById('dumpText');
-      const tempCreated = !dumpEl;
-      if (tempCreated) {
-        dumpEl = document.createElement('textarea');
-        dumpEl.id = 'dumpText';
-        dumpEl.style.display = 'none';
-        document.body.appendChild(dumpEl);
-      }
-      dumpEl.value = text;
-
-      try {
-        if (hasAI()) {
-          await processDump();
-        } else {
-          processDumpManual(text);
-        }
-        const dataAfter = getData();
-        const tasksCreated = dataAfter.tasks.length - tasksBefore;
-        const projsCreated = dataAfter.projects.length - projsBefore;
-        if (tasksCreated > 0 || projsCreated > 0) {
-          dumpResult = { tasks: tasksCreated, projects: projsCreated };
-        }
-        render();
-        step = 3;
-        renderStep();
-      } catch (_err) {
-        if (statusEl)
-          statusEl.innerHTML =
-            '<div class="ai-status" style="color:var(--red)">That didn\'t work &mdash; check your connection and try again.</div>';
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = 'Try again';
-        }
-      } finally {
-        if (tempCreated && dumpEl.parentNode) dumpEl.parentNode.removeChild(dumpEl);
-      }
-    };
-
-    window.onbFinish = function () {
-      localStorage.setItem(userKey('wb_onboarding_done'), 'true');
-      document.getElementById('modalRoot').innerHTML = '';
-      render();
-      delete window.onbNext;
-      delete window.onbProcessDump;
-      delete window.onbFinish;
-      // Show feature tips after a short delay
-      setTimeout(showFeatureTips, 800);
-    };
-
-    renderStep();
+    // Mark onboarding as started (but not done - done happens after first brainstorm)
+    localStorage.setItem(userKey('wb_onboarding_started'), 'true');
+    // Navigate to brainstorm view with hint banner
+    setCurrentView('dump');
+    localStorage.setItem(userKey('wb_onboarding_hint'), 'true');
+    render();
   }
 
   function showFeatureTips() {

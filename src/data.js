@@ -15,6 +15,7 @@ import {
   ARCHIVE_CLEANUP_DAYS,
   STALE_TASK_DAYS,
   MAX_NOTES_LENGTH,
+  SAVE_DEBOUNCE_MS,
 } from './constants.js';
 import { titleSimilarity, genId } from './utils.js';
 import { todayStr } from './dates.js';
@@ -296,7 +297,7 @@ export function createDataLayer(deps) {
       _saveDebounceTimer = setTimeout(() => {
         _saveDebounceTimer = null;
         _flushSave();
-      }, 300);
+      }, SAVE_DEBOUNCE_MS);
       return true;
     }
     // Trailing edge: store latest data, will flush when timer fires

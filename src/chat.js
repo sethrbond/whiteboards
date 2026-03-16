@@ -3,7 +3,7 @@
 // ============================================================
 // Extracted from app.js — handles AI chat panel, messaging, history
 
-import { MS_PER_DAY, STALE_TASK_DAYS } from './constants.js';
+import { MS_PER_DAY, STALE_TASK_DAYS, MAX_CHAT_HISTORY } from './constants.js';
 
 /**
  * Factory function to create chat functions.
@@ -46,7 +46,7 @@ export function createChat(deps) {
   function saveChatHistory() {
     try {
       chatHistory = chatHistory.slice(-100);
-      localStorage.setItem(userKey(CHAT_HISTORY_KEY), JSON.stringify(chatHistory.slice(-15)));
+      localStorage.setItem(userKey(CHAT_HISTORY_KEY), JSON.stringify(chatHistory.slice(-MAX_CHAT_HISTORY)));
     } catch (e) {
       console.warn('saveChatHistory failed:', e);
     }
@@ -309,7 +309,7 @@ ${context}`;
           model: settings.aiModel || 'claude-haiku-4-5-20251001',
           max_tokens: 2048,
           system: systemPrompt,
-          messages: chatHistory.slice(-15),
+          messages: chatHistory.slice(-MAX_CHAT_HISTORY),
           stream: true,
         }),
         signal: chatAbort.signal,

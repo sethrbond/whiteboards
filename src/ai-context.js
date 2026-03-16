@@ -4,7 +4,7 @@
 // pattern learning, and action execution.
 // ============================================================
 
-import { MS_PER_DAY, MAX_AI_MEMORIES } from './constants.js';
+import { MS_PER_DAY, MAX_AI_MEMORIES, AI_CONTEXT_MAX_LENGTH } from './constants.js';
 import { todayStr, localISO } from './dates.js';
 import { esc, genId } from './utils.js';
 
@@ -560,7 +560,7 @@ export function createAIContext(deps) {
         });
       }
     }
-    if (ctx.length > 30000) ctx = ctx.slice(0, 30000);
+    if (ctx.length > AI_CONTEXT_MAX_LENGTH) ctx = ctx.slice(0, AI_CONTEXT_MAX_LENGTH);
     return ctx;
   }
 

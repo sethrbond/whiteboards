@@ -293,6 +293,13 @@ function render() {
     _renderRAF = null;
     _renderNow();
     if (typeof _maybeEscalationOnRender === 'function') _maybeEscalationOnRender();
+    // Trigger feature tips after first brainstorm (deferred from onboarding)
+    if (localStorage.getItem(userKey('wb_show_tips_after_brainstorm')) === '1') {
+      localStorage.removeItem(userKey('wb_show_tips_after_brainstorm'));
+      setTimeout(() => {
+        if (_auth && _auth.showFeatureTips) _auth.showFeatureTips();
+      }, 800);
+    }
   });
 }
 

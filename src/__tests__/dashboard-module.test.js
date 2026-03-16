@@ -2487,15 +2487,15 @@ describe('dashboard.js — additional coverage', () => {
       expect(html).toContain('data-action="stuck-reschedule"');
     });
 
-    it('renders escalation banner when available', () => {
+    it('does not render escalation banner in dashboard (hidden from default UI)', () => {
       setupDashWithTasks();
       deps.getEscalationBanner = vi.fn(() => '<div class="escalation-banner">Critical deadline!</div>');
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('AI Insights');
-      expect(html).toContain('escalation-banner');
-      expect(html).toContain('Critical deadline!');
+      // Escalation banner is no longer shown in dashboard surface
+      expect(html).not.toContain('escalation-banner');
+      expect(deps.getEscalationBanner).not.toHaveBeenCalled();
     });
 
     it('renders vague task suggestion when detectVagueTasks returns a task', () => {

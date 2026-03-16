@@ -30,6 +30,34 @@ export function createSync(deps) {
   } = deps;
 
   // Module-local state
+  // eslint-disable-next-line no-undef
+  const _channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('whiteboards_sync') : null;
+
+  if (_channel) {
+    _channel.onmessage = (e) => {
+      if (e.data.type === 'data_updated') {
+        // Another tab synced — reload from localStorage
+        try {
+          const freshData = JSON.parse(localStorage.getItem(userKey(STORE_KEY)) || '{}');
+          if (freshData.tasks) {
+            const data = getData();
+            data.tasks = freshData.tasks;
+            data.projects = freshData.projects || data.projects;
+            try {
+              setSuppressCloudSync(true);
+              saveData(data);
+            } finally {
+              setSuppressCloudSync(false);
+            }
+            render();
+          }
+        } catch (_err) {
+          console.warn('BroadcastChannel reload failed:', _err);
+        }
+      }
+    };
+  }
+
   let syncStatus = 'offline'; // 'synced' | 'syncing' | 'offline'
   let syncTimer = null;
   let _lastCloudUpdatedAt = null; // track cloud's updated_at for conflict detection
@@ -187,6 +215,7 @@ export function createSync(deps) {
       // Update our tracked timestamp after successful write
       if (upsertRow && upsertRow.updated_at) _lastCloudUpdatedAt = upsertRow.updated_at;
       syncStatus = 'synced';
+      if (_channel) _channel.postMessage({ type: 'data_updated', timestamp: Date.now() });
       clearSyncFailBanner();
     } catch (e) {
       console.error('Sync error:', e);
@@ -371,6 +400,7 @@ export function createSync(deps) {
   }
 
   function destroySyncListeners() {
+    if (_channel) _channel.close();
     if (_syncListenersAC) {
       _syncListenersAC.abort();
       _syncListenersAC = null;
@@ -396,6 +426,7 @@ export function createSync(deps) {
 
   // Reset state (used on sign-out)
   function resetSyncState() {
+    if (_channel) _channel.close();
     _lastCloudUpdatedAt = null;
     syncStatus = 'offline';
     clearTimeout(syncTimer);

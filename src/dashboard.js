@@ -100,7 +100,7 @@ export function createDashboard(deps) {
     parseQuickInput,
     handleSlashCommand,
     aiEnhanceTask,
-    getEscalationBanner,
+    getEscalationBanner: _getEscalationBanner,
     getAIMemory,
     extractMemoryInsights,
   } = deps;
@@ -1251,12 +1251,6 @@ export function createDashboard(deps) {
   function _renderAIInsights(data) {
     // Collect all AI insight content
     const parts = [];
-
-    // Escalation banner
-    if (getEscalationBanner) {
-      const eb = getEscalationBanner();
-      if (eb) parts.push(eb);
-    }
 
     // Stuck tasks
     const _stuckForCard = getStuckTasks();

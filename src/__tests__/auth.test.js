@@ -91,10 +91,7 @@ describe('auth.js — createAuth()', () => {
   });
 
   afterEach(() => {
-    // Clean up any globals set by onboarding
-    delete window.onbNext;
-    delete window.onbProcessDump;
-    delete window.onbFinish;
+    // Clean up any globals set by feature tips
     delete window._nextTip;
   });
 
@@ -758,143 +755,30 @@ describe('auth.js — createAuth()', () => {
   });
 
   // ── showOnboarding ────────────────────────────────────────────────
-  it('showOnboarding renders step 1 with welcome message', () => {
+  it('showOnboarding sets onboarding started flag', () => {
     auth.showOnboarding();
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain('Welcome to Whiteboards');
-    expect(modal.innerHTML).toContain('onb-next');
+    expect(localStorage.getItem('user1_wb_onboarding_started')).toBe('true');
   });
 
-  it('showOnboarding step 1 has active dot for step 1', () => {
+  it('showOnboarding navigates to brainstorm (dump) view', () => {
     auth.showOnboarding();
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain('onboarding-dot active');
+    expect(deps.setCurrentView).toHaveBeenCalledWith('dump');
   });
 
-  it('showOnboarding onbNext advances to step 2', () => {
+  it('showOnboarding sets onboarding hint flag', () => {
     auth.showOnboarding();
-    window.onbNext();
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain('Try your first brainstorm');
-    expect(modal.innerHTML).toContain('onbDumpText');
+    expect(localStorage.getItem('user1_wb_onboarding_hint')).toBe('true');
   });
 
-  it('showOnboarding step 2 has textarea and organize button', () => {
+  it('showOnboarding calls render', () => {
     auth.showOnboarding();
-    window.onbNext();
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain('onb-process-dump');
-    expect(modal.innerHTML).toContain('Organize this');
-  });
-
-  it('showOnboarding onbNext to step 3 shows completion without dump result', () => {
-    auth.showOnboarding();
-    window.onbNext(); // step 2
-    window.onbNext(); // step 3
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain("You're set");
-    expect(modal.innerHTML).toContain('brainstorm anytime');
-  });
-
-  it('showOnboarding onbNext past step 3 calls onbFinish', () => {
-    auth.showOnboarding();
-    window.onbNext(); // step 2
-    window.onbNext(); // step 3
-    window.onbNext(); // past 3 -> finish
-    expect(localStorage.getItem('user1_wb_onboarding_done')).toBe('true');
-    expect(document.getElementById('modalRoot').innerHTML).toBe('');
-  });
-
-  it('showOnboarding onbFinish sets onboarding done and clears modal', () => {
-    auth.showOnboarding();
-    window.onbFinish();
-    expect(localStorage.getItem('user1_wb_onboarding_done')).toBe('true');
-    expect(document.getElementById('modalRoot').innerHTML).toBe('');
     expect(deps.render).toHaveBeenCalled();
-    expect(window.onbNext).toBeUndefined();
-    expect(window.onbProcessDump).toBeUndefined();
-    expect(window.onbFinish).toBeUndefined();
   });
 
-  it('showOnboarding onbProcessDump shows toast if text is empty', async () => {
+  it('showOnboarding does not render a modal', () => {
     auth.showOnboarding();
-    window.onbNext(); // step 2
-    // Create the textarea element since renderStep sets innerHTML
-    await window.onbProcessDump();
-    expect(deps.showToast).toHaveBeenCalledWith('Write or paste something first', true);
-  });
-
-  it('showOnboarding onbProcessDump with text calls processDumpManual when no AI', async () => {
-    auth.showOnboarding();
-    window.onbNext(); // step 2
-    const textarea = document.getElementById('onbDumpText');
-    textarea.value = 'Buy groceries and clean the house';
-    deps.getData
-      .mockReturnValueOnce({ tasks: [], projects: [] })
-      .mockReturnValue({ tasks: [{ id: 't1' }], projects: [{ id: 'p1' }] });
-    await window.onbProcessDump();
-    expect(deps.processDumpManual).toHaveBeenCalledWith('Buy groceries and clean the house');
-    // Should advance to step 3
-    expect(document.getElementById('modalRoot').innerHTML).toContain("You're set");
-  });
-
-  it('showOnboarding onbProcessDump with AI calls processDump', async () => {
-    deps.hasAI.mockReturnValue(true);
-    auth = createAuth(deps);
-    auth.showOnboarding();
-    window.onbNext(); // step 2
-    const textarea = document.getElementById('onbDumpText');
-    textarea.value = 'Plan a vacation to Japan';
-    deps.getData
-      .mockReturnValueOnce({ tasks: [], projects: [] })
-      .mockReturnValue({ tasks: [{ id: 't1' }, { id: 't2' }], projects: [{ id: 'p1' }] });
-    await window.onbProcessDump();
-    expect(deps.processDump).toHaveBeenCalled();
-  });
-
-  it('showOnboarding onbProcessDump shows result counts on step 3', async () => {
-    auth.showOnboarding();
-    window.onbNext();
-    const textarea = document.getElementById('onbDumpText');
-    textarea.value = 'Some tasks';
-    deps.getData
-      .mockReturnValueOnce({ tasks: [], projects: [] })
-      .mockReturnValue({ tasks: [{ id: 't1' }, { id: 't2' }, { id: 't3' }], projects: [{ id: 'p1' }, { id: 'p2' }] });
-    await window.onbProcessDump();
     const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain('3 tasks');
-    expect(modal.innerHTML).toContain('2 boards');
-  });
-
-  it('showOnboarding onbProcessDump handles single task/project grammar', async () => {
-    auth.showOnboarding();
-    window.onbNext();
-    const textarea = document.getElementById('onbDumpText');
-    textarea.value = 'One task';
-    deps.getData
-      .mockReturnValueOnce({ tasks: [], projects: [] })
-      .mockReturnValue({ tasks: [{ id: 't1' }], projects: [{ id: 'p1' }] });
-    await window.onbProcessDump();
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain('1 task');
-    expect(modal.innerHTML).toContain('1 board');
-    // Should not have 's' for singular
-    expect(modal.innerHTML).not.toContain('1 tasks');
-    expect(modal.innerHTML).not.toContain('1 boards');
-  });
-
-  it('showOnboarding onbProcessDump shows error on failure', async () => {
-    deps.processDumpManual.mockImplementation(() => {
-      throw new Error('fail');
-    });
-    auth = createAuth(deps);
-    auth.showOnboarding();
-    window.onbNext();
-    const textarea = document.getElementById('onbDumpText');
-    textarea.value = 'Some tasks';
-    await window.onbProcessDump();
-    const statusEl = document.getElementById('onbDumpStatus');
-    expect(statusEl.innerHTML).toContain("didn't work");
+    expect(modal.innerHTML).toBe('');
   });
 
   // ── signOut ───────────────────────────────────────────────────────
@@ -980,38 +864,28 @@ describe('auth.js — createAuth()', () => {
     expect(deps.setCurrentView).toHaveBeenCalledWith('dashboard');
   });
 
-  it('showApp shows onboarding for new users with no tasks', () => {
-    vi.useFakeTimers();
+  it('showApp triggers onboarding for new users with no tasks', () => {
     deps.getData.mockReturnValue({ tasks: [], projects: [] });
     auth = createAuth(deps);
     auth.showApp();
-    vi.advanceTimersByTime(300);
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toContain('Welcome to Whiteboards');
-    vi.useRealTimers();
+    // Onboarding now redirects to brainstorm with hint instead of modal
+    expect(localStorage.getItem('user1_wb_onboarding_hint')).toBe('true');
+    expect(deps.setCurrentView).toHaveBeenCalledWith('dump');
   });
 
   it('showApp does not show onboarding if already done', () => {
-    vi.useFakeTimers();
     localStorage.setItem('user1_wb_onboarding_done', 'true');
     deps.getData.mockReturnValue({ tasks: [], projects: [] });
     auth = createAuth(deps);
     auth.showApp();
-    vi.advanceTimersByTime(300);
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toBe('');
-    vi.useRealTimers();
+    expect(localStorage.getItem('user1_wb_onboarding_hint')).toBeNull();
   });
 
   it('showApp does not show onboarding if user has tasks', () => {
-    vi.useFakeTimers();
     deps.getData.mockReturnValue({ tasks: [{ id: 't1' }], projects: [] });
     auth = createAuth(deps);
     auth.showApp();
-    vi.advanceTimersByTime(300);
-    const modal = document.getElementById('modalRoot');
-    expect(modal.innerHTML).toBe('');
-    vi.useRealTimers();
+    expect(localStorage.getItem('user1_wb_onboarding_hint')).toBeNull();
   });
 
   it('showApp reloads chat history', () => {

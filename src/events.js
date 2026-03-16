@@ -1,3 +1,4 @@
+import { MODAL_ANIMATION_MS } from './constants.js';
 // ============================================================
 // EVENT HANDLER MODULE
 // ============================================================
@@ -119,7 +120,7 @@ export function createEvents(deps) {
         _closeModalTimer = null;
         $('#modalRoot').innerHTML = '';
         restoreFocus();
-      }, 150);
+      }, MODAL_ANIMATION_MS);
     } else {
       $('#modalRoot').innerHTML = '';
       restoreFocus();

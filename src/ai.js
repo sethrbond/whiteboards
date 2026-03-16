@@ -2,6 +2,8 @@
 // AI API LAYER — Handles all communication with Claude API
 // ============================================================
 
+import { AI_REQUEST_TIMEOUT_MS } from './constants.js';
+
 /**
  * Create an AI caller configured with the given endpoint and model.
  * @param {Object} config
@@ -64,7 +66,7 @@ export function createAICaller(config) {
     };
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90000);
+    const timeout = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
     // If caller provides a signal, abort when either fires
     if (externalSignal) externalSignal.addEventListener('abort', () => controller.abort());
     try {
@@ -83,7 +85,7 @@ export function createAICaller(config) {
       if (err.status === 429 || err.status === 500 || err.status === 503 || err.status === 529) {
         await new Promise((r) => setTimeout(r, err.status === 429 ? 2000 : 1000));
         const controller2 = new AbortController();
-        const timeout2 = setTimeout(() => controller2.abort(), 90000);
+        const timeout2 = setTimeout(() => controller2.abort(), AI_REQUEST_TIMEOUT_MS);
         if (externalSignal) externalSignal.addEventListener('abort', () => controller2.abort());
         try {
           return await doCall(controller2.signal);

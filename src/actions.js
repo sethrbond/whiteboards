@@ -514,6 +514,10 @@ export function createActions(deps) {
         getBrainstormModule().removeDumpAttachment(parseInt(actionEl.dataset.idx));
         render();
         break;
+      case 'dismiss-onboarding-hint':
+        localStorage.removeItem(userKey('wb_onboarding_hint'));
+        render();
+        break;
       case 'submit-clarify':
         submitClarify();
         break;

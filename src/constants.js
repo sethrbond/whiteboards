@@ -42,6 +42,14 @@ export const BRAINSTORM_WORD_THRESHOLD = 30;
 export const MAX_NOTES_LENGTH = 10000;
 export const MAX_AI_MEMORIES = 30;
 export const DESC_TRUNCATE_SHORT = 120;
+export const MAX_DUMP_INPUT_CHARS = 100000;
+export const MAX_BRAINSTORM_INPUT_CHARS = 200000;
+export const AI_CONTEXT_MAX_LENGTH = 30000;
+export const AI_REQUEST_TIMEOUT_MS = 90000;
+export const SAVE_DEBOUNCE_MS = 300;
+export const SIMILARITY_THRESHOLD = 0.3;
+export const MAX_CHAT_HISTORY = 15;
+export const MODAL_ANIMATION_MS = 150;
 
 // --- Escalation engine constants ---
 export const ESCALATION_INTERVAL_MS = 1_800_000; // 30 minutes

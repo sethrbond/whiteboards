@@ -4,7 +4,13 @@
 // Extracted from app.js — handles brainstorm/dump input, file attachments,
 // AI-powered task extraction, review modal, and manual parsing.
 
-import { DUMP_DRAFT_KEY, LIFE_PROJECT_NAME, MS_PER_DAY } from './constants.js';
+import {
+  DUMP_DRAFT_KEY,
+  LIFE_PROJECT_NAME,
+  MS_PER_DAY,
+  MAX_DUMP_INPUT_CHARS,
+  MAX_BRAINSTORM_INPUT_CHARS,
+} from './constants.js';
 import { esc } from './utils.js';
 import { todayStr } from './dates.js';
 import { parseDumpResponse, enforceShortDesc } from './parsers.js';
@@ -58,9 +64,9 @@ export function createBrainstorm(deps) {
     const ta = document.getElementById('dumpText');
     if (ta) {
       let val = ta.value;
-      if (val.length > 100000) {
-        console.warn('Dump draft truncated from', val.length, 'to 100000 chars');
-        val = val.slice(0, 100000);
+      if (val.length > MAX_DUMP_INPUT_CHARS) {
+        console.warn('Dump draft truncated from', val.length, 'to', MAX_DUMP_INPUT_CHARS, 'chars');
+        val = val.slice(0, MAX_DUMP_INPUT_CHARS);
       }
       localStorage.setItem(userKey(DUMP_DRAFT_KEY), val);
     }
@@ -203,14 +209,29 @@ export function createBrainstorm(deps) {
             )
             .join('')}${processingHtml}</div>`
         : '';
+    const _showOnbHint = localStorage.getItem(userKey('wb_onboarding_hint')) === 'true';
+    const _onbPlaceholder =
+      'Write anything here \u2014 meeting notes, ideas, plans, to-dos. AI will organize it all.\n\nTry pasting something, or just start typing...';
     return `<div class="dump-area">
+      ${
+        _showOnbHint
+          ? `<div class="onboarding-hint-banner" style="background:linear-gradient(135deg,var(--accent-dim,rgba(99,102,241,.1)),rgba(99,102,241,.05));border:1px solid var(--accent);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;animation:fadeIn .3s ease">
+        <span style="font-size:18px;flex-shrink:0;margin-top:1px">\u2726</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Welcome! This is your brainstorm space.</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.5">Write or paste anything, then click \u201cAnalyze & Organize\u201d to let AI turn it into tasks.</div>
+        </div>
+        <button data-action="dismiss-onboarding-hint" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px;flex-shrink:0" title="Dismiss" aria-label="Dismiss welcome hint">\u00d7</button>
+      </div>`
+          : ''
+      }
       <p style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">
-        Write your thoughts, attach files, paste notes — throw everything in. AI reads it all, extracts tasks, and organizes by project and priority.
+        Write your thoughts, attach files, paste notes \u2014 throw everything in. AI reads it all, extracts tasks, and organizes by project and priority.
         ${!hasKey ? '<br><span style="color:var(--orange)">Add a Claude API key in Settings for AI parsing.</span>' : ''}
       </p>
       ${attachHtml}
       <div style="position:relative">
-        <textarea class="dump-textarea" id="dumpText" aria-label="Brainstorm input" placeholder="${placeholder}">${draft}</textarea>
+        <textarea class="dump-textarea" id="dumpText" aria-label="Brainstorm input" placeholder="${_showOnbHint ? _onbPlaceholder : placeholder}">${draft}</textarea>
         <div id="dumpDropOverlay" style="display:none;position:absolute;inset:0;background:rgba(var(--accent-rgb,99,102,241),.12);border:2px dashed var(--accent);border-radius:var(--radius);pointer-events:none;z-index:2;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent)">Drop file to attach</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
@@ -644,7 +665,7 @@ Format if asking questions \u2014 respond ONLY with the questions, one per line,
     }
 
     const totalInput = text + getDumpAttachmentText();
-    const MAX_INPUT_CHARS = 200000;
+    const MAX_INPUT_CHARS = MAX_BRAINSTORM_INPUT_CHARS;
     if (totalInput.length > MAX_INPUT_CHARS) {
       const overBy = totalInput.length - MAX_INPUT_CHARS;
       showToast(
@@ -1199,6 +1220,13 @@ ${text}${getDumpAttachmentText()}`;
     });
     showToast(parts.length ? `\u2726 ${parts.join(', ')}` : 'Organized', false, true);
 
+    // Mark onboarding complete after first successful brainstorm
+    if (localStorage.getItem(userKey('wb_onboarding_hint')) === 'true') {
+      localStorage.setItem(userKey('wb_onboarding_done'), 'true');
+      localStorage.removeItem(userKey('wb_onboarding_hint'));
+      localStorage.setItem(userKey('wb_show_tips_after_brainstorm'), '1');
+    }
+
     if ($('#dumpText')) $('#dumpText').value = '';
     clearDumpDraft();
     _dumpAttachments = [];
@@ -1224,6 +1252,12 @@ ${text}${getDumpAttachmentText()}`;
       boardsUpdated: 0,
       inputSnippet: text.slice(0, 200),
     };
+    // Mark onboarding complete after first successful brainstorm
+    if (localStorage.getItem(userKey('wb_onboarding_hint')) === 'true') {
+      localStorage.setItem(userKey('wb_onboarding_done'), 'true');
+      localStorage.removeItem(userKey('wb_onboarding_hint'));
+      localStorage.setItem(userKey('wb_show_tips_after_brainstorm'), '1');
+    }
     saveDumpHistory({
       date: new Date().toISOString(),
       wordCount: lastDumpResult.wordCount,
