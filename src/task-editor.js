@@ -54,7 +54,6 @@ export function createTaskEditor(deps) {
     matchTask,
     maybeProactiveEnhance,
     getSmartDefaults,
-    predictCompletion,
     saveAsTemplate: _saveAsTemplate,
   } = deps;
 

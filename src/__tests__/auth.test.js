@@ -92,6 +92,8 @@ describe('auth.js — createAuth()', () => {
   });
 
   afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
     // Clean up any globals set by feature tips
     delete window._nextTip;
   });

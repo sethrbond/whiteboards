@@ -103,31 +103,6 @@ export function createBrainstorm(deps) {
     return Date.now() - new Date(l).getTime() > MS_PER_DAY;
   }
 
-  function renderDumpHistory() {
-    const h = getDumpHistory();
-    if (!h.length) return '';
-    let o =
-      '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:8px">Recent storms</div>';
-    h.forEach((x, i) => {
-      const d = new Date(x.date);
-      o +=
-        '<div class="dump-history-item" data-action="load-dump-history" data-dump-index="' +
-        i +
-        '" role="button" tabindex="0" style="cursor:pointer"><span>' +
-        d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
-        ' ' +
-        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) +
-        '</span><span style="color:var(--text2)">' +
-        x.wordCount +
-        ' words &rarr; ' +
-        x.tasksCreated +
-        ' task' +
-        (x.tasksCreated === 1 ? '' : 's') +
-        '</span></div>';
-    });
-    return o + '</div>';
-  }
-
   // ── Render ──────────────────────────────────────────────────────────────
   function renderDump() {
     // Show results card if brainstorm just completed

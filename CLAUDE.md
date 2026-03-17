@@ -59,7 +59,7 @@ The app is split into 34 source modules in `src/`:
 ## Tests
 
 - Framework: Vitest (with jsdom environment)
-- 2800+ tests across 47 test files in `src/__tests__/`
+- ~2800 tests across 48 test files in `src/__tests__/`
 - Run: `npm test` or `npx vitest run`
 
 ## Key Patterns
