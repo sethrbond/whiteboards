@@ -159,13 +159,13 @@ Be direct. Use task names. Under 200 words. No fluff. You're not a reporter — 
     // Check if briefing was generated
     const briefingKey = userKey('whiteboard_briefing_' + todayStr());
     if (localStorage.getItem(briefingKey)) {
-      items.push({ icon: '\u25CE', text: 'Daily briefing ready' });
+      items.push({ icon: '\u25CE', text: 'Daily briefing ready', action: 'briefing-expand' });
     }
 
     // Check if plan exists
     const planKey = userKey('whiteboard_plan_' + todayStr());
     if (localStorage.getItem(planKey)) {
-      items.push({ icon: '\u25B6', text: 'Day plan prepared' });
+      items.push({ icon: '\u25B6', text: 'Day plan prepared', action: 'scroll-to-plan' });
     }
 
     return items;

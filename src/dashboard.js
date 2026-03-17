@@ -942,7 +942,7 @@ export function createDashboard(deps) {
     if (statusItems.length > 0) {
       html += `<div class="ai-hero-status">`;
       statusItems.forEach((item) => {
-        html += `<div class="ai-hero-status-item ai-status-item"><span class="status-icon">${item.icon}</span>${esc(item.text)}</div>`;
+        html += `<div class="ai-hero-status-item ai-status-item${item.action ? ' clickable' : ''}" ${item.action ? `data-action="${item.action}" style="cursor:pointer"` : ''}><span class="status-icon">${item.icon}</span>${esc(item.text)}</div>`;
       });
       html += `</div>`;
     }

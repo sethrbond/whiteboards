@@ -2795,7 +2795,7 @@ describe('dashboard.js — additional coverage', () => {
 
   // ── _renderProjectRoadmap — disabled (function kept but not called) ──
   describe.skip('_renderProjectRoadmap (via renderProject)', () => {
-    const project = { id: 'p1', name: 'Work', color: '#818cf8' };
+    const _project = { id: 'p1', name: 'Work', color: '#818cf8' };
 
     it('marks completed phase as done', () => {});
     it('shows phase progress counts', () => {});

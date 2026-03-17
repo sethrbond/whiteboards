@@ -505,10 +505,13 @@ export function createActions(deps) {
         setView('dashboard');
         break;
       }
-      case 'new-brainstorm':
-        getBrainstormModule().setLastDumpResult(null);
+      case 'new-brainstorm': {
+        const bm = getBrainstormModule();
+        if (bm && bm.setLastDumpResult) bm.setLastDumpResult(null);
         render();
         break;
+      }
+
       case 'remove-dump-attachment':
         getBrainstormModule().removeDumpAttachment(parseInt(actionEl.dataset.idx));
         render();
@@ -724,6 +727,11 @@ export function createActions(deps) {
         setTodayBriefingExpanded(false);
         render();
         break;
+      case 'scroll-to-plan': {
+        const planEl = document.getElementById('dayPlanSection') || document.querySelector('.plan-section');
+        if (planEl) planEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        break;
+      }
       case 'generate-briefing':
         generateAIBriefing();
         break;

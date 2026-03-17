@@ -117,6 +117,7 @@ const _sectionShowCount = {};
 let _archiveShowCount = 50;
 let _smartFeedExpanded = false;
 let _todayBriefingExpanded = false;
+// eslint-disable-next-line prefer-const
 let _renderNow;
 let kbIdx = -1;
 window._welcomeTypingInterval = null;
