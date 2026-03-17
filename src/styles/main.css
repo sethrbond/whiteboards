@@ -920,6 +920,32 @@ h3.section-title {
   font-size: 10px;
   font-weight: 700;
 }
+
+.task-expand-dot {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text3);
+  transition: all 0.15s;
+  border-radius: 4px;
+}
+.task-expand-dot:hover {
+  color: var(--accent);
+  background: var(--surface3);
+}
+.task-expand-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.task-expand-dot.done {
+  color: var(--text3);
+  opacity: 0.5;
+}
 /* checkPop keyframes defined in dashboard-v2.css */
 
 .task-body {
