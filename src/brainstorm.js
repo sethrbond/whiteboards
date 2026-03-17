@@ -682,7 +682,12 @@ IMPORTANT \u2014 deadline within 2 weeks AND significant impact. NOT for tasks m
 NORMAL \u2014 deadline more than 2 weeks out, or standard tasks without time pressure.
 LOW \u2014 nice-to-have, future consideration, exploratory, deadlines 2+ months out.
 
-CRITICAL RULE: Priority MUST correlate with time proximity. A task due in 3 months is NEVER "important" \u2014 it's "normal" or "low" regardless of how significant it is. Reassess when deadline approaches.
+CRITICAL RULE: Priority MUST correlate with time proximity. Today is ${new Date().toISOString().slice(0, 10)}. Calculate the days until deadline BEFORE assigning priority:
+- Due in 0-3 days → urgent
+- Due in 4-14 days → important
+- Due in 15+ days → normal
+- Due in 60+ days → low
+A task due March 31 when today is March 17 = 14 days = IMPORTANT, not urgent. Do the math EVERY time.
 
 ## HOW TO SET DEADLINES
 Only set a dueDate if the input contains a SPECIFIC date or clear deadline ("by Friday", "due March 25", "opens late April").

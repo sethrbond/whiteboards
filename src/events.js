@@ -275,6 +275,7 @@ export function createEvents(deps) {
 
     // Delegated keyboard handler for accessibility on data-toggle elements
     document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea, select, [contenteditable]')) return;
       const toggleEl = e.target.closest('[data-toggle]');
       if (toggleEl && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
@@ -284,6 +285,7 @@ export function createEvents(deps) {
 
     // Delegated keyboard handler for role="button" elements
     document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea, select, [contenteditable]')) return;
       const roleBtn = e.target.closest('[role="button"]');
       if (roleBtn && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
@@ -293,6 +295,7 @@ export function createEvents(deps) {
 
     // Delegated keyboard handler for subtask checkboxes (role="checkbox" with data-action)
     document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea, select, [contenteditable]')) return;
       const checkboxEl = e.target.closest('[role="checkbox"][data-action]');
       if (checkboxEl && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
