@@ -577,7 +577,7 @@ export function createDashboard(deps) {
   }
 
   function _renderNow() {
-    console.log('RENDER NOW called, expandedTask=', getExpandedTask());
+    console.warn('RENDER NOW called, expandedTask=', getExpandedTask());
     const data = getData();
     const currentView = getCurrentView();
     const dashViewMode = getDashViewMode();
@@ -620,7 +620,7 @@ export function createDashboard(deps) {
       '|' +
       (getExpandedTask() || '');
     if (contentState === _lastContentState) {
-      console.log('CACHE HIT - skipping render');
+      console.warn('CACHE HIT - skipping render');
       return;
     }
     _lastContentState = contentState;

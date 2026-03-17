@@ -137,7 +137,7 @@ document.addEventListener(
     const id = row.closest('[data-task]')?.dataset?.task || row.dataset?.task;
     if (!id) return;
     expandedTask = expandedTask === id ? null : id;
-    console.log('EXPAND CLICK', id, expandedTask);
+    console.warn('EXPAND CLICK', id, expandedTask);
     if (typeof _renderNow === 'function') _renderNow();
   },
   true,
