@@ -497,8 +497,12 @@ export function createActions(deps) {
         cancelDump();
         break;
       case 'view-organized':
-        getBrainstormModule().setLastDumpResult(null);
-        setView('dashboard');
+        try {
+          getBrainstormModule().setLastDumpResult(null);
+          setView('dashboard');
+        } catch (err) {
+          console.error('view-organized error:', err);
+        }
         break;
       case 'new-brainstorm':
         getBrainstormModule().setLastDumpResult(null);
