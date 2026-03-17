@@ -839,13 +839,10 @@ h3.section-title {
   border-radius: var(--radius-sm);
   margin-bottom: 4px;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: background 0.12s;
   position: relative;
   background: transparent;
   border-left: 3px solid transparent;
-  /* Skips rendering off-screen rows for paint performance */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 52px;
 }
 .task-row.pri-urgent {
   border-left-color: var(--red);
