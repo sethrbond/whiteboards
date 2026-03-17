@@ -98,7 +98,7 @@ let _batchMode = false;
 let activeTagFilter = '';
 let _nudgeFilter = '';
 let expandedTask = null;
-let currentView = 'dashboard';
+let currentView = localStorage.getItem('wb_current_view') || 'dashboard';
 let currentProject = null;
 let _briefingGenerating = false;
 let _planGenerating = false;
@@ -286,6 +286,11 @@ const $$ = (s) => document.querySelectorAll(s);
 function setView(view, projectId = null) {
   currentView = view;
   currentProject = projectId;
+  try {
+    localStorage.setItem(userKey('wb_current_view'), view);
+    if (projectId) localStorage.setItem(userKey('wb_current_project'), projectId);
+    else localStorage.removeItem(userKey('wb_current_project'));
+  } catch (_) {}
   expandedTask = null;
   _chat.setChatContext(null);
   closeMobileSidebar();

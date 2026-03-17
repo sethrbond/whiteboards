@@ -283,7 +283,7 @@ MODES — read the user's intent and respond in the right mode:
 Default to THINKING MODE when the intent is ambiguous. It's better to help someone clarify than to create the wrong tasks.
 
 RULES:
-- Convert relative dates to YYYY-MM-DD. Today is ${todayStr()}.
+- TODAY IS ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} (${todayStr()}). Use this for ALL date calculations.
 - Match tasks by partial title — "dentist" matches "Dentist appointment Friday".
 - You have the FULL conversation history — don't repeat what the user already knows.
 - When you learn something worth remembering (user preference, work pattern, project context), use save_memory.

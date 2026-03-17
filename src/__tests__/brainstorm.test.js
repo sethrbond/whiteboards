@@ -450,25 +450,13 @@ describe('brainstorm.js — createBrainstorm()', () => {
   });
 
   // ── renderDump — dump history ────────────────────────────────────
-  it('renderDump includes dump history when entries exist', () => {
+  it('renderDump does not include dump history section', () => {
     localStorage.setItem(
       'user1_wb_dump_history',
       JSON.stringify([{ date: new Date().toISOString(), wordCount: 50, tasksCreated: 3 }]),
     );
     const html = bs.renderDump();
-    expect(html).toContain('Recent storms');
-    expect(html).toContain('50 words');
-    expect(html).toContain('3 tasks');
-  });
-
-  it('renderDump history pluralizes correctly for 1 task', () => {
-    localStorage.setItem(
-      'user1_wb_dump_history',
-      JSON.stringify([{ date: new Date().toISOString(), wordCount: 10, tasksCreated: 1 }]),
-    );
-    const html = bs.renderDump();
-    expect(html).toContain('1 task');
-    expect(html).not.toContain('1 tasks');
+    expect(html).not.toContain('Recent storms');
   });
 
   // ── processDumpManual — semicolon splitting ──────────────────────

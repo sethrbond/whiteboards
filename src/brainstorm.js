@@ -222,7 +222,6 @@ export function createBrainstorm(deps) {
         <button class="btn btn-primary" data-action="process-dump">${hasKey ? '\u2726 Analyze & Organize' : '+ Add Tasks'}</button>
         <div id="dumpStatus" aria-live="polite"></div>
       </div>
-      ${renderDumpHistory()}
     </div>`;
   }
 
@@ -316,6 +315,15 @@ export function createBrainstorm(deps) {
   async function extractFileText(file) {
     const name = file.name.toLowerCase();
     const ext = name.split('.').pop();
+
+    // Images — not supported for text extraction
+    if (
+      ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'ico', 'tiff', 'heic'].includes(ext) ||
+      file.type.startsWith('image/')
+    ) {
+      throw new Error('Images can\u2019t be processed for text. Try a PDF, Word doc, or text file instead.');
+    }
+
     const buf = await readFileAsArrayBuffer(file);
 
     // PDF
