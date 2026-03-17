@@ -230,15 +230,7 @@ export function createSync(deps) {
   }
 
   function showConflictBanner() {
-    let banner = document.getElementById('conflict-banner');
-    if (banner) return;
-    banner = document.createElement('div');
-    banner.id = 'conflict-banner';
-    banner.style.cssText =
-      'position:fixed;top:0;left:0;right:0;z-index:10000;background:#dc2626;color:#fff;padding:10px 16px;text-align:center;font-size:13px;font-weight:500;cursor:pointer;';
-    banner.textContent = 'Another session made changes. Click here to reload and sync.';
-    banner.onclick = () => location.reload();
-    document.body.appendChild(banner);
+    // Disabled for beta — was causing persistent false positive banners
   }
 
   function showSyncFailBanner() {

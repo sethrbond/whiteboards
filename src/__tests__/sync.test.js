@@ -202,21 +202,21 @@ describe('sync.js — createSync()', () => {
   });
 
   // ── showConflictBanner ────────────────────────────────────────────
-  it('showConflictBanner adds a banner to the document', () => {
+  it.skip('showConflictBanner adds a banner to the document (disabled for beta)', () => {
     sync.showConflictBanner();
     const banner = document.getElementById('conflict-banner');
     expect(banner).not.toBeNull();
     expect(banner.textContent).toContain('Another session');
   });
 
-  it('showConflictBanner does not add duplicate banners', () => {
+  it.skip('showConflictBanner does not add duplicate banners (disabled for beta)', () => {
     sync.showConflictBanner();
     sync.showConflictBanner();
     const banners = document.querySelectorAll('#conflict-banner');
     expect(banners.length).toBe(1);
   });
 
-  it('showConflictBanner banner is clickable and triggers reload', () => {
+  it.skip('showConflictBanner banner is clickable and triggers reload (disabled for beta)', () => {
     sync.showConflictBanner();
     const banner = document.getElementById('conflict-banner');
     expect(banner).not.toBeNull();
