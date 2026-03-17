@@ -219,7 +219,7 @@ export function createBrainstorm(deps) {
           <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Welcome! This is your brainstorm space.</div>
           <div style="font-size:13px;color:var(--text2);line-height:1.5">Write or paste anything, then click \u201cAnalyze & Organize\u201d to let AI turn it into tasks.</div>
         </div>
-        <button data-action="dismiss-onboarding-hint" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px;flex-shrink:0" title="Dismiss" aria-label="Dismiss welcome hint">\u00d7</button>
+        <button data-action="dismiss-onboarding-hint" onclick="localStorage.removeItem('${userKey('wb_onboarding_hint')}');this.closest('.onboarding-hint-banner').remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px 8px;flex-shrink:0" title="Dismiss" aria-label="Dismiss welcome hint">\u00d7</button>
       </div>`
           : ''
       }

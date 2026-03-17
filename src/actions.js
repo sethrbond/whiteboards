@@ -518,6 +518,9 @@ export function createActions(deps) {
         localStorage.removeItem(userKey('wb_onboarding_hint'));
         render();
         break;
+      case 'open-settings':
+        openSettings();
+        break;
       case 'submit-clarify':
         submitClarify();
         break;
