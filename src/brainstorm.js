@@ -207,29 +207,11 @@ export function createBrainstorm(deps) {
             )
             .join('')}${processingHtml}</div>`
         : '';
-    const _showOnbHint = localStorage.getItem(userKey('wb_onboarding_hint')) === 'true';
-    const _onbPlaceholder =
-      'Write anything here \u2014 meeting notes, ideas, plans, to-dos. AI will organize it all.\n\nTry pasting something, or just start typing...';
     return `<div class="dump-area">
-      ${
-        _showOnbHint
-          ? `<div class="onboarding-hint-banner" style="background:linear-gradient(135deg,var(--accent-dim,rgba(99,102,241,.1)),rgba(99,102,241,.05));border:1px solid var(--accent);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;animation:fadeIn .3s ease">
-        <span style="font-size:18px;flex-shrink:0;margin-top:1px">\u2726</span>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Welcome! This is your brainstorm space.</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.5">Write or paste anything, then click \u201cAnalyze & Organize\u201d to let AI turn it into tasks.</div>
-        </div>
-        <button data-action="dismiss-onboarding-hint" onclick="localStorage.removeItem('${userKey('wb_onboarding_hint')}');this.closest('.onboarding-hint-banner').remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px 8px;flex-shrink:0" title="Dismiss" aria-label="Dismiss welcome hint">\u00d7</button>
-      </div>`
-          : ''
-      }
-      <p style="font-size:13px;color:var(--text3);margin-bottom:16px;line-height:1.6">
-        Write your thoughts, attach files, paste notes \u2014 throw everything in. AI reads it all, extracts tasks, and organizes by project and priority.
-        ${!hasKey ? '<br><span style="color:var(--orange)">To unlock AI analysis, <a data-action="open-settings" style="color:var(--accent);cursor:pointer;text-decoration:underline">add your Claude API key in Settings</a> (30 seconds).</span>' : ''}
-      </p>
+      ${!hasKey ? '<p style="font-size:13px;color:var(--orange);margin-bottom:12px">To unlock AI analysis, <a data-action="open-settings" style="color:var(--accent);cursor:pointer;text-decoration:underline">add your Claude API key in Settings</a> (30 seconds).</p>' : ''}
       ${attachHtml}
       <div style="position:relative">
-        <textarea class="dump-textarea" id="dumpText" aria-label="Brainstorm input" placeholder="${_showOnbHint ? _onbPlaceholder : placeholder}">${draft}</textarea>
+        <textarea class="dump-textarea" id="dumpText" aria-label="Brainstorm input" placeholder="${placeholder}">${draft}</textarea>
         <div id="dumpDropOverlay" style="display:none;position:absolute;inset:0;background:rgba(var(--accent-rgb,99,102,241),.12);border:2px dashed var(--accent);border-radius:var(--radius);pointer-events:none;z-index:2;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent)">Drop file to attach</div>
       </div>
       ${
