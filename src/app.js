@@ -297,7 +297,6 @@ const renderBlocking = _uiHelpers.renderBlocking;
 const parseProjectBackground = _uiHelpers.parseProjectBackground;
 const requestNotificationPermission = _uiHelpers.requestNotificationPermission;
 const notifyOverdueTasks = _uiHelpers.notifyOverdueTasks;
-const _dismissProactiveBanner = _uiHelpers._dismissProactiveBanner;
 const toggleSidebar = _uiHelpers.toggleSidebar;
 const throttleAI = _uiHelpers.throttleAI;
 
@@ -400,7 +399,6 @@ const confirmDeleteProject = _events.confirmDeleteProject;
 const confirmClearMemories = _events.confirmClearMemories;
 const confirmResetData = _events.confirmResetData;
 const highlightKbRow = _events.highlightKbRow;
-const _ensureDelegatedListeners = _events.ensureDelegatedListeners;
 const attachListeners = _events.attachListeners;
 
 // ============================================================
@@ -1563,7 +1561,6 @@ exposeWindowAPI(
     render,
     toggleExpandTask: (id) => {
       expandedTask = expandedTask === id ? null : id;
-      console.log('EXPAND CLICK', id, expandedTask);
       render();
     },
     showToast,
@@ -1686,11 +1683,12 @@ exposeWindowAPI(
 // ============================================================
 // SERVICE WORKER & BOOT
 // ============================================================
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch((_e) => {
-    console.warn('service worker registration failed:', _e.message || _e);
-  });
-}
+// Disabled for beta — SW was causing stale cache issues in production
+// if ('serviceWorker' in navigator) {
+//   navigator.serviceWorker.register('/sw.js').catch((_e) => {
+//     console.warn('service worker registration failed:', _e.message || _e);
+//   });
+// }
 initAuth();
 
 // Start escalation engine after auth — if user is already authenticated,

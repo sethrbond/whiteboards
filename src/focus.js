@@ -38,7 +38,6 @@ export function createFocusMode(deps) {
   // Module-local state
   let focusTask = null;
   let focusStartTime = null;
-  let focusReason = '';
   let _focusSkipped = [];
   let _distractionCount = 0;
   let _sessionGoal = 0;
@@ -372,11 +371,10 @@ Return JSON: { "title": "exact task title", "reason": "one sentence why this one
     openFocusView(sorted[0].id);
   }
 
-  function openFocusView(taskId, reason, aiExtras) {
+  function openFocusView(taskId, _reason, aiExtras) {
     setModalTriggerEl(document.activeElement);
     focusTask = taskId;
     focusStartTime = Date.now();
-    focusReason = reason || '';
     _distractionCount = 0;
     _currentAIExtras = aiExtras || null;
     renderFocusOverlay();
@@ -518,7 +516,6 @@ Return JSON: { "title": "exact task title", "reason": "one sentence why this one
   function resetFocusState() {
     focusTask = null;
     focusStartTime = null;
-    focusReason = '';
     _focusSkipped = [];
     _distractionCount = 0;
     _sessionGoal = 0;

@@ -949,6 +949,7 @@ h3.section-title {
   justify-content: space-between;
   padding: 0 20px;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .focus-bar-left {
   display: flex;

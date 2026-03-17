@@ -16,6 +16,7 @@ function makeDeps(overrides = {}) {
     ensureLifeProject: vi.fn(),
     processRecurringTasks: vi.fn(),
     cleanupArchive: vi.fn(),
+    autoEscalatePriority: vi.fn(),
     requestNotificationPermission: vi.fn(),
     hasAI: vi.fn(() => false),
     processDump: vi.fn(async () => {}),

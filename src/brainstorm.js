@@ -755,6 +755,7 @@ For every task, estimate how many minutes it will take. Use your best judgment:
 - A single phone call, meeting, or task about a company does NOT warrant its own project. Put it in "${LIFE_PROJECT_NAME}" or an existing project.
 - If items are random personal stuff (gym, errands, appointments, calls), assign to "${LIFE_PROJECT_NAME}".
 - Match existing project names FUZZILY \u2014 "Career Tracker" matches "Seth Bond Program Tracker & Career Vision".
+- When assigning tasks to existing projects, match based on the TOPIC and CONTEXT of the task, not just keywords. A task about academic recommendations should go in an academic/career board, not a travel board \u2014 even if the person is mentioned in both contexts. When in doubt, create an 'Unsorted' assignment and let the user move it.
 - CRITICAL \u2014 "description" vs "background":
   - "description" = a SUBTITLE for the project card. MAXIMUM 12 WORDS. Example: "Nonprofit advancing immigration justice through trust-based philanthropy." NEVER include team names, financials, phases, dates, status updates, or any detail. If your description is longer than 12 words, it is WRONG. Rewrite it shorter.
   - "background" = ALL detailed info using ## section headers (Origin, Where It's Going, Roadblocks, Next Steps, Notes). Mission, team roster, phase, decisions, context, financials, timelines, compliance \u2014 EVERYTHING detailed goes HERE. This is a collapsible dropdown, so be thorough.

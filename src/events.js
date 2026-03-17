@@ -270,16 +270,6 @@ export function createEvents(deps) {
         return;
       }
 
-      // Expand dot click → expand task
-      const expandDot = e.target.closest('[data-expand]');
-      if (expandDot) {
-        const id = expandDot.dataset.expand;
-        const expandedTask = deps.getExpandedTask();
-        deps.setExpandedTask(expandedTask === id ? null : id);
-        render();
-        return;
-      }
-
       // Task row click → expand is now handled by capture-phase handler in app.js
     });
 
