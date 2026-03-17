@@ -7,63 +7,8 @@
 /**
  * Sets up the tooltip hover behaviour on task rows.
  */
-export function setupTooltips({ getData }) {
-  let tooltipEl = null;
-  document.addEventListener(
-    'mouseenter',
-    function (e) {
-      const r = e.target.closest('.task-row');
-      if (!r) return;
-      const id = r.dataset.task;
-      const t = getData().tasks.find(function (x) {
-        return x.id === id;
-      });
-      if (!t || !t.notes) return;
-      if (tooltipEl) tooltipEl.remove();
-      tooltipEl = document.createElement('div');
-      tooltipEl.className = 'task-tooltip';
-      tooltipEl.textContent = t.notes.length > 200 ? t.notes.slice(0, 200) + '...' : t.notes;
-      document.body.appendChild(tooltipEl);
-      const b = r.getBoundingClientRect();
-      tooltipEl.style.left = Math.min(b.left, window.innerWidth - 300) + 'px';
-      tooltipEl.style.top = b.bottom + 4 + 'px';
-    },
-    true,
-  );
-  document.addEventListener(
-    'mouseout',
-    function (e) {
-      if (!e.target.closest('.task-row')) return;
-      const related = e.relatedTarget;
-      if (related && related.closest && related.closest('.task-row')) return;
-      if (tooltipEl) {
-        tooltipEl.remove();
-        tooltipEl = null;
-      }
-    },
-    true,
-  );
-  // Also hide tooltip on scroll or click anywhere
-  document.addEventListener(
-    'scroll',
-    function () {
-      if (tooltipEl) {
-        tooltipEl.remove();
-        tooltipEl = null;
-      }
-    },
-    true,
-  );
-  document.addEventListener(
-    'click',
-    function () {
-      if (tooltipEl) {
-        tooltipEl.remove();
-        tooltipEl = null;
-      }
-    },
-    true,
-  );
+export function setupTooltips() {
+  // Tooltips removed — notes are shown inline in task rows
 }
 
 /**

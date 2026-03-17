@@ -702,10 +702,18 @@ IN-PROGRESS \u2014 look for: "working on", "currently", "in progress", "started"
 IMPORTANT: A project document typically has BOTH completed and pending items. If you extract 20 tasks and zero are "done", you are almost certainly misreading the document. Go back and re-check for past-tense accomplishments.
 
 ## HOW TO SET PRIORITY
-URGENT \u2014 has a deadline within 7 days, blocks other work, user explicitly says "urgent" or "ASAP" or "immediately", legal/compliance deadlines.
-IMPORTANT \u2014 significant impact, mentioned with emphasis, part of a critical path, but not time-pressured this week.
-NORMAL \u2014 standard task, needs doing but no special urgency.
-LOW \u2014 nice-to-have, future consideration, exploratory.
+URGENT \u2014 deadline within 3 days, blocks other work, user explicitly says "urgent"/"ASAP"/"immediately".
+IMPORTANT \u2014 deadline within 2 weeks AND significant impact. NOT for tasks months out, even if they matter.
+NORMAL \u2014 deadline more than 2 weeks out, or standard tasks without time pressure.
+LOW \u2014 nice-to-have, future consideration, exploratory, deadlines 2+ months out.
+
+CRITICAL RULE: Priority MUST correlate with time proximity. A task due in 3 months is NEVER "important" \u2014 it's "normal" or "low" regardless of how significant it is. Reassess when deadline approaches.
+
+## HOW TO SET DEADLINES
+Only set a dueDate if the input contains a SPECIFIC date or clear deadline ("by Friday", "due March 25", "opens late April").
+Do NOT invent deadlines. If there's no date mentioned, leave dueDate empty.
+If the input says "~September" or "late April", use the LAST day of that period (April 30, September 30).
+Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
 
 ## HOW TO ESTIMATE TIME
 For every task, estimate how many minutes it will take. Use your best judgment:

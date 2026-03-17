@@ -637,7 +637,7 @@ export function createDataLayer(deps) {
   }
 
   function autoEscalatePriority() {
-    const tomorrow = new Date(Date.now() + MS_PER_DAY).toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 2 * MS_PER_DAY).toISOString().slice(0, 10);
     let changed = false;
     data.tasks.forEach((t) => {
       if (t.status !== 'done' && !t.archived && t.dueDate && t.dueDate <= tomorrow && t.priority !== 'urgent') {
