@@ -188,7 +188,9 @@ export function createSync(deps) {
           }
         }
       }
-      const data = JSON.parse(localStorage.getItem(userKey(STORE_KEY)) || '{}');
+      const data = JSON.parse(localStorage.getItem(userKey(STORE_KEY)) || '{"tasks":[],"projects":[]}');
+      if (!Array.isArray(data.tasks)) data.tasks = [];
+      if (!Array.isArray(data.projects)) data.projects = [];
       const settings = getSettings();
       // Safety: never overwrite cloud data with empty state if cloud previously had data
       if (data.tasks.length === 0 && data.projects.length === 0 && _lastCloudUpdatedAt) {
