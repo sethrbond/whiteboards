@@ -286,7 +286,7 @@ describe('ai-context.js — additional coverage', () => {
         ],
       });
       const result = ctx.buildAIContext('project', 'p2');
-      expect(result).toContain('2/2 subtasks');
+      expect(result).toContain('2/2 sub');
     });
 
     it('includes archived memory count in full detail mode', () => {

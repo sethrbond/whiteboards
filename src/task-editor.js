@@ -175,41 +175,6 @@ export function createTaskEditor(deps) {
       <div class="task-detail-row"><span class="task-detail-label">Created</span>${relativeTime(t.createdAt)}</div>
       ${t.completedAt ? `<div class="task-detail-row"><span class="task-detail-label">Done</span>${relativeTime(t.completedAt)}</div>` : ''}
       ${renderBlockedBy(t)}
-      ${(() => {
-        if (typeof predictCompletion === 'function' && t.status !== 'done') {
-          const pred = predictCompletion(t.id);
-          if (pred) {
-            const color =
-              pred.likelihood === 'high'
-                ? 'var(--green)'
-                : pred.likelihood === 'medium'
-                  ? 'var(--orange)'
-                  : 'var(--red)';
-            const estDate = new Date(pred.estimatedDate + 'T12:00:00');
-            const estStr = estDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            let predHtml =
-              '<div class="task-detail-row" style="margin-top:6px;padding:8px;background:var(--surface2);border-radius:var(--radius-xs)">';
-            predHtml +=
-              '<span style="color:' +
-              color +
-              ';font-size:11px">' +
-              (pred.likelihood === 'high'
-                ? 'Likely done by ' + estStr
-                : pred.likelihood === 'medium'
-                  ? 'Might finish by ' + estStr
-                  : 'At risk — est. ' + estStr) +
-              '</span>';
-            if (pred.likelihood === 'low' && pred.blockers.length)
-              predHtml +=
-                '<div style="font-size:11px;color:var(--text3);margin-top:4px">This might slip — ' +
-                pred.blockers[0].toLowerCase() +
-                '</div>';
-            predHtml += '</div>';
-            return predHtml;
-          }
-        }
-        return '';
-      })()}
       ${renderBlocking(t)}
       ${t.subtasks && t.subtasks.length ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600">SUBTASKS</div>${t.subtasks.map((s) => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer" role="checkbox" aria-checked="${s.done}" aria-label="Mark subtask: ${esc(s.title)} complete" tabindex="0" data-action="toggle-subtask" data-task-id="${t.id}" data-subtask-id="${s.id}"><div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done ? 'var(--accent)' : 'var(--border2)'};background:${s.done ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0">${s.done ? '✓' : ''}</div><span style="font-size:12px;color:${s.done ? 'var(--text3)' : 'var(--text)'};${s.done ? 'text-decoration:line-through' : ''}">${esc(s.title)}</span></div>`).join('')}</div>` : ''}
       <div style="margin-top:6px"><input style="font-size:11px;padding:4px 8px;background:transparent;border:1px dashed var(--border);border-radius:4px;color:var(--text2);width:100%;outline:none;font-family:inherit" placeholder="+ add subtask" aria-label="Add subtask" data-keydown-action="add-subtask" data-task-id="${t.id}"></div>

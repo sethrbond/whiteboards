@@ -856,6 +856,8 @@ h3.section-title {
 
 .task-row:hover {
   background: var(--surface2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .task-row .task-actions {
@@ -866,9 +868,6 @@ h3.section-title {
 }
 .task-row:hover .task-actions {
   display: flex;
-}
-.task-row:hover .task-tags {
-  display: none;
 }
 .task-action-btn {
   width: 36px;
@@ -1025,6 +1024,9 @@ h3.section-title {
   font-weight: 500;
   line-height: 1.4;
   color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-title.done-text {

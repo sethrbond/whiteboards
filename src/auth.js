@@ -363,11 +363,11 @@ export function createAuth(deps) {
       },
       {
         icon: '&#x2726;',
-        title: 'AI Chat Assistant',
+        title: 'AI Assistant — Your Thinking Partner',
         desc:
           'Press <kbd>' +
           cmdKey +
-          '+J</kbd> to talk to your AI. Ask it to plan your day, triage tasks, or think through problems with you.',
+          '+J</kbd> to open chat. Your AI can:<ul style="text-align:left;font-size:12px;margin:8px 0 0 16px;line-height:1.8;color:var(--text2)"><li><strong>Create &amp; organize tasks</strong> — "add a task to call the dentist"</li><li><strong>Plan your day</strong> — "plan my day" or "what should I focus on?"</li><li><strong>Reschedule in bulk</strong> — "push back everything due this week by 3 days"</li><li><strong>Think with you</strong> — "I\'m not sure how to prioritize this week"</li><li><strong>Analyze your data</strong> — "what\'s overdue?" or "how am I doing?"</li></ul>',
       },
       {
         icon: '&#x2318;',

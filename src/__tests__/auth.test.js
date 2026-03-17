@@ -725,7 +725,7 @@ describe('auth.js — createAuth()', () => {
     auth.showFeatureTips();
     expect(document.getElementById('modalRoot').innerHTML).toContain('Dump your chaos');
     window._nextTip();
-    expect(document.getElementById('modalRoot').innerHTML).toContain('AI Chat Assistant');
+    expect(document.getElementById('modalRoot').innerHTML).toContain('AI Assistant');
     window._nextTip();
     expect(document.getElementById('modalRoot').innerHTML).toContain('Command Palette');
     window._nextTip();

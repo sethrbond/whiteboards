@@ -513,9 +513,12 @@ export function createAIContext(deps) {
         ctx += `Description: ${p.description || 'None'}\n`;
         ctx += `Background: ${p.background || 'Not generated yet'}\n`;
         ctx += `Stats: ${active.length} active, ${inProg.length} in-progress, ${done.length} done\n`;
-        ctx += `Active tasks:\n${active.map((t) => `  - [${t.priority}${t.status === 'in-progress' ? '/WIP' : ''}] ${t.title}${t.dueDate ? ' (due ' + t.dueDate + ')' : ''}${t.notes ? ' — ' + t.notes.slice(0, 500) : ''}${t.subtasks?.length ? ' [' + t.subtasks.filter((s) => s.done).length + '/' + t.subtasks.length + ' subtasks]' : ''}${t.phase ? ' {' + t.phase + '}' : ''}`).join('\n')}\n`;
+        ctx += `Active tasks:\n${active.map((t) => `  - [${t.priority}${t.status === 'in-progress' ? '/WIP' : ''}] ${t.title}${t.dueDate ? ' (due ' + t.dueDate + ')' : ''}${t.notes ? ' — ' + t.notes.slice(0, 120) : ''}${t.subtasks?.length ? ' [' + t.subtasks.filter((s) => s.done).length + '/' + t.subtasks.length + ' sub]' : ''}`).join('\n')}\n`;
         if (done.length)
-          ctx += `Completed tasks (${done.length} total):\n${done.map((t) => '  - ✓ ' + t.title + (t.completedAt ? ' (done ' + t.completedAt.slice(0, 10) + ')' : '') + (t.notes ? ' — ' + t.notes.slice(0, 300) : '')).join('\n')}\n`;
+          ctx += `Completed (${done.length}): ${done
+            .slice(0, 10)
+            .map((t) => t.title)
+            .join(', ')}${done.length > 10 ? '...' : ''}\n`;
       }
     } else {
       ctx += `\nBOARDS:\n`;
@@ -530,7 +533,7 @@ export function createAIContext(deps) {
         .filter((t) => t.status !== 'done')
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
       const cappedTasks = allActiveTasks.slice(0, 100);
-      const notesCap = allActiveTasks.length > 50 ? 100 : 500;
+      const notesCap = allActiveTasks.length > 30 ? 60 : allActiveTasks.length > 15 ? 120 : 300;
       if (allActiveTasks.length > 100)
         ctx += `  (showing 100 of ${allActiveTasks.length} — ${allActiveTasks.length - 100} older tasks omitted)\n`;
       cappedTasks.forEach((t) => {
