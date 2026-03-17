@@ -280,23 +280,7 @@ export function createEvents(deps) {
         return;
       }
 
-      // Task row click → expand (must be last — most general)
-      const taskEl = e.target.closest('[data-task]');
-      if (
-        taskEl &&
-        !e.target.closest('button') &&
-        !e.target.closest('input') &&
-        !e.target.closest('[contenteditable]') &&
-        !e.target.closest('.task-cmd') &&
-        !e.target.closest('[data-toggle]') &&
-        !e.target.closest('[data-bulk]')
-      ) {
-        const id = taskEl.dataset.task;
-        const expandedTask = deps.getExpandedTask();
-        deps.setExpandedTask(expandedTask === id ? null : id);
-        render();
-        return;
-      }
+      // Task row click → expand is now handled by capture-phase handler in app.js
     });
 
     // Delegated keyboard handler for accessibility on data-toggle elements

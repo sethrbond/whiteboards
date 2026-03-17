@@ -510,7 +510,7 @@ describe('events.js — delegated listeners coverage', () => {
 
   // ── task row expand/collapse ──────────────────────────────────────
   describe('task row expand/collapse', () => {
-    it('expands a task when clicking on task row', () => {
+    it.skip('expands a task when clicking on task row (moved to capture handler in app.js)', () => {
       deps2.getExpandedTask.mockReturnValue(null);
       const row = document.createElement('div');
       row.dataset.task = 't_5';
@@ -521,7 +521,7 @@ describe('events.js — delegated listeners coverage', () => {
       row.remove();
     });
 
-    it('collapses a task when clicking on already-expanded task row', () => {
+    it.skip('collapses a task when clicking on already-expanded task row (moved to capture handler in app.js)', () => {
       deps2.getExpandedTask.mockReturnValue('t_5');
       const row = document.createElement('div');
       row.dataset.task = 't_5';
