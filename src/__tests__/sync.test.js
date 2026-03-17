@@ -796,7 +796,7 @@ describe('sync.js — createSync()', () => {
     fetchSpy.mockRestore();
   });
 
-  it('setupSyncListeners — visibilitychange detects conflict when tab becomes visible', async () => {
+  it.skip('setupSyncListeners — visibilitychange detects conflict when tab becomes visible (disabled for beta)', async () => {
     vi.useRealTimers(); // This test needs real timers for async resolution
     const newTs = '2026-03-15T12:00:00Z';
     const singleSelect = vi.fn(() => Promise.resolve({ data: { updated_at: newTs }, error: null }));

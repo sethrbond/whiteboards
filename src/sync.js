@@ -380,26 +380,11 @@ export function createSync(deps) {
           scheduleSyncToCloud();
           return;
         }
-        // Version check: see if cloud was updated by another tab/device while we were away
+        // Version check disabled for beta — was causing false positive conflict banners
         try {
-          const { data: checkRow, error } = await sb
-            .from('user_data')
-            .select('updated_at')
-            .eq('user_id', currentUser.id)
-            .single();
-          if (!error && checkRow && checkRow.updated_at && _lastCloudUpdatedAt) {
-            const cloudTime = new Date(checkRow.updated_at).getTime();
-            const lastKnown = new Date(_lastCloudUpdatedAt).getTime();
-            // Only show conflict if cloud is meaningfully newer (>5s) to avoid false positives from own sync
-            if (cloudTime - lastKnown > 30000) {
-              showToast('Another session made changes. Reload to sync.', true);
-              showConflictBanner();
-              syncStatus = 'offline';
-              updateSyncDot();
-            }
-          }
+          void 0;
         } catch (_e) {
-          /* ignore — don't break tab focus */
+          /* no-op */
         }
       },
       { signal },
