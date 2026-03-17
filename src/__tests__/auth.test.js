@@ -892,7 +892,7 @@ describe('auth.js — createAuth()', () => {
   });
 
   it('showApp reloads chat history', () => {
-    const chatModule = { resetChatState: vi.fn(), reloadChatHistory: vi.fn(), autoOpenForFirstTimeUser: vi.fn() };
+    const chatModule = { resetChatState: vi.fn(), reloadChatHistory: vi.fn() };
     deps.getChatModule.mockReturnValue(chatModule);
     auth = createAuth(deps);
     auth.showApp();

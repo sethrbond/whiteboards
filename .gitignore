@@ -8,5 +8,7 @@ dist/
 .idea/
 .vscode/
 coverage/
+test-results/
+playwright-report/
 supabase/.temp/
 src/cov-tmp/

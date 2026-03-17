@@ -324,12 +324,6 @@ export function createActions(deps) {
       case 'onb-next':
         if (window.onbNext) window.onbNext();
         break;
-      case 'onb-process-dump':
-        if (window.onbProcessDump) window.onbProcessDump();
-        break;
-      case 'onb-finish':
-        if (window.onbFinish) window.onbFinish();
-        break;
       // Feature tips
       case 'tip-skip':
         document.getElementById('modalRoot').innerHTML = '';
