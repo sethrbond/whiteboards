@@ -112,6 +112,13 @@ Be direct. Use task names. Under 200 words. No fluff. You're not a reporter — 
           sanitizeAIHTML(reply) +
           '</div>';
       }
+      // Auto-generate tomorrow's plan after EOD
+      if (typeof deps.planMyDay === 'function') {
+        setTimeout(() => {
+          showToast('Planning tomorrow...', false, true);
+          deps.planMyDay();
+        }, 2000);
+      }
     } catch (err) {
       console.error('EOD error:', err);
       if (btn) btn.textContent = 'Error — try again';

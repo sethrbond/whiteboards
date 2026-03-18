@@ -78,18 +78,12 @@ export function createDashboard(deps) {
     getActiveTagFilter,
     getAllTags,
     getTagColor,
-    // Chat
-    toggleChat,
-    sendChat,
     // Render helpers
     renderDump,
     initDumpDropZone,
     renderWeeklyReview,
     // Quick capture
-    isComplexInput,
     parseQuickInput,
-    handleSlashCommand,
-    aiEnhanceTask,
     getEscalationBanner: _getEscalationBanner,
     getAIMemory,
     extractMemoryInsights,
@@ -854,27 +848,17 @@ export function createDashboard(deps) {
     const val = e.target.value.trim();
     if (!val) return;
 
-    // Slash commands
-    if (val.startsWith('/')) {
-      const handled = handleSlashCommand(val);
-      if (handled) {
-        e.target.value = '';
-        return;
-      }
-      showToast('Commands: /done, /urgent, /focus, /plan, /move ... to ...', true);
-      return;
-    }
-
-    // Complex input → open chat panel with the message
-    if (isComplexInput(val) && hasAI()) {
+    // Shift+Enter → open brainstorm modal with the text
+    if (e.shiftKey) {
       e.target.value = '';
-      const panel = document.getElementById('chatPanel');
-      if (panel && !panel.classList.contains('open')) toggleChat();
-      const chatInput = document.getElementById('chatInput');
-      if (chatInput) {
-        chatInput.value = val;
-        sendChat();
-      }
+      openBrainstormModal();
+      setTimeout(() => {
+        const dt = document.getElementById('dumpText');
+        if (dt) {
+          dt.value = val;
+          dt.focus();
+        }
+      }, 100);
       return;
     }
 
@@ -888,7 +872,7 @@ export function createDashboard(deps) {
     }
     const cleanVal = val.replace(/#\S+/g, '').trim();
 
-    // Normal task creation
+    // Create task — simple and direct
     const parsed = parseQuickInput(cleanVal);
     const newTask = createTask({
       title: parsed.title,
@@ -900,9 +884,6 @@ export function createDashboard(deps) {
     e.target.value = '';
     showToast(`+ ${parsed.title}${parsed.dueDate ? ' (due ' + parsed.dueDate + ')' : ''}`, false, true);
     render();
-    if (isComplexInput(val)) {
-      aiEnhanceTask(newTask.id, val);
-    }
   }
   // ===== Dashboard sub-functions =====
 
@@ -913,13 +894,22 @@ export function createDashboard(deps) {
     const dueToday = active.filter((t) => t.dueDate === todayStr());
     const overdue = active.filter((t) => t.dueDate && t.dueDate < todayStr());
 
-    // Brief status line: "3 due today · 1 overdue"
+    // Brief status line
     const statusParts = [];
-    if (dueToday.length) statusParts.push(`${dueToday.length} due today`);
     if (overdue.length) statusParts.push(`${overdue.length} overdue`);
-    if (!statusParts.length) {
-      if (active.length) statusParts.push(`${active.length} active`);
-      else statusParts.push('Nothing pressing');
+    if (dueToday.length) statusParts.push(`${dueToday.length} due today`);
+    if (!overdue.length && !dueToday.length) {
+      if (active.length) statusParts.push(`${active.length} active tasks`);
+      else statusParts.push('No tasks yet');
+    }
+    // Next upcoming deadline
+    const upcoming = active
+      .filter((t) => t.dueDate && t.dueDate > todayStr())
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    if (upcoming.length && !overdue.length) {
+      statusParts.push(
+        `next: ${esc(upcoming[0].title.slice(0, 25))}${upcoming[0].title.length > 25 ? '...' : ''} ${fmtDate(upcoming[0].dueDate)}`,
+      );
     }
     const briefStatus = statusParts.join(' \u00b7 ');
 
@@ -927,8 +917,8 @@ export function createDashboard(deps) {
     html += `<div class="ai-hero-greeting">${greeting}</div>`;
     html += `<div class="ai-hero-sub">${briefStatus}</div>`;
 
-    // Conversational input — simplified placeholder
-    html += `<input class="conversational-input" id="quickCapture" placeholder="What's next?" aria-label="Quick capture input" data-keydown-action="hero-input" data-oninput-action="preview-quick-capture" autocomplete="off">`;
+    // Simple task input
+    html += `<input class="conversational-input" id="quickCapture" placeholder="Add a task..." aria-label="Add a task" data-keydown-action="hero-input" data-oninput-action="preview-quick-capture" autocomplete="off">`;
     html += `<div id="quickCapturePreview" class="smart-date-preview" style="padding-left:0"></div>`;
     html += `<div id="brainstormHint" style="display:none;font-size:11px;color:var(--accent);padding:6px 0 0;opacity:0.85;transition:opacity 0.2s"><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:inherit">Shift+Enter</kbd> &rarr; Organize with AI</div>`;
     const projOpts = data.projects.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
@@ -1227,36 +1217,15 @@ export function createDashboard(deps) {
     const done = doneTasks();
     const inProgress = active.filter((t) => t.status === 'in-progress');
 
-    // Fresh start welcome
+    // Fresh start welcome — clean and simple
     if (data.tasks.length === 0 && data.projects.length <= 1) {
-      const _emptyPhrases = [
-        'Plan my week...',
-        'Meeting notes from today...',
-        'Ideas for the project...',
-        'Things I need to get done...',
-        'Brainstorm everything...',
-      ];
-      return `<div style="max-width:540px;margin:48px auto;text-align:center">
-        <div id="welcomeTyping" style="font-size:22px;font-weight:600;margin-bottom:6px;min-height:32px" data-phrases='${JSON.stringify(_emptyPhrases)}'></div>
-        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:32px">Write freely &mdash; plans, ideas, meeting notes, anything. AI organizes everything into tasks and projects.</p>
-        <div data-action="go-dump" role="button" tabindex="0" class="brainstorm-cta-hover" style="background:var(--surface);border:2px solid var(--accent);border-radius:var(--radius);padding:32px 28px;cursor:pointer;margin-bottom:20px;text-align:left;position:relative">
-          <div style="font-size:28px;margin-bottom:12px">&#9671;</div>
-          <div style="font-size:17px;font-weight:600;margin-bottom:6px;color:var(--text)">Start a brainstorm</div>
-          <div style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:16px">Write your thoughts, paste meeting notes, attach docs &mdash; all at once. AI reads everything and creates organized, prioritized tasks.</div>
-          <button class="btn btn-primary brainstorm-hero-btn" data-action="go-dump">Open brainstorm &rarr;</button>
-        </div>
-        <div style="font-size:12px;color:var(--text3);margin-bottom:20px">or add a task manually with the input above</div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;text-align:left">
-          <div data-action="go-dump-weekly" role="button" tabindex="0" class="dashboard-card-hover" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer">
-            <div style="font-size:24px;margin-bottom:10px">&#9671;</div>
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Plan my week</div>
-            <div style="font-size:12px;color:var(--text3);line-height:1.5">Drop your weekly goals and let AI organize them</div>
-          </div>
-          <div data-action="go-dump" role="button" tabindex="0" class="dashboard-card-hover" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer">
-            <div style="font-size:24px;margin-bottom:10px">&#8623;</div>
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Import from notes</div>
-            <div style="font-size:12px;color:var(--text3);line-height:1.5">Paste meeting notes, docs, or ideas &mdash; AI extracts tasks</div>
-          </div>
+      return `<div style="max-width:480px;margin:60px auto;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">\u25ce</div>
+        <div style="font-size:20px;font-weight:600;margin-bottom:8px;color:var(--text)">What are you working on?</div>
+        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:28px">Type a task above to get started, or dump everything on your mind at once.</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-primary" data-action="go-dump" style="padding:10px 20px">Brain dump \u2192</button>
+          <button class="btn" data-action="go-dump-weekly" style="padding:10px 20px">Plan my week</button>
         </div>
       </div>`;
     }

@@ -435,8 +435,7 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('welcomeTyping');
-      expect(html).toContain('Start a brainstorm');
+      expect(html).toContain('What are you working on');
       expect(html).toContain('data-action="go-dump"');
     });
 
@@ -448,8 +447,8 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('data-phrases=');
       expect(html).toContain('Plan my week');
+      expect(html).toContain('Brain dump');
     });
 
     it.skip('renders hero card with greeting when tasks exist — sub-greeting format changed for plan-first redesign', () => {
@@ -527,7 +526,7 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('Nothing pressing');
+      expect(html).toContain('No tasks yet');
     });
 
     it.skip('renders nudges when smart nudges exist — nudges now toast-only in plan-first redesign', () => {
@@ -1714,50 +1713,6 @@ describe('dashboard.js — createDashboard()', () => {
       expect(deps.render).toHaveBeenCalled();
     });
 
-    it('handles slash commands', () => {
-      deps.handleSlashCommand.mockReturnValue(true);
-      dashboard = createDashboard(deps);
-
-      const e = makeEvent('Enter', '/done');
-      dashboard.heroInputHandler(e);
-
-      expect(deps.handleSlashCommand).toHaveBeenCalledWith('/done');
-      expect(e.target.value).toBe('');
-      expect(deps.addTask).not.toHaveBeenCalled();
-    });
-
-    it('shows toast for unrecognized slash commands', () => {
-      deps.handleSlashCommand.mockReturnValue(false);
-      dashboard = createDashboard(deps);
-
-      const e = makeEvent('Enter', '/unknown');
-      dashboard.heroInputHandler(e);
-
-      expect(deps.showToast).toHaveBeenCalledWith(expect.stringContaining('Commands:'), true);
-      expect(deps.addTask).not.toHaveBeenCalled();
-    });
-
-    it('sends complex input to chat when AI is available', () => {
-      deps.isComplexInput.mockReturnValue(true);
-      deps.hasAI.mockReturnValue(true);
-      deps.getData.mockReturnValue({ tasks: [], projects: [] });
-      const chatPanel = document.createElement('div');
-      chatPanel.id = 'chatPanel';
-      document.body.appendChild(chatPanel);
-      const chatInput = document.createElement('input');
-      chatInput.id = 'chatInput';
-      document.body.appendChild(chatInput);
-      dashboard = createDashboard(deps);
-
-      const e = makeEvent('Enter', 'What should I prioritize today?');
-      dashboard.heroInputHandler(e);
-
-      expect(deps.toggleChat).toHaveBeenCalled();
-      expect(chatInput.value).toBe('What should I prioritize today?');
-      expect(deps.sendChat).toHaveBeenCalled();
-      expect(e.target.value).toBe('');
-    });
-
     it('assigns task to project when #hashtag matches project name', () => {
       const projects = [{ id: 'p1', name: 'Work' }];
       deps.getData.mockReturnValue({ tasks: [], projects });
@@ -1809,22 +1764,6 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard.heroInputHandler(e);
 
       expect(deps.showToast).toHaveBeenCalledWith(expect.stringContaining('due 2026-03-20'), false, true);
-    });
-
-    it('calls aiEnhanceTask for complex input that still creates a task', () => {
-      deps.isComplexInput.mockReturnValueOnce(false).mockReturnValueOnce(true);
-      deps.hasAI.mockReturnValue(false);
-      deps.getData.mockReturnValue({ tasks: [], projects: [] });
-      dashboard = createDashboard(deps);
-
-      const e = makeEvent('Enter', 'Build the complete dashboard redesign with AI integration');
-      dashboard.heroInputHandler(e);
-
-      expect(deps.addTask).toHaveBeenCalled();
-      expect(deps.aiEnhanceTask).toHaveBeenCalledWith(
-        't_new',
-        'Build the complete dashboard redesign with AI integration',
-      );
     });
   });
 
@@ -2842,7 +2781,7 @@ describe('dashboard.js — additional coverage', () => {
 
   // ── renderDashboard welcome state ────────────────────────────────
   describe('renderDashboard welcome state', () => {
-    it('renders welcome state with "Plan my week" and "Import from notes" cards', () => {
+    it('renders simplified welcome state with brain dump and plan options', () => {
       deps.getData.mockReturnValue({ tasks: [], projects: [] });
       deps.urgentTasks.mockReturnValue([]);
       deps.activeTasks.mockReturnValue([]);
@@ -2850,10 +2789,10 @@ describe('dashboard.js — additional coverage', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
+      expect(html).toContain('What are you working on');
       expect(html).toContain('Plan my week');
-      expect(html).toContain('Import from notes');
-      expect(html).toContain('data-action="go-dump-weekly"');
-      expect(html).toContain('Open brainstorm');
+      expect(html).toContain('Brain dump');
+      expect(html).toContain('data-action="go-dump"');
     });
 
     it('does not show welcome state when more than 1 project exists', () => {

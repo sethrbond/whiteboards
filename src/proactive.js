@@ -205,6 +205,8 @@ export function createProactive(deps) {
 
   // ── Instantiate sub-modules ─────────────────────────────────────────
 
+  // planning is defined later — use lazy ref so briefing can trigger plan after EOD
+  let _planningRef = null;
   const briefing = createProactiveBriefing({
     sanitizeAIHTML,
     todayStr,
@@ -219,6 +221,7 @@ export function createProactive(deps) {
     extractMemoryInsights,
     _buildInsightsPromptSection,
     getAIMemory: deps.getAIMemory,
+    planMyDay: () => _planningRef && _planningRef.planMyDay(),
   });
 
   const nudges = createProactiveNudges({
@@ -261,6 +264,7 @@ export function createProactive(deps) {
     _buildInsightsPromptSection,
     getAIMemory: deps.getAIMemory,
   });
+  _planningRef = planning;
 
   // ── Functions that stay in the coordinator ───────────────────────────
 
