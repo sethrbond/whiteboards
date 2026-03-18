@@ -262,10 +262,19 @@ export function createActions(deps) {
       case 'focus-task':
         openFocusView(actionEl.dataset.taskId);
         break;
-      case 'complete-task':
-        updateTask(actionEl.dataset.taskId, { status: 'done' });
+      case 'complete-task': {
+        const _cTaskId = actionEl.dataset.taskId;
+        const _cTask = findTask(_cTaskId);
+        updateTask(_cTaskId, { status: 'done' });
         render();
+        if (_cTask)
+          showToast(
+            `\u2713 ${_cTask.title.slice(0, 30)}${_cTask.title.length > 30 ? '...' : ''} done \u2014 <span style="color:var(--accent);cursor:pointer;text-decoration:underline" data-action="undo-btn">Undo</span>`,
+            false,
+            true,
+          );
         break;
+      }
       // Task expand/collapse
       case 'toggle-expand': {
         const tid = actionEl.dataset.task || actionEl.dataset.taskId;
