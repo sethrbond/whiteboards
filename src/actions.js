@@ -796,6 +796,53 @@ export function createActions(deps) {
       case 'replan-day':
         replanDay();
         break;
+      case 'dismiss-plan-prompt':
+        localStorage.setItem(userKey('whiteboard_plan_dismissed_' + todayStr()), '1');
+        render();
+        break;
+      case 'add-to-plan': {
+        const planKey = userKey('whiteboard_plan_' + todayStr());
+        const plan = JSON.parse(localStorage.getItem(planKey) || '[]');
+        const planIds = new Set(plan.map((p) => p.id));
+        const stored = JSON.parse(localStorage.getItem(userKey('wb_data')) || '{"tasks":[]}');
+        const candidates = (stored.tasks || []).filter((t) => t.status !== 'done' && !t.archived && !planIds.has(t.id));
+        if (!candidates.length) {
+          showToast('No tasks available to add');
+          break;
+        }
+        const opts = candidates
+          .slice(0, 20)
+          .map(
+            (t) =>
+              `<button class="btn btn-sm" style="text-align:left;display:block;width:100%;margin-bottom:4px" data-action="add-task-to-plan" data-task-id="${t.id}">${t.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</button>`,
+          )
+          .join('');
+        const modalRoot = document.getElementById('modalRoot');
+        if (modalRoot) {
+          modalRoot.innerHTML = `<div class="modal-overlay" data-action="close-modal" data-click-self="true">
+            <div class="modal" style="max-width:400px;padding:24px">
+              <h3 style="margin-bottom:12px;font-size:15px">Add to today's plan</h3>
+              <div style="max-height:300px;overflow-y:auto">${opts}</div>
+              <button class="btn btn-sm" data-action="close-modal" style="margin-top:12px;color:var(--text3)">Cancel</button>
+            </div>
+          </div>`;
+        }
+        break;
+      }
+      case 'add-task-to-plan': {
+        const taskId = actionEl.dataset.taskId;
+        const pk = userKey('whiteboard_plan_' + todayStr());
+        const currentPlan = JSON.parse(localStorage.getItem(pk) || '[]');
+        if (!currentPlan.find((p) => p.id === taskId)) {
+          currentPlan.push({ id: taskId, why: 'Manually added' });
+          localStorage.setItem(pk, JSON.stringify(currentPlan));
+        }
+        const mr = document.getElementById('modalRoot');
+        if (mr) mr.innerHTML = '';
+        showToast('Added to plan');
+        render();
+        break;
+      }
       // Check-in actions
       case 'checkin-dismiss':
         if (dismissCheckIn) dismissCheckIn();

@@ -63,7 +63,7 @@ export function createDashboard(deps) {
     // Brainstorm module
     getBrainstormModule,
     // Proactive module
-    getAIStatusItems,
+    getAIStatusItems: _getAIStatusItems,
     getSmartFeedItems,
     getSmartNudges,
     getStuckTasks,
@@ -919,65 +919,35 @@ export function createDashboard(deps) {
   }
   // ===== Dashboard sub-functions =====
 
-  function _renderDashboardHero(data, active, done, inProgress, urgent) {
+  function _renderDashboardHero(data, active, _done, _inProgress, _urgent) {
     let html = '';
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     const dueToday = active.filter((t) => t.dueDate === todayStr());
     const overdue = active.filter((t) => t.dueDate && t.dueDate < todayStr());
 
-    let subGreeting = '';
-    if (overdue.length) subGreeting = `${overdue.length} overdue — let's tackle those first.`;
-    else if (urgent.length) subGreeting = `${urgent.length} urgent task${urgent.length > 1 ? 's' : ''} waiting.`;
-    else if (dueToday.length) subGreeting = `${dueToday.length} due today.`;
-    else if (active.length) subGreeting = `${active.length} tasks across ${data.projects.length} boards.`;
-    else subGreeting = 'Nothing pressing. A good day to plan ahead.';
-
-    const statusItems = getAIStatusItems();
+    // Brief status line: "3 due today · 1 overdue"
+    const statusParts = [];
+    if (dueToday.length) statusParts.push(`${dueToday.length} due today`);
+    if (overdue.length) statusParts.push(`${overdue.length} overdue`);
+    if (!statusParts.length) {
+      if (active.length) statusParts.push(`${active.length} active`);
+      else statusParts.push('Nothing pressing');
+    }
+    const briefStatus = statusParts.join(' \u00b7 ');
 
     html += `<div class="ai-hero-card">`;
     html += `<div class="ai-hero-greeting">${greeting}</div>`;
-    html += `<div class="ai-hero-sub">${subGreeting}${!overdue.length ? ` <span style="color:var(--text3)">${active.length} active · ${inProgress.length} in progress · ${done.length} done</span>` : ''}</div>`;
+    html += `<div class="ai-hero-sub">${briefStatus}</div>`;
 
-    if (statusItems.length > 0) {
-      html += `<div class="ai-hero-status">`;
-      statusItems.forEach((item) => {
-        html += `<div class="ai-hero-status-item ai-status-item${item.action ? ' clickable' : ''}" ${item.action ? `data-action="${item.action}" style="cursor:pointer"` : ''}><span class="status-icon">${item.icon}</span>${esc(item.text)}</div>`;
-      });
-      html += `</div>`;
-    }
-
-    // Conversational input
-    html += `<input class="conversational-input" id="quickCapture" placeholder="Add anything — tasks, notes, ideas..." aria-label="Quick capture input" data-keydown-action="hero-input" data-oninput-action="preview-quick-capture" autocomplete="off">`;
+    // Conversational input — simplified placeholder
+    html += `<input class="conversational-input" id="quickCapture" placeholder="What's next?" aria-label="Quick capture input" data-keydown-action="hero-input" data-oninput-action="preview-quick-capture" autocomplete="off">`;
     html += `<div id="quickCapturePreview" class="smart-date-preview" style="padding-left:0"></div>`;
     html += `<div id="brainstormHint" style="display:none;font-size:11px;color:var(--accent);padding:6px 0 0;opacity:0.85;transition:opacity 0.2s"><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:inherit">Shift+Enter</kbd> &rarr; Organize with AI</div>`;
     const projOpts = data.projects.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
     html += `<select class="quick-capture-project" id="quickCaptureProject" style="display:none" aria-label="Select project for quick capture">${projOpts}</select>`;
 
     html += `</div>`; // end ai-hero-card
-
-    // Brainstorm CTA card (getBrainstormModule is async — guard against unresolved Promise)
-    const _brainstorm = getBrainstormModule();
-    const _brainstormReady = _brainstorm && typeof _brainstorm.getDumpHistory === 'function';
-    const _dumpHistory = _brainstormReady ? _brainstorm.getDumpHistory() : [];
-    const _showDumpInvite = _brainstormReady ? _brainstorm.shouldShowDumpInvite() : true;
-    let _brainstormStat = '';
-    if (_dumpHistory.length > 0) {
-      const last = _dumpHistory[0];
-      const ago = Math.floor((Date.now() - new Date(last.date).getTime()) / 3600000);
-      if (!isNaN(ago)) {
-        const agoStr = ago < 1 ? 'just now' : ago < 24 ? ago + 'h ago' : Math.floor(ago / 24) + 'd ago';
-        _brainstormStat = `Last: ${last.tasksCreated} task${last.tasksCreated !== 1 ? 's' : ''} from ${last.wordCount} words, ${agoStr}`;
-      }
-    }
-    html += `<div data-action="go-dump" role="button" tabindex="0" class="brainstorm-cta-main" style="background:linear-gradient(135deg,rgba(129,140,248,.06),rgba(168,85,247,.03));border:1px solid ${_showDumpInvite ? 'var(--accent)' : 'rgba(129,140,248,0.2)'};border-radius:var(--radius);padding:20px 24px;cursor:pointer;transition:all 0.2s;margin-bottom:20px;display:flex;align-items:center;gap:16px;${_showDumpInvite ? 'box-shadow:0 0 0 1px rgba(129,140,248,0.1),0 4px 20px rgba(129,140,248,0.08)' : ''}">
-      <div style="font-size:28px;flex-shrink:0">&#9671;</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">Ready to brainstorm?</div>
-        <div style="font-size:12px;color:var(--text3);line-height:1.4">${_brainstormStat ? esc(_brainstormStat) : 'Write thoughts, paste notes, attach docs — AI extracts tasks, sets deadlines, and sorts by project.'}</div>
-      </div>
-      <div class="brainstorm-btn-hover" style="flex-shrink:0;font-size:13px;font-weight:600;color:#fff;white-space:nowrap;padding:8px 18px;background:var(--accent);border-radius:var(--radius-sm)">Brainstorm</div>
-    </div>`;
     return html;
   }
 
@@ -1039,111 +1009,236 @@ export function createDashboard(deps) {
     return html;
   }
 
-  function _renderTodayBriefingAndPlan() {
+  // ===== Day Plan Centerpiece =====
+
+  function _renderDayPlanCenterpiece() {
     let html = '';
-    const briefingKey = userKey('whiteboard_briefing_' + todayStr());
-    const cachedBriefing = localStorage.getItem(briefingKey);
     const planKey = userKey('whiteboard_plan_' + todayStr());
     const cachedPlan = localStorage.getItem(planKey);
-    const _briefingGenerating = getBriefingGenerating();
     const _planGenerating = getPlanGenerating();
+    const briefingKey = userKey('whiteboard_briefing_' + todayStr());
+    const cachedBriefing = localStorage.getItem(briefingKey);
+    const _briefingGenerating = getBriefingGenerating();
 
-    if (!hasAI() || (!cachedBriefing && !cachedPlan && !_briefingGenerating && !_planGenerating)) {
-      if (hasAI()) {
-        html += `<div class="today-card">
-          <div class="today-card-header">
-            <span style="font-size:14px">\u2726</span>
-            <div class="today-card-title">Today</div>
-            <div class="today-card-date">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="briefing-generate" data-action="generate-briefing" id="briefingBtn">\u2726 Generate Briefing</button>
-            <button class="briefing-generate" data-action="plan-my-day" id="planBtn" style="color:var(--accent)">\u25ce Plan My Day</button>
-          </div>
-        </div>`;
-      }
+    if (cachedPlan) {
+      html += _renderDayPlanActive(cachedPlan, planKey);
+      html += _renderBriefingToggle(cachedBriefing, _briefingGenerating);
       return html;
     }
 
-    html += `<div class="today-card">`;
-    html += `<div class="today-card-header">
-      <span style="font-size:14px">\u2726</span>
-      <div class="today-card-title">Today</div>
-      <div class="today-card-date">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-    </div>`;
-
-    const _todayBriefingExpanded = getTodayBriefingExpanded();
-    if (cachedBriefing) {
-      if (_todayBriefingExpanded) {
-        html += `<div class="today-briefing-body" id="briefingBody">${sanitizeAIHTML(cachedBriefing)}</div>`;
-        html += `<button class="briefing-generate" data-action="briefing-collapse" style="font-size:11px;margin-top:6px;margin-bottom:8px">Show less</button>`;
-      } else {
-        html += `<div style="font-size:13px;color:var(--text2);line-height:1.7;max-height:2.8em;overflow:hidden;position:relative;cursor:pointer" data-action="briefing-expand" id="briefingBody">
-          ${sanitizeAIHTML(cachedBriefing)}
-          <div style="position:absolute;bottom:0;left:0;right:0;height:1.4em;background:linear-gradient(transparent,var(--bg));pointer-events:none"></div>
-        </div>`;
-        html += `<button class="briefing-generate" data-action="briefing-expand" style="font-size:11px;margin-top:4px;margin-bottom:8px">Read more</button>`;
-      }
-    } else if (_briefingGenerating) {
-      html += `<div class="skeleton-pulse" style="padding:16px 20px;min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Generating your briefing...</span></div>`;
-    }
-
-    if (cachedPlan) {
-      html += _renderDayPlan(cachedPlan, planKey);
-    } else if (_planGenerating) {
-      html += `<div class="skeleton-pulse" style="padding:16px 20px;min-height:80px;display:flex;align-items:center;justify-content:center">
-        <span style="font-size:12px;color:var(--text3)">Planning your day...</span>
+    if (_planGenerating) {
+      html += `<div class="day-plan-centerpiece" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px">`;
+      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:16px;color:var(--accent)">\u25ce</span>
+        <span style="font-size:15px;font-weight:600;color:var(--text)">Today's Plan</span>
+        <span style="font-size:11px;color:var(--text3)">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
       </div>`;
+      html += `<div class="skeleton-pulse" style="padding:20px;min-height:100px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-sm)">
+        <span style="font-size:13px;color:var(--text3)">Planning your day...</span>
+      </div></div>`;
+      html += _renderBriefingToggle(cachedBriefing, _briefingGenerating);
+      return html;
     }
 
-    html += `<div style="display:flex;gap:8px;margin-top:12px">
-      <button class="briefing-generate" data-action="generate-briefing" id="briefingBtn">${cachedBriefing ? '\u21bb Refresh' : _briefingGenerating ? '\u2726 Generating...' : '\u2726 Generate Briefing'}</button>
-      <button class="briefing-generate" data-action="plan-my-day" id="planBtn" style="color:var(--accent)">\u25ce Plan My Day</button>
-    </div>`;
-
-    html += `</div>`;
+    const dismissed = localStorage.getItem(userKey('whiteboard_plan_dismissed_' + todayStr()));
+    if (!dismissed) {
+      html += _renderNoPlanState();
+    }
+    html += _renderBriefingToggle(cachedBriefing, _briefingGenerating);
     return html;
   }
 
-  function _renderDayPlan(cachedPlan, planKey) {
+  function _renderDayPlanActive(cachedPlan, planKey) {
     let html = '';
     try {
       const plan = JSON.parse(cachedPlan);
-      const doneCount = plan.filter(
-        (p) => p.completedInPlan || (findTask(p.id) && findTask(p.id).status === 'done'),
-      ).length;
-      const totalCount = plan.filter((p) => findTask(p.id)).length;
-      const planMinutes = plan.reduce((sum, p) => {
-        const t = findTask(p.id);
-        return sum + (t && t.estimatedMinutes ? t.estimatedMinutes : 0);
-      }, 0);
-      const planTimeStr = planMinutes > 0 ? ` \u00b7 ~${Math.round((planMinutes / 60) * 10) / 10}h` : '';
+      const validPlan = plan.filter((p) => findTask(p.id));
+      const activePlanItems = [];
+      const completedPlanItems = [];
 
-      html += `<div style="border-top:1px solid rgba(129,140,248,0.1);padding-top:12px;margin-top:8px">`;
-      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent)">Day Plan</span>
-        <span style="font-size:10px;color:${doneCount === totalCount && totalCount > 0 ? 'var(--green)' : 'var(--text3)'}">${doneCount}/${totalCount} done${planTimeStr}</span>
-        <span style="margin-left:auto;font-size:10px;color:var(--text3);cursor:pointer" data-action="clear-plan" data-plan-key="${planKey}" role="button" tabindex="0" aria-label="Clear plan">clear</span>
-      </div>`;
-
-      plan.forEach((p, i) => {
+      validPlan.forEach((p, i) => {
         const t = findTask(p.id);
         if (!t) return;
         const isDone = p.completedInPlan || t.status === 'done';
-        html += `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:2px;${isDone ? 'text-decoration:line-through;opacity:0.5' : ''}">
-          <span style="font-size:11px;color:var(--text3);min-width:18px;padding-top:10px">${i + 1}.</span>
-          <div style="flex:1">${renderTaskRow(t, true)}</div>
-          ${!isDone ? `<button data-action="snooze-plan-task" data-task-id="${p.id}" class="snooze-btn-hover" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:8px 4px;white-space:nowrap;flex-shrink:0" title="Snooze to tomorrow">snooze</button>` : ''}
+        if (isDone) {
+          completedPlanItems.push({ ...p, _task: t, _index: i });
+        } else {
+          activePlanItems.push({ ...p, _task: t, _index: i });
+        }
+      });
+
+      const doneCount = completedPlanItems.length;
+      const totalCount = validPlan.length;
+
+      // Remaining time from incomplete tasks
+      const remainingMinutes = activePlanItems.reduce((sum, p) => {
+        return sum + (p._task.estimatedMinutes || 0);
+      }, 0);
+      const remainingStr =
+        remainingMinutes > 0 ? ` \u00b7 ~${Math.round((remainingMinutes / 60) * 10) / 10}h remaining` : '';
+
+      // Progress bar
+      const allDone = doneCount === totalCount && totalCount > 0;
+      const barFilled = totalCount > 0 ? Math.round((doneCount / totalCount) * 10) : 0;
+      const barEmpty = 10 - barFilled;
+      const barText = '\u2588'.repeat(barFilled) + '\u2591'.repeat(barEmpty);
+
+      html += `<div class="day-plan-centerpiece" style="background:var(--surface);border:1px solid ${allDone ? 'var(--green)' : 'var(--accent)'};border-radius:var(--radius);padding:24px;margin-bottom:20px">`;
+
+      // Header
+      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:16px;color:${allDone ? 'var(--green)' : 'var(--accent)'}">\u25ce</span>
+        <span style="font-size:15px;font-weight:600;color:var(--text)">Today's Plan</span>
+        <span style="font-size:11px;color:var(--text3)">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--text3);cursor:pointer" data-action="clear-plan" data-plan-key="${planKey}" role="button" tabindex="0" aria-label="Clear plan">clear</span>
+      </div>`;
+
+      // Progress bar
+      html += `<div style="margin-bottom:16px">
+        <div style="font-family:monospace;font-size:13px;color:${allDone ? 'var(--green)' : 'var(--accent)'};letter-spacing:1px;margin-bottom:4px">${barText}</div>
+        <div style="font-size:12px;color:${allDone ? 'var(--green)' : 'var(--text2)'}">${doneCount}/${totalCount} done${remainingStr}${allDone ? ' \u2014 great work!' : ''}</div>
+      </div>`;
+
+      // Active tasks in plan order
+      activePlanItems.forEach((p) => {
+        const t = p._task;
+        const priorityBadge =
+          t.priority === 'urgent' || t.priority === 'important' ? renderPriorityTag(t.priority) : '';
+        const dueDateStr = t.dueDate
+          ? ` <span class="tag tag-date" style="font-size:10px">${fmtDate(t.dueDate)}</span>`
+          : '';
+        const recurIcon = t.recurrence
+          ? ' <span title="Recurring: ' +
+            esc(t.recurrence) +
+            '" style="font-size:11px;color:var(--text3)">\u21bb</span>'
+          : '';
+
+        html += `<div class="plan-task-row" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-radius:var(--radius-sm);margin-bottom:2px;transition:background 0.15s" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='transparent'">
+          <div class="task-check" data-action="complete-task" data-task-id="${t.id}" role="checkbox" aria-checked="false" tabindex="0" aria-label="Mark ${esc(t.title)} done" style="flex-shrink:0"></div>
+          <div style="flex:1;min-width:0">
+            <span style="font-size:13px;color:var(--text);cursor:pointer" data-action="toggle-expand" data-task="${t.id}">${esc(t.title)}</span>
+            ${priorityBadge}${dueDateStr}${recurIcon}
+          </div>
+          <button data-action="snooze-plan-task" data-task-id="${p.id}" class="snooze-btn-hover" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:4px 8px;white-space:nowrap;flex-shrink:0;border-radius:var(--radius-xs);transition:all 0.15s" title="Snooze to tomorrow">\u2192 tomorrow</button>
         </div>`;
         if (p.why)
-          html += `<div style="margin-left:28px;font-size:11px;color:var(--text3);margin-bottom:8px;margin-top:-4px;font-style:italic">\u21b3 ${esc(p.why)}</div>`;
+          html += `<div style="margin-left:34px;font-size:11px;color:var(--text3);margin-bottom:6px;margin-top:-2px;font-style:italic">\u21b3 ${esc(p.why)}</div>`;
       });
-      html += `<div style="margin-top:8px"><button data-action="replan-day" class="briefing-generate" style="color:var(--accent);font-size:11px">\u21bb Replan</button></div>`;
+
+      // Completed tasks (collapsed at bottom)
+      if (completedPlanItems.length > 0) {
+        html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px;cursor:pointer;user-select:none" data-action="toggle-completed" data-key="plan-done">${getShowCompleted('plan-done') ? '\u25be' : '\u25b8'} Completed (${completedPlanItems.length})</div>`;
+        if (getShowCompleted('plan-done')) {
+          completedPlanItems.forEach((p) => {
+            const t = p._task;
+            html += `<div style="display:flex;align-items:center;gap:10px;padding:4px;opacity:0.45">
+              <div class="task-check done" style="flex-shrink:0"></div>
+              <span style="font-size:12px;color:var(--text3);text-decoration:line-through;flex:1">${esc(t.title)}</span>
+            </div>`;
+          });
+        }
+        html += `</div>`;
+      }
+
+      // Footer actions
+      html += `<div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+        <button data-action="replan-day" class="briefing-generate" style="color:var(--accent);font-size:11px">\u21bb Replan</button>
+        <button data-action="add-to-plan" class="briefing-generate" style="font-size:11px">+ Add to plan</button>
+      </div>`;
+
       html += `</div>`;
     } catch (e) {
       console.warn('Plan render failed:', e);
     }
     return html;
+  }
+
+  function _renderNoPlanState() {
+    let html = '';
+    html += `<div class="day-plan-centerpiece" style="background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;text-align:center">`;
+    html += `<div style="font-size:16px;color:var(--text3);margin-bottom:4px">\u25ce</div>`;
+    html += `<div style="font-size:14px;color:var(--text2);margin-bottom:12px">No plan yet for today</div>`;
+    if (hasAI()) {
+      html += `<div style="display:flex;gap:8px;justify-content:center">
+        <button class="btn btn-primary btn-sm" data-action="plan-my-day" id="planBtn">\u25ce Plan my day</button>
+        <button class="btn btn-sm" data-action="dismiss-plan-prompt" id="wingItBtn" style="color:var(--text3)">I'll wing it</button>
+      </div>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  function _renderBriefingToggle(cachedBriefing, _briefingGenerating) {
+    let html = '';
+    const _todayBriefingExpanded = getTodayBriefingExpanded();
+    if (cachedBriefing) {
+      html += `<div style="margin-bottom:16px">`;
+      html += `<div data-action="briefing-expand" role="button" tabindex="0" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:6px 0">
+        <span style="font-size:12px;color:var(--text3);transition:transform 0.2s${_todayBriefingExpanded ? ';transform:rotate(90deg)' : ''}">\u25b8</span>
+        <span style="font-size:12px;color:var(--text3)">\uD83D\uDCCB Show today's briefing</span>
+      </div>`;
+      if (_todayBriefingExpanded) {
+        html += `<div class="today-briefing-body" id="briefingBody" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:4px">${sanitizeAIHTML(cachedBriefing)}</div>`;
+        html += `<div style="display:flex;gap:8px;margin-top:6px">
+          <button class="briefing-generate" data-action="briefing-collapse" style="font-size:11px">Hide briefing</button>
+          <button class="briefing-generate" data-action="generate-briefing" id="briefingBtn" style="font-size:11px">\u21bb Refresh</button>
+        </div>`;
+      }
+      html += `</div>`;
+    } else if (_briefingGenerating) {
+      html += `<div class="skeleton-pulse" style="padding:12px 16px;min-height:40px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border-radius:var(--radius-sm)"><span style="font-size:11px;color:var(--text3)">Generating briefing...</span></div>`;
+    } else if (hasAI()) {
+      html += `<div style="margin-bottom:12px">
+        <button class="briefing-generate" data-action="generate-briefing" id="briefingBtn" style="font-size:11px;color:var(--text3)">\u2726 Generate Briefing</button>
+      </div>`;
+    }
+    return html;
+  }
+
+  // Legacy wrapper for _renderAIInsights compatibility
+  function _renderTodayBriefingAndPlan() {
+    let html = '';
+    const planKey = userKey('whiteboard_plan_' + todayStr());
+    const cachedPlan = localStorage.getItem(planKey);
+    if (cachedPlan || getPlanGenerating()) return html;
+    const briefingKey = userKey('whiteboard_briefing_' + todayStr());
+    const cachedBriefing = localStorage.getItem(briefingKey);
+    const _briefingGenerating = getBriefingGenerating();
+    if (cachedBriefing || _briefingGenerating) {
+      html += `<div class="today-card">`;
+      html += `<div class="today-card-header">
+        <span style="font-size:14px">\u2726</span>
+        <div class="today-card-title">Today</div>
+        <div class="today-card-date">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+      </div>`;
+      const _todayBriefingExpanded = getTodayBriefingExpanded();
+      if (cachedBriefing) {
+        if (_todayBriefingExpanded) {
+          html += `<div class="today-briefing-body" id="briefingBody">${sanitizeAIHTML(cachedBriefing)}</div>`;
+          html += `<button class="briefing-generate" data-action="briefing-collapse" style="font-size:11px;margin-top:6px;margin-bottom:8px">Show less</button>`;
+        } else {
+          html += `<div style="font-size:13px;color:var(--text2);line-height:1.7;max-height:2.8em;overflow:hidden;position:relative;cursor:pointer" data-action="briefing-expand" id="briefingBody">
+            ${sanitizeAIHTML(cachedBriefing)}
+            <div style="position:absolute;bottom:0;left:0;right:0;height:1.4em;background:linear-gradient(transparent,var(--bg));pointer-events:none"></div>
+          </div>`;
+          html += `<button class="briefing-generate" data-action="briefing-expand" style="font-size:11px;margin-top:4px;margin-bottom:8px">Read more</button>`;
+        }
+      } else if (_briefingGenerating) {
+        html += `<div class="skeleton-pulse" style="padding:16px 20px;min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Generating your briefing...</span></div>`;
+      }
+      html += `<div style="display:flex;gap:8px;margin-top:12px">
+        <button class="briefing-generate" data-action="generate-briefing" id="briefingBtn">${cachedBriefing ? '\u21bb Refresh' : _briefingGenerating ? '\u2726 Generating...' : '\u2726 Generate Briefing'}</button>
+        <button class="briefing-generate" data-action="plan-my-day" id="planBtn" style="color:var(--accent)">\u25ce Plan My Day</button>
+      </div>`;
+      html += `</div>`;
+    }
+    return html;
+  }
+
+  // Legacy _renderDayPlan kept for any external callers
+  function _renderDayPlan(cachedPlan, planKey) {
+    return _renderDayPlanActive(cachedPlan, planKey);
   }
 
   function _renderEndOfDay(data) {
@@ -1465,19 +1560,36 @@ export function createDashboard(deps) {
     let html = '';
     html += _renderDashboardHero(data, active, done, inProgress, urgent);
 
-    // Today's Recurring habits widget
-    html += _renderHabitsWidget(active);
-
-    // Consolidated AI Insights section (collapsible)
-    html += _renderAIInsights(data);
+    // Day plan is the MAIN content of the dashboard
+    html += _renderDashboardPlanFirst(data);
 
     // Tag & nudge filters (stay at dashboard level, outside AI Insights)
     html += _renderDashboardFilters();
 
-    // Primary content: task feed + boards
-    html += _renderDashboardSmartFeed();
-    html += _renderDashboardBoards(data);
+    // Nudges → toast only (show top nudge as toast, once per session)
+    _showNudgeAsToast();
+
     return html;
+  }
+
+  // === Plan-first dashboard: day plan centerpiece is the main content ===
+  function _renderDashboardPlanFirst(data) {
+    let html = '';
+    html += _renderDayPlanCenterpiece();
+    html += _renderEndOfDay(data);
+    return html;
+  }
+
+  // Nudges → toast only: show the top nudge as a toast notification, once per app open
+  function _showNudgeAsToast() {
+    const sessionFlag = '__tb_nudge_toast_shown';
+    if (typeof window !== 'undefined' && window.sessionStorage && window.sessionStorage.getItem(sessionFlag)) return;
+    const nudges = getSmartNudges();
+    if (nudges.length > 0) {
+      const top = nudges[0];
+      showToast(top.text, false, true);
+      if (typeof window !== 'undefined' && window.sessionStorage) window.sessionStorage.setItem(sessionFlag, '1');
+    }
   }
 
   // Tag and nudge filter controls (extracted from _renderDashboardNudges)
