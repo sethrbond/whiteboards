@@ -515,6 +515,21 @@ export function createActions(deps) {
           deps.deleteSubtask(actionEl.dataset.taskId, actionEl.dataset.subtaskId);
         }
         break;
+      case 'toggle-subtask-notes': {
+        e.stopPropagation();
+        const notesArea = document.querySelector(
+          `.subtask-notes-area[data-subtask-notes="${actionEl.dataset.subtaskId}"]`,
+        );
+        if (notesArea) {
+          const showing = notesArea.style.display !== 'none';
+          notesArea.style.display = showing ? 'none' : '';
+          if (!showing) {
+            const ta = notesArea.querySelector('textarea');
+            if (ta) ta.focus();
+          }
+        }
+        break;
+      }
       case 'toggle-subtask-focus':
         toggleSubtask(actionEl.dataset.taskId, actionEl.dataset.subtaskId);
         renderFocusOverlay();
@@ -1224,6 +1239,17 @@ export function createActions(deps) {
           c.checked = el.checked;
         });
         break;
+    }
+  });
+
+  // ---- Subtask notes auto-save on blur ----
+  document.addEventListener('focusout', (e) => {
+    if (e.target.dataset?.subtaskNotesInput) {
+      const taskId = e.target.dataset.taskId;
+      const subtaskId = e.target.dataset.subtaskId;
+      if (taskId && subtaskId && typeof deps.updateSubtaskNotes === 'function') {
+        deps.updateSubtaskNotes(taskId, subtaskId, e.target.value);
+      }
     }
   });
 

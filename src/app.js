@@ -210,6 +210,7 @@ const deleteProject = (id) => _dataLayer.deleteProject(id);
 const addSubtask = (taskId, title, parentId) => _dataLayer.addSubtask(taskId, title, parentId);
 const deleteSubtask = (taskId, subtaskId) => _dataLayer.deleteSubtask(taskId, subtaskId);
 const renameSubtask = (taskId, subtaskId, title) => _dataLayer.renameSubtask(taskId, subtaskId, title);
+const updateSubtaskNotes = (taskId, subtaskId, notes) => _dataLayer.updateSubtaskNotes(taskId, subtaskId, notes);
 const toggleSubtask = (taskId, subtaskId) => _dataLayer.toggleSubtask(taskId, subtaskId);
 const pushUndo = (label) => _dataLayer.pushUndo(label);
 const undo = () => _dataLayer.undo();
@@ -1498,6 +1499,7 @@ createActions({
   addSubtask,
   deleteSubtask,
   renameSubtask,
+  updateSubtaskNotes,
   runTaskCmd,
   guardedCloseEditModal,
   heroInputHandler,

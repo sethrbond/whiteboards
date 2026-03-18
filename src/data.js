@@ -515,6 +515,16 @@ export function createDataLayer(deps) {
     }
   }
 
+  function updateSubtaskNotes(taskId, subtaskId, notes) {
+    const t = findTask(taskId);
+    if (!t || !t.subtasks) return;
+    const s = _findSubtaskRecursive(t.subtasks, subtaskId);
+    if (s) {
+      s.notes = notes;
+      saveData(data);
+    }
+  }
+
   function toggleSubtask(taskId, subtaskId) {
     const t = findTask(taskId);
     if (!t || !t.subtasks) return;
@@ -922,6 +932,7 @@ export function createDataLayer(deps) {
     addSubtask,
     deleteSubtask,
     renameSubtask,
+    updateSubtaskNotes,
     toggleSubtask,
     // Undo
     pushUndo,
