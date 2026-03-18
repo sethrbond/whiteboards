@@ -247,6 +247,8 @@ export function createDashboard(deps) {
     pl.style.display = boardsExpanded ? '' : 'none';
     const chev = document.querySelector('.boards-chevron');
     if (chev) chev.style.transform = boardsExpanded ? 'rotate(90deg)' : '';
+    const boardsToggle = $('[data-action="toggle-boards-list"]');
+    if (boardsToggle) boardsToggle.setAttribute('aria-expanded', boardsExpanded ? 'true' : 'false');
     const boardsCount = $('#boardsCount');
     if (boardsCount) boardsCount.textContent = data.projects.length > 0 ? data.projects.length : '';
 
@@ -498,11 +500,11 @@ export function createDashboard(deps) {
     return html;
   }
 
-  function _renderNowDashboardView(c, ha, data, bulkMode, dashViewMode) {
+  function _renderNowDashboardView(c, ha, data, _bulkMode, dashViewMode) {
     const _estTotal = activeTasks().reduce((s, t) => s + (t.estimatedMinutes || 0), 0);
     const _estStr = _estTotal > 0 ? ` \u00b7 ~${Math.round((_estTotal / 60) * 10) / 10}h estimated` : '';
     $('#viewSub').textContent = `${activeTasks().length} active tasks across ${data.projects.length} boards${_estStr}`;
-    ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${dashViewMode === 'list' ? 'active' : ''}" data-action="dash-view" data-mode="list">List</button><button class="view-toggle-btn ${dashViewMode === 'week' ? 'active' : ''}" data-action="dash-view" data-mode="week">Week</button><button class="view-toggle-btn ${dashViewMode === 'month' ? 'active' : ''}" data-action="dash-view" data-mode="month">Month</button></div><button class="btn btn-sm${bulkMode ? ' btn-active' : ''}" data-action="toggle-bulk" title="Select multiple tasks">\u2630 Bulk</button><button class="btn btn-sm" data-action="toggle-chat">\u2726 Ask AI</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
+    ha.innerHTML = `<button class="btn btn-sm" data-action="toggle-chat">\u2726 Ask AI</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
     c.innerHTML = dashViewMode === 'list' ? renderDashboard() : renderCalendar();
   }
 
@@ -1043,7 +1045,7 @@ export function createDashboard(deps) {
               ? ` <span style="font-size:10px;color:var(--text3)">(${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length})</span>`
               : '';
 
-          html += `<div class="plan-task-row" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-radius:var(--radius-sm);margin-bottom:2px;transition:background 0.15s" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='transparent'">
+          html += `<div class="plan-task-row">
             <div class="task-check" data-action="complete-task" data-task-id="${t.id}" role="checkbox" aria-checked="false" tabindex="0" aria-label="Mark ${esc(t.title)} done" style="flex-shrink:0"></div>
             <div style="flex:1;min-width:0">
               <span style="font-size:13px;color:var(--text);cursor:pointer" data-action="toggle-expand" data-task="${t.id}">${esc(t.title)}</span>

@@ -523,38 +523,6 @@ describe('sync.js — createSync()', () => {
     expect(sync.getLastCloudUpdatedAt()).toBe('2026-03-15T12:00:00Z');
   });
 
-  it.skip('syncToCloud detects conflict when cloud was updated by another session (disabled for beta)', async () => {
-    // Set _lastCloudUpdatedAt to an older time
-    const oldTs = '2026-03-15T10:00:00Z';
-    const newTs = '2026-03-15T11:00:00Z'; // Cloud is newer
-
-    const singleCheck = vi.fn(() => Promise.resolve({ data: { updated_at: newTs }, error: null }));
-    const sb = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({ eq: vi.fn(() => ({ single: singleCheck })) })),
-        upsert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn() })) })),
-      })),
-      supabaseUrl: 'https://test.supabase.co',
-      supabaseKey: 'test-key',
-    };
-    deps.getCurrentUser.mockReturnValue({ id: 'u1' });
-    deps.sb = sb;
-    deps.getData.mockReturnValue({ tasks: [{ id: 't1', title: 'T' }], projects: [] });
-    deps.getSettings.mockReturnValue({ aiModel: 'claude' });
-    sync = createSync(deps);
-    sync.setLastCloudUpdatedAt(oldTs);
-
-    const promise = sync.syncToCloud();
-    await vi.runAllTimersAsync();
-    await promise;
-
-    expect(deps.showToast).toHaveBeenCalledWith(expect.stringContaining('Another session'), true);
-    expect(sync.getSyncStatus()).toBe('offline');
-    // Conflict banner should be added
-    const banner = document.getElementById('conflict-banner');
-    expect(banner).not.toBeNull();
-  });
-
   it('syncToCloud refuses to sync empty data when cloud had data', async () => {
     // The new sync code does an actual cloud query to check if cloud has tasks
     // before allowing empty local data to overwrite it
@@ -776,39 +744,6 @@ describe('sync.js — createSync()', () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
-  });
-
-  it.skip('setupSyncListeners — visibilitychange detects conflict when tab becomes visible (disabled for beta)', async () => {
-    vi.useRealTimers(); // This test needs real timers for async resolution
-    const newTs = '2026-03-15T12:00:00Z';
-    const singleSelect = vi.fn(() => Promise.resolve({ data: { updated_at: newTs }, error: null }));
-    const sb = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({ eq: vi.fn(() => ({ single: singleSelect })) })),
-        upsert: vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn() })) })),
-      })),
-      supabaseUrl: 'https://test.supabase.co',
-      supabaseKey: 'test-key',
-    };
-    deps.getCurrentUser.mockReturnValue({ id: 'u1' });
-    deps.sb = sb;
-    deps.getData.mockReturnValue({ tasks: [{ id: 't1', title: 'T' }], projects: [] });
-    deps.getSettings.mockReturnValue({ aiModel: 'claude' });
-    sync = createSync(deps);
-    sync.setSyncStatus('synced');
-    sync.setLastCloudUpdatedAt('2026-03-15T10:00:00Z'); // older
-    sync.setupSyncListeners();
-
-    // Simulate tab becoming visible
-    Object.defineProperty(document, 'hidden', { value: false, writable: true, configurable: true });
-    document.dispatchEvent(new Event('visibilitychange'));
-
-    // Allow async handler to resolve
-    await new Promise((r) => setTimeout(r, 50));
-
-    expect(deps.showToast).toHaveBeenCalledWith(expect.stringContaining('Another session'), true);
-    expect(sync.getSyncStatus()).toBe('offline');
-    vi.useFakeTimers(); // restore for afterEach
   });
 
   it('setupSyncListeners — visibilitychange reschedules sync if offline and tab visible', () => {

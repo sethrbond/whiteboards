@@ -3961,6 +3961,20 @@ h3.section-title {
   transform: scale(1.02);
 }
 
+/* Plan task rows */
+.plan-task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 2px;
+  transition: background 0.15s;
+}
+.plan-task-row:hover {
+  background: var(--surface2);
+}
+
 /* Snooze button */
 .snooze-btn-hover {
   transition: color 0.15s;

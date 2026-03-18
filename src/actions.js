@@ -467,6 +467,7 @@ export function createActions(deps) {
         if (inputRow) {
           const isVisible = inputRow.style.display !== 'none';
           inputRow.style.display = isVisible ? 'none' : 'block';
+          actionEl.setAttribute('aria-expanded', isVisible ? 'false' : 'true');
           if (!isVisible) {
             const inp = inputRow.querySelector('input');
             if (inp) inp.focus();
@@ -952,6 +953,7 @@ export function createActions(deps) {
           const showing = pl.style.display !== 'none';
           pl.style.display = showing ? 'none' : '';
           if (chev) chev.style.transform = showing ? '' : 'rotate(90deg)';
+          actionEl.setAttribute('aria-expanded', showing ? 'false' : 'true');
           localStorage.setItem('wb_boards_expanded', showing ? '0' : '1');
         }
         break;

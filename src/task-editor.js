@@ -152,7 +152,7 @@ export function createTaskEditor(deps) {
       const hasChildren = s.subtasks && s.subtasks.length > 0;
       html += `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;padding-left:${indent}px">`;
       if (depth < MAX_SUBTASK_DEPTH - 1) {
-        html += `<button style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px;cursor:pointer;flex-shrink:0;padding:0;line-height:1" data-action="toggle-add-child-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}" title="Add sub-step">+</button>`;
+        html += `<button style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px;cursor:pointer;flex-shrink:0;padding:0;line-height:1" data-action="toggle-add-child-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}" title="Add sub-step" aria-label="Add sub-step to ${esc(s.title)}" aria-expanded="false">+</button>`;
       } else {
         html += `<div style="width:16px;flex-shrink:0"></div>`;
       }

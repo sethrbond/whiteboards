@@ -510,28 +510,6 @@ describe('events.js — delegated listeners coverage', () => {
 
   // ── task row expand/collapse ──────────────────────────────────────
   describe('task row expand/collapse', () => {
-    it.skip('expands a task when clicking on task row (moved to capture handler in app.js)', () => {
-      deps2.getExpandedTask.mockReturnValue(null);
-      const row = document.createElement('div');
-      row.dataset.task = 't_5';
-      document.body.appendChild(row);
-      row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      expect(deps2.setExpandedTask).toHaveBeenCalledWith('t_5');
-      expect(deps2.render).toHaveBeenCalled();
-      row.remove();
-    });
-
-    it.skip('collapses a task when clicking on already-expanded task row (moved to capture handler in app.js)', () => {
-      deps2.getExpandedTask.mockReturnValue('t_5');
-      const row = document.createElement('div');
-      row.dataset.task = 't_5';
-      document.body.appendChild(row);
-      row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      expect(deps2.setExpandedTask).toHaveBeenCalledWith(null);
-      expect(deps2.render).toHaveBeenCalled();
-      row.remove();
-    });
-
     it('does not expand when clicking on a btn inside task row', () => {
       const row = document.createElement('div');
       row.dataset.task = 't_5';

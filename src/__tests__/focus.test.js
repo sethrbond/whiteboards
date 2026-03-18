@@ -434,17 +434,6 @@ describe('focus.js — createFocusMode()', () => {
 
   // ── AI coaching tip ──────────────────────────────────────────────
   describe('AI coaching tip', () => {
-    it.skip('requests coaching tip when AI available and no reason (removed from bar UI)', async () => {
-      deps.hasAI.mockReturnValue(true);
-      const task = { id: 't_1', title: 'Write tests', priority: 'normal' };
-      deps.findTask.mockReturnValue(task);
-      deps.getData.mockReturnValue({ tasks: [task], projects: [] });
-      deps.callAI.mockResolvedValue('Start by listing test cases');
-
-      focus.openFocusView('t_1');
-      expect(deps.callAI).toHaveBeenCalled();
-    });
-
     it('does not request coaching tip when reason is provided', () => {
       deps.hasAI.mockReturnValue(true);
       const task = { id: 't_1', title: 'Write tests', priority: 'normal' };
@@ -750,17 +739,6 @@ describe('focus.js — createFocusMode()', () => {
       focus.logDistraction();
       expect(deps.showToast).toHaveBeenCalledWith('Noted. Refocus!');
     });
-
-    it.skip('logDistraction updates DOM counter (removed from bar UI)', () => {
-      deps.findTask.mockReturnValue({ id: 't_1', title: 'Task', priority: 'normal' });
-      focus.openFocusView('t_1');
-      const countEl = document.getElementById('focusDistractionCount');
-      expect(countEl).toBeTruthy();
-      focus.logDistraction();
-      expect(countEl.textContent).toBe('1');
-      focus.logDistraction();
-      expect(countEl.textContent).toBe('2');
-    });
   });
 
   // ── Break Timer ───────────────────────────────────────────────────
@@ -886,66 +864,6 @@ describe('focus.js — additional coverage', () => {
       clearInterval(window._focusInterval);
       window._focusInterval = null;
     }
-  });
-
-  // ── Timer reaching 25-min pomodoro mark (lines 487-509) ────────────
-  describe('timer reaching 25-minute pomodoro mark', () => {
-    it.skip('adds break button and hint dynamically when 25 min reached (removed from bar UI)', () => {
-      vi.useFakeTimers();
-      const task = { id: 't_1', title: 'Long task', priority: 'normal' };
-      deps.findTask.mockReturnValue(task);
-      deps.getData.mockReturnValue({ tasks: [task], projects: [] });
-
-      focus.openFocusView('t_1');
-
-      const timerEl = document.getElementById('focusTimer');
-      expect(timerEl).toBeTruthy();
-
-      // Initially no break button or pomodoro hint
-      expect(document.querySelector('[data-action="start-break"]')).toBeNull();
-      expect(document.querySelector('.focus-pomodoro-hint')).toBeNull();
-
-      // Advance past 25 minutes (1500 seconds + 1 second buffer)
-      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
-
-      // Now the timer should have the complete class
-      expect(timerEl.classList.contains('focus-timer-complete')).toBe(true);
-
-      // Break button should have been dynamically inserted
-      const breakBtn = document.querySelector('[data-action="start-break"]');
-      expect(breakBtn).not.toBeNull();
-      expect(breakBtn.textContent).toBe('Take Break');
-
-      // Hint should have been dynamically inserted
-      const hint = document.querySelector('.focus-pomodoro-hint');
-      expect(hint).not.toBeNull();
-      expect(hint.textContent).toContain('25 min reached');
-
-      vi.useRealTimers();
-    });
-
-    it.skip('does not add duplicate break button on subsequent ticks after 25 min (removed from bar UI)', () => {
-      vi.useFakeTimers();
-      const task = { id: 't_1', title: 'Long task', priority: 'normal' };
-      deps.findTask.mockReturnValue(task);
-      deps.getData.mockReturnValue({ tasks: [task], projects: [] });
-
-      focus.openFocusView('t_1');
-
-      // Advance past 25 minutes
-      vi.advanceTimersByTime(25 * 60 * 1000 + 1000);
-
-      // Advance another few seconds — should not create duplicates
-      vi.advanceTimersByTime(3000);
-
-      const breakBtns = document.querySelectorAll('[data-action="start-break"]');
-      expect(breakBtns.length).toBe(1);
-
-      const hints = document.querySelectorAll('.focus-pomodoro-hint');
-      expect(hints.length).toBe(1);
-
-      vi.useRealTimers();
-    });
   });
 
   // ── completeFocusTask triggering break timer after 25+ min (lines 524-532) ──

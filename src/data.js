@@ -133,6 +133,7 @@ export function createDataLayer(deps) {
         if (d._schemaVersion !== CURRENT_SCHEMA_VERSION && raw) {
           try {
             localStorage.setItem(userKey(STORE_KEY) + '_backup', raw);
+            localStorage.setItem(userKey(STORE_KEY) + '_backup_time', String(Date.now()));
           } catch (_e) {
             /* quota */
           }
@@ -426,12 +427,27 @@ export function createDataLayer(deps) {
     return null;
   }
 
+  function _getSubtaskDepth(subtasks, subtaskId, depth) {
+    for (const s of subtasks) {
+      if (s.id === subtaskId) return depth;
+      if (s.subtasks) {
+        const found = _getSubtaskDepth(s.subtasks, subtaskId, depth + 1);
+        if (found >= 0) return found;
+      }
+    }
+    return -1;
+  }
+
+  const MAX_SUBTASK_DEPTH = 5;
+
   function addSubtask(taskId, title, parentSubtaskId) {
     const t = findTask(taskId);
     if (!t) return;
     if (!t.subtasks) t.subtasks = [];
     const newSub = { id: genId('st'), title, done: false };
     if (parentSubtaskId) {
+      const parentDepth = _getSubtaskDepth(t.subtasks, parentSubtaskId, 0);
+      if (parentDepth >= MAX_SUBTASK_DEPTH - 1) return; // reject if too deep
       const parent = _findSubtaskRecursive(t.subtasks, parentSubtaskId);
       if (parent) {
         if (!parent.subtasks) parent.subtasks = [];
@@ -778,12 +794,17 @@ export function createDataLayer(deps) {
   function cleanupStorage() {
     let freed = 0;
     const prefix = userKey('');
-    // Remove backup older than 24h
+    // Remove backup ONLY if older than 24h — never destroy the recovery path for recent backups
     const backupKey = userKey(STORE_KEY) + '_backup';
-    const backup = localStorage.getItem(backupKey);
-    if (backup) {
-      freed += (backupKey.length + backup.length) * 2;
-      localStorage.removeItem(backupKey);
+    const backupTimeKey = backupKey + '_time';
+    const backupTime = parseInt(localStorage.getItem(backupTimeKey) || '0', 10);
+    if (backupTime && Date.now() - backupTime > 24 * 60 * 60 * 1000) {
+      const backup = localStorage.getItem(backupKey);
+      if (backup) {
+        freed += (backupKey.length + backup.length) * 2;
+        localStorage.removeItem(backupKey);
+        localStorage.removeItem(backupTimeKey);
+      }
     }
     // Trim chat history to 50 messages
     const chatKey = userKey('wb_chat_history');
