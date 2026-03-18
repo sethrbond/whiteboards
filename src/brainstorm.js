@@ -202,27 +202,15 @@ export function createBrainstorm(deps) {
 
   // ── Attachment system ───────────────────────────────────────────────────
   const _libCache = {};
-  const _libSRI = {
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js':
-      'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e',
-    'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js':
-      'sha384-nFoSjZIoH3CCp8W639jJyQkuPHinJ2NHe7on1xvlUA7SuGfJAfvMldrsoAVm6ECz',
-    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js':
-      'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw',
-  };
 
   function loadScript(url) {
     if (_libCache[url]) return _libCache[url];
     _libCache[url] = new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = url;
-      if (_libSRI[url]) {
-        s.integrity = _libSRI[url];
-        s.crossOrigin = 'anonymous';
-      }
       s.onload = resolve;
       s.onerror = () => {
-        delete _libCache[url]; // allow retry on next attempt
+        delete _libCache[url];
         reject(new Error('Failed to load ' + url.split('/').pop()));
       };
       document.head.appendChild(s);

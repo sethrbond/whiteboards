@@ -577,13 +577,7 @@ RULES:
           if (d >= 0 && d <= 90) durations.push(d);
         }
       });
-      if (durations.length >= 2) {
-        durations.sort((a, b) => a - b);
-        const med = durations[Math.floor(durations.length / 2)];
-        const sd = Math.max(1, med);
-        result.suggestedDueDate = localISO(new Date(Date.now() + sd * MS_PER_DAY));
-        result.suggestedDueDays = sd;
-      }
+      // Due date suggestions removed — never invent deadlines the user didn't set
     }
     if (data.projects.length > 0) {
       let bestProj = null,
