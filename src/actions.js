@@ -569,13 +569,16 @@ export function createActions(deps) {
       case 'view-organized': {
         const bm = getBrainstormModule();
         if (bm && bm.setLastDumpResult) bm.setLastDumpResult(null);
+        closeModal();
         setView('dashboard');
+        render();
         break;
       }
       case 'new-brainstorm': {
-        const bm = getBrainstormModule();
-        if (bm && bm.setLastDumpResult) bm.setLastDumpResult(null);
-        render();
+        const bm2 = getBrainstormModule();
+        if (bm2 && bm2.setLastDumpResult) bm2.setLastDumpResult(null);
+        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+        else render();
         break;
       }
 
@@ -942,6 +945,17 @@ export function createActions(deps) {
         localStorage.setItem(userKey('whiteboard_eod_dismissed_' + todayStr()), '1');
         document.getElementById('eodCard').remove();
         break;
+      case 'toggle-boards-list': {
+        const pl = document.getElementById('projectList');
+        const chev = document.querySelector('.boards-chevron');
+        if (pl) {
+          const showing = pl.style.display !== 'none';
+          pl.style.display = showing ? 'none' : '';
+          if (chev) chev.style.transform = showing ? '' : 'rotate(90deg)';
+          localStorage.setItem('wb_boards_expanded', showing ? '0' : '1');
+        }
+        break;
+      }
       // Dashboard: open new project (empty state)
       case 'open-new-project':
         openNewProject();

@@ -146,27 +146,30 @@
   </div>
 
   <nav class="nav-section" aria-label="Main navigation">
-    <div class="nav-item" data-view="dump" data-testid="nav-brainstorm" role="button" tabindex="0">
-      <span class="nav-icon" aria-hidden="true">↯</span> Brainstorm
-    </div>
     <div class="nav-item" data-view="dashboard" data-testid="nav-dashboard" role="button" tabindex="0">
       <span class="nav-icon" aria-hidden="true">◉</span> Dashboard
     </div>
     <div class="nav-item" data-view="calendar" data-testid="nav-calendar" role="button" tabindex="0">
       <span class="nav-icon" aria-hidden="true">▦</span> Calendar
     </div>
+    <div class="nav-item" data-view="dump" data-testid="nav-brainstorm" role="button" tabindex="0">
+      <span class="nav-icon" aria-hidden="true">↯</span> Brainstorm
+    </div>
   </nav>
 
   <nav class="nav-section" aria-label="Boards">
-    <div class="nav-label">Boards</div>
+    <div class="nav-label" data-action="toggle-boards-list" role="button" tabindex="0" style="cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none">
+      <span class="boards-chevron" style="font-size:9px;color:var(--text3);transition:transform 0.2s">&#9656;</span>
+      Boards
+      <span id="boardsCount" style="font-size:10px;color:var(--text3);margin-left:auto"></span>
+    </div>
   </nav>
-  <div class="project-list" id="projectList" data-testid="project-list" role="list" aria-label="Board list"></div>
+  <div class="project-list" id="projectList" data-testid="project-list" role="list" aria-label="Board list" style="display:none"></div>
 
-  <div class="nav-section" style="padding-top:8px">
+  <div class="nav-section" style="padding-top:4px">
     <div class="nav-item" data-view="archive" role="button" tabindex="0">
       <span class="nav-icon" aria-hidden="true">&#128451;</span> <span>Archive</span> <span class="nav-badge" id="archiveBadge" style="display:none;background:var(--surface3);color:var(--text3)"></span>
     </div>
-
   </div>
 
   <div class="sidebar-footer">

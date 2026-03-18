@@ -84,15 +84,17 @@ ALL ACTIVE TASKS (id|title|priority|status|due|project|blocked|estimate):
 ${taskList}
 
 RULES:
-- Pick tasks that are ACTUALLY doable today — not blocked, not vague multi-day efforts
+- STRICTLY pick 5-8 tasks MAXIMUM. Never more than 8. Be ruthless — a focused plan beats a long list.
 - Put urgent/overdue first, then high-impact, then quick wins
 - Consider energy: harder tasks earlier, lighter tasks later${orderHint}
 - Include at least one in-progress task (momentum matters)
-- Skip blocked tasks
+- Skip blocked tasks and vague multi-day efforts
 - If a task has subtasks, it's fine to include it — just note which subtask to start with
-- Respect time estimates — don't plan more than 6-8 hours of work total. If tasks have estimates, keep the total under ~7 hours.
+- Respect time estimates — don't plan more than 6-7 hours of work total
+- Leave buffer time — the user has meetings, breaks, and interruptions
+- If in doubt, leave it OUT. Tomorrow exists.
 
-Return ONLY a JSON array, no other text:
+Return ONLY a JSON array (5-8 items max), no other text:
 [
   { "id": "task_id", "why": "brief reason — 8 words max" },
   ...
@@ -107,8 +109,8 @@ Return ONLY a JSON array, no other text:
           .trim(),
       );
       if (Array.isArray(json) && json.length) {
-        // Validate IDs exist
-        const valid = json.filter((p) => findTask(p.id));
+        // Validate IDs exist, hard cap at 8 tasks
+        const valid = json.filter((p) => findTask(p.id)).slice(0, 8);
         localStorage.setItem(userKey('whiteboard_plan_' + todayStr()), JSON.stringify(valid));
         setPlanIndexCache(null, ''); // invalidate sort cache
         render();

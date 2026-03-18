@@ -247,8 +247,15 @@ export function createDashboard(deps) {
       } else ab.style.display = 'none';
     }
 
-    // Project list
+    // Project list (collapsible)
     const pl = $('#projectList');
+    const boardsExpanded = localStorage.getItem('wb_boards_expanded') === '1' || getCurrentView() === 'project';
+    pl.style.display = boardsExpanded ? '' : 'none';
+    const chev = document.querySelector('.boards-chevron');
+    if (chev) chev.style.transform = boardsExpanded ? 'rotate(90deg)' : '';
+    const boardsCount = $('#boardsCount');
+    if (boardsCount) boardsCount.textContent = data.projects.length > 0 ? data.projects.length : '';
+
     pl.innerHTML = data.projects
       .map((p) => {
         const active = getCurrentView() === 'project' && getCurrentProject() === p.id;
