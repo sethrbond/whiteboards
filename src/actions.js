@@ -946,6 +946,14 @@ export function createActions(deps) {
         localStorage.setItem(userKey('whiteboard_eod_dismissed_' + todayStr()), '1');
         document.getElementById('eodCard').remove();
         break;
+      case 'focus-quick-capture': {
+        const qc = document.getElementById('quickCapture');
+        if (qc) {
+          qc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => qc.focus(), 300);
+        }
+        break;
+      }
       case 'toggle-boards-list': {
         const pl = document.getElementById('projectList');
         const chev = document.querySelector('.boards-chevron');

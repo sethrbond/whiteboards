@@ -208,8 +208,8 @@
 <!-- AI Chat Panel -->
 <div class="chat-panel" id="chatPanel" data-testid="chat-panel" role="complementary" aria-label="AI Assistant">
   <div class="chat-header">
-    <span style="font-size:16px" aria-hidden="true">✦</span>
-    <div class="chat-header-title" id="chatTitle">AI Assistant</div>
+    <span class="ai-badge" aria-hidden="true">ai</span>
+    <div class="chat-header-title" id="chatTitle">Assistant</div>
     <button class="chat-close" data-action="toggle-chat" aria-label="Close chat">&times;</button>
   </div>
   <div class="chat-messages" id="chatMessages" aria-live="polite" aria-label="Chat messages">
@@ -224,8 +224,9 @@
     <button class="chat-send" data-action="send-chat">Send</button>
   </div>
 </div>
-<button class="chat-toggle" id="chatToggle" data-testid="chat-toggle" data-action="toggle-chat" title="AI Assistant" aria-label="Open AI Assistant" style="display:none">✦</button>
-<button class="mobile-chat-fab" id="mobileChatFab" data-action="toggle-chat" aria-label="Open AI Assistant"><span aria-hidden="true">✦</span><span class="fab-badge"></span></button>
+<button class="chat-toggle" id="chatToggle" data-testid="chat-toggle" data-action="toggle-chat" title="AI Assistant" aria-label="Open AI Assistant" style="display:none"><span class="ai-badge" style="font-size:11px;width:28px;height:28px">ai</span></button>
+<button class="mobile-add-fab" id="mobileAddFab" data-action="focus-quick-capture" aria-label="Add task"><span aria-hidden="true">+</span></button>
+<button class="mobile-chat-fab" id="mobileChatFab" data-action="toggle-chat" aria-label="Open AI Assistant"><span class="ai-badge" aria-hidden="true" style="font-size:14px;width:auto;height:auto;border:none;background:none;color:#fff">ai</span><span class="fab-badge"></span></button>
 <div class="pull-indicator" id="pullIndicator" aria-hidden="true"><div class="pull-spinner"></div></div>
 
 <script type="module" src="./app.js"></script>

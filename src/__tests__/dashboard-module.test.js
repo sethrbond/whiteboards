@@ -342,8 +342,12 @@ describe('dashboard.js — createDashboard()', () => {
     it('shows task count badge for projects with active tasks', () => {
       const navItem = addDashNavItem();
       const projects = [{ id: 'p1', name: 'Work', color: '#818cf8' }];
-      deps.getData.mockReturnValue({ tasks: [], projects });
-      deps.activeTasks.mockReturnValue([{ id: 't1' }, { id: 't2' }]);
+      const tasks = [
+        { id: 't1', status: 'todo', project: 'p1' },
+        { id: 't2', status: 'todo', project: 'p1' },
+      ];
+      deps.getData.mockReturnValue({ tasks, projects });
+      deps.activeTasks.mockReturnValue(tasks);
       deps.projectTasks.mockReturnValue([]);
       deps.archivedTasks.mockReturnValue([]);
       deps.$$.mockReturnValue([]);
@@ -359,10 +363,10 @@ describe('dashboard.js — createDashboard()', () => {
     it('shows overdue dot for projects with overdue tasks', () => {
       const navItem = addDashNavItem();
       const projects = [{ id: 'p1', name: 'Work', color: '#818cf8' }];
-      const overdueTasks = [{ id: 't1', status: 'todo', dueDate: '2026-03-10' }];
-      deps.getData.mockReturnValue({ tasks: [], projects });
+      const tasks = [{ id: 't1', status: 'todo', dueDate: '2026-03-10', project: 'p1' }];
+      deps.getData.mockReturnValue({ tasks, projects });
       deps.activeTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(overdueTasks);
+      deps.projectTasks.mockReturnValue(tasks);
       deps.archivedTasks.mockReturnValue([]);
       deps.$$.mockReturnValue([]);
       deps.$.mockImplementation((sel) => document.querySelector(sel));

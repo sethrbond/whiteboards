@@ -252,16 +252,26 @@ export function createDashboard(deps) {
     const boardsCount = $('#boardsCount');
     if (boardsCount) boardsCount.textContent = data.projects.length > 0 ? data.projects.length : '';
 
+    // Build task counts in one pass (avoids N+1 queries per project)
+    const _today = todayStr();
+    const _activeCounts = {};
+    const _overdueCounts = {};
+    data.tasks.forEach((t) => {
+      if (t.archived || t.status === 'done' || !t.project) return;
+      _activeCounts[t.project] = (_activeCounts[t.project] || 0) + 1;
+      if (t.dueDate && t.dueDate < _today) _overdueCounts[t.project] = (_overdueCounts[t.project] || 0) + 1;
+    });
+
     pl.innerHTML = data.projects
       .map((p) => {
         const active = getCurrentView() === 'project' && getCurrentProject() === p.id;
-        const count = activeTasks(p.id).length;
-        const overdue = projectTasks(p.id).filter((t) => t.status !== 'done' && t.dueDate && t.dueDate < todayStr());
+        const count = _activeCounts[p.id] || 0;
+        const hasOverdue = (_overdueCounts[p.id] || 0) > 0;
         return `<div class="project-nav-item ${active ? 'active' : ''}" data-project="${p.id}">
         <div class="project-dot" style="background:${p.color}"></div>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span>
         ${count > 0 ? `<span class="project-nav-count">${count}</span>` : ''}
-        ${overdue.length > 0 ? '<div style="width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0" title="Has overdue tasks" aria-label="Has overdue tasks"></div>' : ''}
+        ${hasOverdue ? '<div style="width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0" title="Has overdue tasks" aria-label="Has overdue tasks"></div>' : ''}
       </div>`;
       })
       .join('');
@@ -504,7 +514,7 @@ export function createDashboard(deps) {
     const _estTotal = activeTasks().reduce((s, t) => s + (t.estimatedMinutes || 0), 0);
     const _estStr = _estTotal > 0 ? ` \u00b7 ~${Math.round((_estTotal / 60) * 10) / 10}h estimated` : '';
     $('#viewSub').textContent = `${activeTasks().length} active tasks across ${data.projects.length} boards${_estStr}`;
-    ha.innerHTML = `<button class="btn btn-sm" data-action="toggle-chat">\u2726 Ask AI</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
+    ha.innerHTML = `<button class="btn btn-sm" data-action="toggle-chat"><span class="ai-badge" style="font-size:9px;width:20px;height:20px;display:inline-flex;vertical-align:middle;margin-right:4px">ai</span>Ask</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
     c.innerHTML = dashViewMode === 'list' ? renderDashboard() : renderCalendar();
   }
 

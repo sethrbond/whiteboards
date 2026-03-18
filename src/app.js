@@ -72,6 +72,7 @@ import {
   setupModalObserver,
   setupPopstateHandler,
   setupOfflineBanner,
+  setupPullToRefresh,
 } from './init.js';
 
 // ============================================================
@@ -130,7 +131,8 @@ document.addEventListener(
       e.target.closest('button') ||
       e.target.closest('input') ||
       e.target.closest('[data-bulk]') ||
-      e.target.closest('[data-toggle]')
+      e.target.closest('[data-toggle]') ||
+      e.target.closest('[data-action]')
     )
       return;
     const row = e.target.closest('[data-expandable]');
@@ -1376,6 +1378,7 @@ setupOfflineBanner({
     updateSyncDot = fn;
   },
 });
+setupPullToRefresh(() => _sync.syncToCloud());
 
 // ============================================================
 // EVENT DELEGATION (extracted to ./actions.js)
@@ -1691,13 +1694,12 @@ exposeWindowAPI(
 
 // ============================================================
 // SERVICE WORKER & BOOT
-// ============================================================
-// Disabled for beta — SW was causing stale cache issues in production
-// if ('serviceWorker' in navigator) {
-//   navigator.serviceWorker.register('/sw.js').catch((_e) => {
-//     console.warn('service worker registration failed:', _e.message || _e);
-//   });
-// }
+// Service Worker — offline support + PWA install
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch((_e) => {
+    console.warn('service worker registration failed:', _e.message || _e);
+  });
+}
 initAuth();
 
 // Start escalation engine after auth — if user is already authenticated,
