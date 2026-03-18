@@ -150,13 +150,16 @@ export function createTaskEditor(deps) {
     const indent = depth * 20;
     subtasks.forEach((s) => {
       const hasChildren = s.subtasks && s.subtasks.length > 0;
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;padding-left:${indent}px;cursor:pointer" role="checkbox" aria-checked="${s.done}" aria-label="Mark subtask: ${esc(s.title)} complete" tabindex="0" data-action="toggle-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}">`;
-      html += `<div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done ? 'var(--accent)' : 'var(--border2)'};background:${s.done ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0">${s.done ? '\u2713' : ''}</div>`;
-      html += `<span style="font-size:${Math.max(11, 12 - depth)}px;color:${s.done ? 'var(--text3)' : 'var(--text)'};${s.done ? 'text-decoration:line-through' : ''};flex:1">${esc(s.title)}</span>`;
+      html += `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;padding-left:${indent}px">`;
       if (depth < MAX_SUBTASK_DEPTH - 1) {
-        html += `<button class="btn-ghost" style="font-size:10px;color:var(--text3);padding:1px 4px;border:none;cursor:pointer;opacity:0.5" data-action="toggle-add-child-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}" title="Add nested subtask">+</button>`;
+        html += `<button style="width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px;cursor:pointer;flex-shrink:0;padding:0;line-height:1" data-action="toggle-add-child-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}" title="Add sub-step">+</button>`;
+      } else {
+        html += `<div style="width:16px;flex-shrink:0"></div>`;
       }
-      html += `</div>`;
+      html += `<div style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer" role="checkbox" aria-checked="${s.done}" aria-label="Mark subtask: ${esc(s.title)} complete" tabindex="0" data-action="toggle-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}">`;
+      html += `<div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done ? 'var(--accent)' : 'var(--border2)'};background:${s.done ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0">${s.done ? '\u2713' : ''}</div>`;
+      html += `<span style="font-size:${Math.max(11, 12 - depth)}px;color:${s.done ? 'var(--text3)' : 'var(--text)'};${s.done ? 'text-decoration:line-through' : ''}">${esc(s.title)}</span>`;
+      html += `</div></div>`;
       if (hasChildren) {
         html += _renderSubtasksRecursive(s.subtasks, taskId, depth + 1);
       }
