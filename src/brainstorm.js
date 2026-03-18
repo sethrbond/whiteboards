@@ -1213,6 +1213,9 @@ ${text}${getDumpAttachmentText()}`;
       wordCount: lastDumpResult.wordCount,
       tasksCreated: lastDumpResult.tasksCreated,
       boardsCreated: lastDumpResult.boardsCreated || 0,
+      summary: lastDumpResult.summary || '',
+      taskTitles: items.map((i) => i.title).slice(0, 20),
+      boards: Object.keys(lastDumpResult.tasksByBoard),
     });
     showToast(parts.length ? `\u2726 ${parts.join(', ')}` : 'Organized', false, true);
 

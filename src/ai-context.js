@@ -493,6 +493,24 @@ export function createAIContext(deps) {
           _arcCount +
           ' in archive. If user asks about past work or deleted projects, use search_archive action.\n';
     }
+    // Recent brainstorm sessions
+    const dumpHistoryKey = userKey('wb_dump_history');
+    try {
+      const dumpHistory = JSON.parse(localStorage.getItem(dumpHistoryKey) || '[]');
+      if (dumpHistory.length) {
+        ctx += '\nRECENT BRAINSTORMS:\n';
+        dumpHistory.slice(0, 3).forEach((d) => {
+          ctx += `  - ${d.date?.slice(0, 10) || 'unknown'}: ${d.tasksCreated || 0} tasks created`;
+          if (d.boards?.length) ctx += ` across boards: ${d.boards.join(', ')}`;
+          if (d.summary) ctx += ` — "${d.summary.slice(0, 150)}"`;
+          if (d.taskTitles?.length) ctx += `\n    Tasks: ${d.taskTitles.slice(0, 10).join(', ')}`;
+          ctx += '\n';
+        });
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+
     const chatHistory = getChatHistory();
     if (detail === 'full' && chatHistory.length) {
       const recent = chatHistory
