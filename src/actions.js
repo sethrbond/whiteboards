@@ -482,7 +482,10 @@ export function createActions(deps) {
           titleSpan.replaceWith(input);
           input.focus();
           input.select();
+          let committed = false;
           const commit = () => {
+            if (committed) return;
+            committed = true;
             const newTitle = input.value.trim();
             if (newTitle && newTitle !== oldTitle && typeof deps.renameSubtask === 'function') {
               deps.renameSubtask(stTaskId, stId, newTitle);
@@ -491,11 +494,15 @@ export function createActions(deps) {
             }
           };
           input.addEventListener('keydown', (ke) => {
+            ke.stopPropagation();
             if (ke.key === 'Enter') {
               ke.preventDefault();
               commit();
             }
-            if (ke.key === 'Escape') render();
+            if (ke.key === 'Escape') {
+              committed = true;
+              render();
+            }
           });
           input.addEventListener('blur', commit);
         }
