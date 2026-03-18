@@ -41,9 +41,23 @@ export function createUIHelpers(deps) {
   // ============================================================
   // SUBTASK PROGRESS
   // ============================================================
+  function _countSubtasksRecursive(subtasks) {
+    let done = 0,
+      total = 0;
+    for (const s of subtasks) {
+      total++;
+      if (s.done) done++;
+      if (s.subtasks && s.subtasks.length) {
+        const child = _countSubtasksRecursive(s.subtasks);
+        done += child.done;
+        total += child.total;
+      }
+    }
+    return { done, total };
+  }
+
   function renderSubtaskProgress(subtasks) {
-    const done = subtasks.filter((s) => s.done).length;
-    const total = subtasks.length;
+    const { done, total } = _countSubtasksRecursive(subtasks);
     const pct = Math.round((done / total) * 100);
     const cls = done === total ? ' complete' : '';
     return `<div class="subtask-progress"><div class="subtask-bar"><div class="subtask-bar-fill${cls}" style="width:${pct}%"></div></div><span>${done}/${total}</span></div>`;

@@ -918,7 +918,7 @@ describe('actions.js — createActions()', () => {
       el.value = 'New subtask';
       document.body.appendChild(el);
       keydown(el, { key: 'Enter' });
-      expect(deps.addSubtask).toHaveBeenCalledWith('t_1', 'New subtask');
+      expect(deps.addSubtask).toHaveBeenCalledWith('t_1', 'New subtask', undefined);
       expect(el.value).toBe('');
     });
 

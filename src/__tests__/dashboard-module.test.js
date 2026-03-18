@@ -1233,7 +1233,7 @@ describe('dashboard.js — createDashboard()', () => {
       expect(deps.setView).toHaveBeenCalledWith('dashboard');
     });
 
-    it('renders dump view', () => {
+    it('renders dump view as modal redirect', () => {
       setupDomForRenderNow();
       deps.getData.mockReturnValue({ tasks: [], projects: [] });
       deps.getCurrentView.mockReturnValue('dump');
@@ -1247,10 +1247,8 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       dashboard._renderNow();
-      expect(document.getElementById('viewTitle').textContent).toBe('Brainstorm');
-      expect(document.getElementById('viewSub').textContent).toContain('Write everything');
-      expect(deps.renderDump).toHaveBeenCalled();
-      expect(deps.initDumpDropZone).toHaveBeenCalled();
+      // Dump view now redirects to dashboard and opens brainstorm as modal
+      expect(deps.setView).toHaveBeenCalledWith('dashboard');
     });
 
     it('renders review view', () => {
@@ -2248,194 +2246,8 @@ describe('dashboard.js — additional coverage', () => {
     });
   });
 
-  // ── _renderDashboardSmartFeed (via renderDashboard) ──────────────
-  describe('_renderDashboardSmartFeed (via renderDashboard)', () => {
-    function setupDashWithTasks(tasks) {
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-    }
-
-    it.skip('renders "Show less" button — smart feed removed from main dashboard in plan-first redesign', () => {
-      const tasks = [];
-      const feedItems = [];
-      for (let i = 0; i < 15; i++) {
-        const t = { id: `t${i}`, title: `Task ${i}`, status: 'todo', priority: 'normal' };
-        tasks.push(t);
-        feedItems.push({ task: t, source: 'urgent' });
-      }
-      setupDashWithTasks(tasks);
-      deps.getSmartFeedItems.mockReturnValue(feedItems);
-      deps.getSmartFeedExpanded.mockReturnValue(true);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('smart-feed-collapse');
-      expect(html).toContain('Show less');
-    });
-
-    it('does not render smart feed when no feed items', () => {
-      const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
-      setupDashWithTasks(tasks);
-      deps.getSmartFeedItems.mockReturnValue([]);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).not.toContain('smart-feed-header');
-    });
-
-    it.skip('filters feed by overdue nudge filter — smart feed removed from main dashboard in plan-first redesign', () => {
-      const tasks = [
-        { id: 't1', title: 'Overdue', status: 'todo', priority: 'normal', dueDate: '2026-03-10' },
-        { id: 't2', title: 'Future', status: 'todo', priority: 'normal', dueDate: '2026-04-01' },
-      ];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      deps.getNudgeFilter.mockReturnValue('overdue');
-      deps.getSmartFeedItems.mockReturnValue([]);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('smart-feed');
-      expect(deps.renderTaskRow).toHaveBeenCalled();
-    });
-
-    it.skip('filters feed by unassigned nudge filter — smart feed removed from main dashboard in plan-first redesign', () => {
-      const tasks = [
-        { id: 't1', title: 'No project', status: 'todo', priority: 'normal' },
-        { id: 't2', title: 'Has project', status: 'todo', priority: 'normal', project: 'p1' },
-      ];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      deps.getNudgeFilter.mockReturnValue('unassigned');
-      deps.getSmartFeedItems.mockReturnValue([]);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('smart-feed');
-    });
-
-    it.skip('filters feed by stale nudge filter — smart feed removed from main dashboard in plan-first redesign', () => {
-      const staleDate = new Date(Date.now() - 15 * 86400000).toISOString();
-      const tasks = [{ id: 't1', title: 'Stale', status: 'todo', priority: 'normal', createdAt: staleDate }];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      deps.getNudgeFilter.mockReturnValue('stale');
-      deps.getSmartFeedItems.mockReturnValue([]);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('smart-feed');
-    });
-  });
-
-  // ── _renderDashboardBoards (via renderDashboard) ─────────────────
-  describe('_renderDashboardBoards (via renderDashboard)', () => {
-    it.skip('renders project cards — boards removed from main dashboard in plan-first redesign', () => {
-      const tasks = [
-        { id: 't1', title: 'Task 1', status: 'todo', priority: 'urgent', project: 'p1' },
-        { id: 't2', title: 'Task 2', status: 'todo', priority: 'normal', project: 'p1' },
-      ];
-      const projects = [{ id: 'p1', name: 'Work', color: '#818cf8', description: 'Work stuff' }];
-      deps.getData.mockReturnValue({ tasks, projects });
-      deps.urgentTasks.mockReturnValue([tasks[0]]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('project-grid-card');
-      expect(html).toContain('project-grid-stats');
-      expect(html).toContain('<strong>2</strong> active');
-    });
-
-    it.skip('renders top 3 tasks on project card — boards removed from main dashboard in plan-first redesign', () => {
-      const tasks = [
-        { id: 't1', title: 'First', status: 'todo', priority: 'urgent' },
-        { id: 't2', title: 'Second', status: 'todo', priority: 'normal' },
-        { id: 't3', title: 'Third', status: 'todo', priority: 'low' },
-        { id: 't4', title: 'Fourth', status: 'todo', priority: 'low' },
-      ];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('project-grid-tasks');
-      expect(html).toContain('mini-dot');
-    });
-
-    it.skip('renders project description truncated — boards removed from main dashboard in plan-first redesign', () => {
-      const longDesc = 'A'.repeat(200);
-      const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
-      deps.getData.mockReturnValue({
-        tasks,
-        projects: [{ id: 'p1', name: 'W', color: '#f00', description: longDesc }],
-      });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('ai-summary');
-      expect(html).toContain('...');
-    });
-  });
-
-  // ── _renderAIInsights (via renderDashboard) ──────────────────────
-  describe('_renderAIInsights (via renderDashboard)', () => {
+  // ── Day Plan rendering (via renderDashboard) ──────────────────────
+  describe('Day Plan rendering (via renderDashboard)', () => {
     function setupDashWithTasks() {
       const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
       deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
@@ -2449,224 +2261,6 @@ describe('dashboard.js — additional coverage', () => {
         shouldShowDumpInvite: () => false,
       });
     }
-
-    it.skip('renders AI Insights section — AI insights removed from main dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      const stuckTask = {
-        id: 'ts1',
-        title: 'Blocked work',
-        status: 'in-progress',
-        priority: 'normal',
-        createdAt: '2026-01-01',
-      };
-      deps.getStuckTasks.mockReturnValue([stuckTask]);
-      deps.hasAI.mockReturnValue(true);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('AI Insights');
-      expect(html).toContain('ai-insights-section');
-      expect(html).toContain('stuck-card');
-      expect(html).toContain('Stuck Tasks');
-      expect(html).toContain('Blocked work');
-      expect(html).toContain('data-action="stuck-help"');
-      expect(html).toContain('data-action="stuck-breakdown"');
-      expect(html).toContain('data-action="stuck-reschedule"');
-    });
-
-    it('does not render escalation banner in dashboard (hidden from default UI)', () => {
-      setupDashWithTasks();
-      deps.getEscalationBanner = vi.fn(() => '<div class="escalation-banner">Critical deadline!</div>');
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      // Escalation banner is no longer shown in dashboard surface
-      expect(html).not.toContain('escalation-banner');
-      expect(deps.getEscalationBanner).not.toHaveBeenCalled();
-    });
-
-    it.skip('renders vague task suggestion — removed from main dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.detectVagueTasks = vi.fn(() => ({ id: 'v1', title: 'Do stuff and things later maybe' }));
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('seems vague');
-      expect(html).toContain('Break it down?');
-      expect(html).toContain('data-action="breakdown-task"');
-      expect(html).toContain('data-action="breakdown-dismiss"');
-    });
-
-    it.skip('renders collapsed AI Insights — removed from main dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.hasAI.mockReturnValue(true);
-      deps.getStuckTasks.mockReturnValue([
-        { id: 'ts1', title: 'Stuck', status: 'in-progress', createdAt: '2026-01-01' },
-      ]);
-      localStorage.setItem('user1_wb_ai_insights_expanded', 'false');
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('AI Insights');
-      expect(html).toContain('aria-expanded="false"');
-      expect(html).not.toContain('ai-insights-body');
-    });
-
-    it.skip('renders expanded AI Insights — removed from main dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.hasAI.mockReturnValue(true);
-      deps.getStuckTasks.mockReturnValue([
-        { id: 'ts1', title: 'Stuck', status: 'in-progress', createdAt: '2026-01-01' },
-      ]);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('ai-insights-body');
-      expect(html).toContain('aria-expanded="true"');
-    });
-
-    it.skip('renders summary text — AI insights removed from main dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.getStuckTasks.mockReturnValue([
-        { id: 'ts1', title: 'Stuck', status: 'in-progress', createdAt: '2026-01-01' },
-      ]);
-      deps.getSmartNudges.mockReturnValue([
-        { type: 'urgent', icon: '!', text: 'Overdue', actionLabel: 'Fix', actionFn: 'nudgeFilterOverdue()' },
-      ]);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('1 stuck');
-      expect(html).toContain('1 nudge');
-    });
-
-    it('does not render AI Insights when no AI content exists', () => {
-      setupDashWithTasks();
-      deps.getStuckTasks.mockReturnValue([]);
-      deps.getSmartNudges.mockReturnValue([]);
-      deps.hasAI.mockReturnValue(false);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).not.toContain('ai-insights-section');
-    });
-  });
-
-  // ── _renderDashboardNudgesInner (via renderDashboard) ────────────
-  describe('_renderDashboardNudgesInner (via renderDashboard)', () => {
-    function setupDashWithTasks() {
-      const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-    }
-
-    it.skip('renders nudges with different type colors — nudges removed from inline dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.getSmartNudges.mockReturnValue([
-        { type: 'warning', icon: '!', text: 'Something is off', actionLabel: 'Check', actionFn: 'nudgeFilterStale()' },
-        { type: 'positive', icon: 'v', text: 'Great progress!' },
-      ]);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('ai-hero-nudges');
-      expect(html).toContain('Something is off');
-      expect(html).toContain('Great progress!');
-      expect(html).toContain('var(--orange)');
-      expect(html).toContain('var(--green)');
-    });
-
-    it.skip('renders stuck tasks inline — removed from main dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      const stuckTask = {
-        id: 'ts1',
-        title: 'Long running task',
-        status: 'in-progress',
-        priority: 'normal',
-        createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
-      };
-      deps.getStuckTasks.mockReturnValue([stuckTask]);
-      deps.hasAI.mockReturnValue(true);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Long running task');
-      expect(html).toContain('has been in-progress for');
-      expect(html).toContain('Think through it?');
-      expect(html).toContain('data-stuck-task-id="ts1"');
-    });
-
-    it.skip('renders stuck tasks with update date — removed from main dashboard in plan-first redesign', () => {
-      setupDashWithTasks();
-      const stuckTask = {
-        id: 'ts1',
-        title: 'Updated task',
-        status: 'in-progress',
-        priority: 'normal',
-        createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-        updates: [{ date: new Date(Date.now() - 5 * 86400000).toISOString(), text: 'update' }],
-      };
-      deps.getStuckTasks.mockReturnValue([stuckTask]);
-      deps.hasAI.mockReturnValue(false);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Updated task');
-      expect(html).toContain('5 days');
-      expect(html).not.toContain('Think through it?');
-    });
-  });
-
-  // ── _renderDashboardToday / _renderTodayBriefingAndPlan ──────────
-  describe('_renderDashboardToday (via renderDashboard)', () => {
-    function setupDashWithTasks() {
-      const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-    }
-
-    it.skip('renders expanded briefing — briefing rendering redesigned in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.hasAI.mockReturnValue(true);
-      deps.getTodayBriefingExpanded.mockReturnValue(true);
-      localStorage.setItem('user1_whiteboard_briefing_2026-03-15', '<p>Full briefing content</p>');
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('today-briefing-body');
-      expect(html).toContain('Full briefing content');
-      expect(html).toContain('Show less');
-      expect(html).toContain('data-action="briefing-collapse"');
-    });
-
-    it.skip('renders collapsed briefing — briefing rendering redesigned in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.hasAI.mockReturnValue(true);
-      deps.getTodayBriefingExpanded.mockReturnValue(false);
-      localStorage.setItem('user1_whiteboard_briefing_2026-03-15', '<p>Collapsed briefing</p>');
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Collapsed briefing');
-      expect(html).toContain('Read more');
-      expect(html).toContain('data-action="briefing-expand"');
-    });
 
     it('renders plan generating state', () => {
       setupDashWithTasks();
@@ -2717,16 +2311,6 @@ describe('dashboard.js — additional coverage', () => {
       const html = dashboard.renderDashboard();
       expect(html).toContain('1/2 done');
       expect(html).toContain('~1h remaining');
-    });
-
-    it.skip('renders Refresh button — briefing rendering redesigned in plan-first redesign', () => {
-      setupDashWithTasks();
-      deps.hasAI.mockReturnValue(true);
-      localStorage.setItem('user1_whiteboard_briefing_2026-03-15', '<p>Existing</p>');
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Refresh');
     });
 
     it('renders plan item without snooze button when done', () => {
@@ -3039,9 +2623,9 @@ describe('dashboard.js — additional coverage', () => {
     });
   });
 
-  // ── _renderNow dump view with async renderDump ───────────────────
+  // ── _renderNow dump view redirects to dashboard (brainstorm is now modal) ──
   describe('_renderNow dump view async', () => {
-    it('handles async renderDump that returns a promise', async () => {
+    it('dump view redirects to dashboard and opens brainstorm modal', () => {
       document.body.innerHTML = `
         <div id="projectList"></div>
         <div id="archiveBadge"></div>
@@ -3049,6 +2633,7 @@ describe('dashboard.js — additional coverage', () => {
         <div id="viewTitle"></div>
         <div id="viewSub"></div>
         <div id="headerActions"></div>
+        <div id="modalRoot"></div>
         <div class="nav-item" data-view="dashboard"></div>
       `;
       deps.$.mockImplementation((sel) => document.querySelector(sel));
@@ -3057,7 +2642,7 @@ describe('dashboard.js — additional coverage', () => {
       deps.getCurrentView.mockReturnValue('dump');
       deps.activeTasks.mockReturnValue([]);
       deps.archivedTasks.mockReturnValue([]);
-      deps.renderDump.mockReturnValue(Promise.resolve('<div>async dump</div>'));
+      deps.renderDump.mockReturnValue('<div>dump content</div>');
       deps.getBrainstormModule.mockReturnValue({
         isDumpInProgress: () => false,
         getDumpHistory: () => [],
@@ -3066,10 +2651,8 @@ describe('dashboard.js — additional coverage', () => {
       dashboard = createDashboard(deps);
 
       dashboard._renderNow();
-      await vi.waitFor(() => {
-        expect(document.getElementById('content').innerHTML).toContain('async dump');
-      });
-      expect(deps.initDumpDropZone).toHaveBeenCalled();
+      // Dump view now redirects to dashboard
+      expect(deps.setView).toHaveBeenCalledWith('dashboard');
     });
   });
 

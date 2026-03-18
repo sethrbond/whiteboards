@@ -556,7 +556,14 @@ describe('sync.js — createSync()', () => {
   });
 
   it('syncToCloud refuses to sync empty data when cloud had data', async () => {
-    const singleCheck = vi.fn(() => Promise.resolve({ data: { updated_at: '2026-03-15T10:00:00Z' }, error: null }));
+    // The new sync code does an actual cloud query to check if cloud has tasks
+    // before allowing empty local data to overwrite it
+    const singleCheck = vi.fn(() =>
+      Promise.resolve({
+        data: { data: { tasks: [{ id: 't1', title: 'Cloud task' }], projects: [] } },
+        error: null,
+      }),
+    );
     const sb = {
       from: vi.fn(() => ({
         select: vi.fn(() => ({ eq: vi.fn(() => ({ single: singleCheck })) })),
@@ -571,7 +578,6 @@ describe('sync.js — createSync()', () => {
     deps.getSettings.mockReturnValue({ aiModel: 'claude' });
     localStorage.setItem('user1_wb_data', JSON.stringify({ tasks: [], projects: [] }));
     sync = createSync(deps);
-    sync.setLastCloudUpdatedAt('2026-03-15T10:00:00Z');
 
     const promise = sync.syncToCloud();
     await vi.runAllTimersAsync();

@@ -143,6 +143,31 @@ export function createTaskEditor(deps) {
   </div>`;
   }
 
+  const MAX_SUBTASK_DEPTH = 5;
+
+  function _renderSubtasksRecursive(subtasks, taskId, depth) {
+    let html = '';
+    const indent = depth * 20;
+    subtasks.forEach((s) => {
+      const hasChildren = s.subtasks && s.subtasks.length > 0;
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;padding-left:${indent}px;cursor:pointer" role="checkbox" aria-checked="${s.done}" aria-label="Mark subtask: ${esc(s.title)} complete" tabindex="0" data-action="toggle-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}">`;
+      html += `<div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done ? 'var(--accent)' : 'var(--border2)'};background:${s.done ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0">${s.done ? '\u2713' : ''}</div>`;
+      html += `<span style="font-size:${Math.max(11, 12 - depth)}px;color:${s.done ? 'var(--text3)' : 'var(--text)'};${s.done ? 'text-decoration:line-through' : ''};flex:1">${esc(s.title)}</span>`;
+      if (depth < MAX_SUBTASK_DEPTH - 1) {
+        html += `<button class="btn-ghost" style="font-size:10px;color:var(--text3);padding:1px 4px;border:none;cursor:pointer;opacity:0.5" data-action="toggle-add-child-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}" title="Add nested subtask">+</button>`;
+      }
+      html += `</div>`;
+      if (hasChildren) {
+        html += _renderSubtasksRecursive(s.subtasks, taskId, depth + 1);
+      }
+      // Inline add input for child subtasks (hidden by default, shown via toggle)
+      if (depth < MAX_SUBTASK_DEPTH - 1) {
+        html += `<div class="child-subtask-input" data-parent-subtask="${s.id}" style="display:none;padding-left:${indent + 20}px;margin:2px 0"><input style="font-size:10px;padding:3px 6px;background:transparent;border:1px dashed var(--border);border-radius:4px;color:var(--text2);width:calc(100% - ${indent + 20}px);outline:none;font-family:inherit" placeholder="+ add nested subtask" aria-label="Add nested subtask" data-keydown-action="add-subtask" data-task-id="${taskId}" data-parent-subtask-id="${s.id}"></div>`;
+      }
+    });
+    return html;
+  }
+
   function renderTaskExpanded(t, showProject = false) {
     const isDone = t.status === 'done';
     const data = getData();
@@ -176,7 +201,7 @@ export function createTaskEditor(deps) {
       ${t.completedAt ? `<div class="task-detail-row"><span class="task-detail-label">Done</span>${relativeTime(t.completedAt)}</div>` : ''}
       ${renderBlockedBy(t)}
       ${renderBlocking(t)}
-      ${t.subtasks && t.subtasks.length ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600">SUBTASKS</div>${t.subtasks.map((s) => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer" role="checkbox" aria-checked="${s.done}" aria-label="Mark subtask: ${esc(s.title)} complete" tabindex="0" data-action="toggle-subtask" data-task-id="${t.id}" data-subtask-id="${s.id}"><div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done ? 'var(--accent)' : 'var(--border2)'};background:${s.done ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0">${s.done ? '✓' : ''}</div><span style="font-size:12px;color:${s.done ? 'var(--text3)' : 'var(--text)'};${s.done ? 'text-decoration:line-through' : ''}">${esc(s.title)}</span></div>`).join('')}</div>` : ''}
+      ${t.subtasks && t.subtasks.length ? `<div style="margin-top:10px"><div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600">SUBTASKS</div>${_renderSubtasksRecursive(t.subtasks, t.id, 0)}</div>` : ''}
       <div style="margin-top:6px"><input style="font-size:11px;padding:4px 8px;background:transparent;border:1px dashed var(--border);border-radius:4px;color:var(--text2);width:100%;outline:none;font-family:inherit" placeholder="+ add subtask" aria-label="Add subtask" data-keydown-action="add-subtask" data-task-id="${t.id}"></div>
       ${t.updates && t.updates.length > 0 ? `<div style="margin-top:8px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">UPDATES</div>${t.updates.map((u) => `<div style="font-size:12px;color:var(--text2);padding:3px 0"><span style="color:var(--text3)">${u.date}</span> — ${esc(u.text)}</div>`).join('')}</div>` : ''}
     </div>

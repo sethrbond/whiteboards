@@ -415,11 +415,33 @@ export function createDataLayer(deps) {
     if (!silent) showUndoToast('Task deleted');
   }
 
-  function addSubtask(taskId, title) {
+  function _findSubtaskRecursive(subtasks, subtaskId) {
+    for (const s of subtasks) {
+      if (s.id === subtaskId) return s;
+      if (s.subtasks) {
+        const found = _findSubtaskRecursive(s.subtasks, subtaskId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function addSubtask(taskId, title, parentSubtaskId) {
     const t = findTask(taskId);
     if (!t) return;
     if (!t.subtasks) t.subtasks = [];
-    t.subtasks.push({ id: genId('st'), title, done: false });
+    const newSub = { id: genId('st'), title, done: false };
+    if (parentSubtaskId) {
+      const parent = _findSubtaskRecursive(t.subtasks, parentSubtaskId);
+      if (parent) {
+        if (!parent.subtasks) parent.subtasks = [];
+        parent.subtasks.push(newSub);
+      } else {
+        t.subtasks.push(newSub);
+      }
+    } else {
+      t.subtasks.push(newSub);
+    }
     saveData(data);
     getRender()();
   }
@@ -427,7 +449,7 @@ export function createDataLayer(deps) {
   function toggleSubtask(taskId, subtaskId) {
     const t = findTask(taskId);
     if (!t || !t.subtasks) return;
-    const s = t.subtasks.find((x) => x.id === subtaskId);
+    const s = _findSubtaskRecursive(t.subtasks, subtaskId);
     if (s) {
       s.done = !s.done;
       saveData(data);

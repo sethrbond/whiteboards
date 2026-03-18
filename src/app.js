@@ -1485,6 +1485,7 @@ createActions({
   runTaskCmd,
   guardedCloseEditModal,
   heroInputHandler,
+  openBrainstormModal: () => _dashboard.openBrainstormModal(),
   showFeatureTips,
   showOnboardingExperience,
   openProjectChat,

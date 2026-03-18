@@ -166,7 +166,11 @@ export function createActions(deps) {
   document.addEventListener('click', (e) => {
     const navView = e.target.closest('.nav-item[data-view]');
     if (navView) {
-      setView(navView.dataset.view);
+      if (navView.dataset.view === 'dump' && typeof deps.openBrainstormModal === 'function') {
+        deps.openBrainstormModal();
+      } else {
+        setView(navView.dataset.view);
+      }
       return;
     }
 
@@ -357,7 +361,8 @@ export function createActions(deps) {
             if (overlay.parentNode) overlay.remove();
           }, 300);
         }
-        setView('dump');
+        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+        else setView('dump');
         break;
       }
       case 'onb-explore': {
@@ -455,6 +460,20 @@ export function createActions(deps) {
         toggleSubtask(actionEl.dataset.taskId, actionEl.dataset.subtaskId);
         renderFocusOverlay();
         break;
+      case 'toggle-add-child-subtask': {
+        e.stopPropagation();
+        const parentId = actionEl.dataset.subtaskId;
+        const inputRow = document.querySelector(`.child-subtask-input[data-parent-subtask="${parentId}"]`);
+        if (inputRow) {
+          const isVisible = inputRow.style.display !== 'none';
+          inputRow.style.display = isVisible ? 'none' : 'block';
+          if (!isVisible) {
+            const inp = inputRow.querySelector('input');
+            if (inp) inp.focus();
+          }
+        }
+        break;
+      }
       // Tag chip toggle (in tag picker)
       case 'toggle-tag-chip':
         actionEl.classList.toggle('selected');
@@ -938,10 +957,15 @@ export function createActions(deps) {
         break;
       // Dashboard cards (brainstorm links)
       case 'go-dump':
-        setView('dump');
+        if (typeof deps.openBrainstormModal === 'function') {
+          deps.openBrainstormModal();
+        } else {
+          setView('dump');
+        }
         break;
       case 'load-dump-history': {
-        setView('dump');
+        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+        else setView('dump');
         const idx = parseInt(actionEl.dataset.dumpIndex, 10);
         setTimeout(() => {
           const bsMod = typeof deps.getBrainstormModule === 'function' ? deps.getBrainstormModule() : null;
@@ -960,7 +984,8 @@ export function createActions(deps) {
         break;
       }
       case 'go-dump-weekly': {
-        setView('dump');
+        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+        else setView('dump');
         setTimeout(() => {
           const t = document.getElementById('dumpText');
           if (t) {
@@ -991,7 +1016,11 @@ export function createActions(deps) {
     const navView = e.target.closest('.nav-item[data-view]');
     if (navView) {
       e.preventDefault();
-      setView(navView.dataset.view);
+      if (navView.dataset.view === 'dump' && typeof deps.openBrainstormModal === 'function') {
+        deps.openBrainstormModal();
+      } else {
+        setView(navView.dataset.view);
+      }
       return;
     }
     const actionEl = e.target.closest('[data-action]');
@@ -1023,7 +1052,7 @@ export function createActions(deps) {
           break;
         case 'add-subtask':
           if (el.value.trim()) {
-            addSubtask(el.dataset.taskId, el.value.trim());
+            addSubtask(el.dataset.taskId, el.value.trim(), el.dataset.parentSubtaskId || undefined);
             el.value = '';
           }
           break;
@@ -1161,7 +1190,8 @@ export function createActions(deps) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
       if (_inFormField) return;
       e.preventDefault();
-      setView('dump');
+      if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+      else setView('dump');
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 'j') {

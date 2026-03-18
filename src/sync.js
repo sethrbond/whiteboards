@@ -193,13 +193,32 @@ export function createSync(deps) {
       if (!Array.isArray(data.tasks)) data.tasks = [];
       if (!Array.isArray(data.projects)) data.projects = [];
       const settings = getSettings();
-      // Safety: never overwrite cloud data with empty state if cloud previously had data
-      if (data.tasks.length === 0 && data.projects.length === 0 && _lastCloudUpdatedAt) {
-        console.warn('[SYNC] Refusing to sync empty data — cloud had data previously. Skipping.');
-        syncStatus = 'synced'; // Keep previous status — data is safe in cloud
-        updateSyncDot();
-        showToast('Local data is empty — reload to restore from cloud, or use Settings to reset if intentional.', true);
-        return;
+      // Safety: NEVER overwrite cloud with empty data — check cloud first
+      if (data.tasks.length === 0 && data.projects.length === 0) {
+        // Double-check: does cloud actually have data?
+        try {
+          const { data: cloudCheck } = await sb.from('user_data').select('data').eq('user_id', currentUser.id).single();
+          if (cloudCheck && cloudCheck.data) {
+            const cloudData = typeof cloudCheck.data === 'string' ? JSON.parse(cloudCheck.data) : cloudCheck.data;
+            if (cloudData.tasks && cloudData.tasks.length > 0) {
+              console.warn(
+                '[SYNC] Refusing to overwrite',
+                cloudData.tasks.length,
+                'cloud tasks with empty local data.',
+              );
+              syncStatus = 'synced';
+              updateSyncDot();
+              showToast('Local data is empty — reload to restore from cloud.', true);
+              return;
+            }
+          }
+        } catch (_e) {
+          // If cloud check fails, err on side of caution — don't sync empty
+          console.warn('[SYNC] Cloud check failed, refusing to sync empty data.');
+          syncStatus = 'synced';
+          updateSyncDot();
+          return;
+        }
       }
       const { data: upsertRow, error } = await sb
         .from('user_data')

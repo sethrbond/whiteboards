@@ -4,14 +4,7 @@
 // Extracted from app.js — handles dashboard rendering, sidebar,
 // project view, archive, sorting, and dashboard-v2 features.
 
-import {
-  MS_PER_DAY,
-  TRUNCATE_DESC,
-  STALE_TASK_DAYS,
-  MAX_KANBAN_DONE,
-  DESC_TRUNCATE_SHORT,
-  BRAINSTORM_WORD_THRESHOLD,
-} from './constants.js';
+import { MS_PER_DAY, TRUNCATE_DESC, MAX_KANBAN_DONE, BRAINSTORM_WORD_THRESHOLD } from './constants.js';
 
 /**
  * Factory function to create dashboard functions.
@@ -45,7 +38,6 @@ export function createDashboard(deps) {
     createTask,
     renderTaskRow,
     renderPriorityTag,
-    priorityColor,
     renderCalendar,
     getCurrentView,
     getCurrentProject,
@@ -64,10 +56,7 @@ export function createDashboard(deps) {
     getBrainstormModule,
     // Proactive module
     getAIStatusItems: _getAIStatusItems,
-    getSmartFeedItems,
     getSmartNudges,
-    getStuckTasks,
-    detectVagueTasks,
     nudgeFilterOverdue,
     nudgeFilterStale,
     nudgeFilterUnassigned,
@@ -83,7 +72,6 @@ export function createDashboard(deps) {
     setPlanGenerating,
     getNudgeFilter,
     setNudgeFilter,
-    getSmartFeedExpanded,
     getTodayBriefingExpanded,
     getShowTagFilter,
     getActiveTagFilter,
@@ -607,8 +595,6 @@ export function createDashboard(deps) {
       '|' +
       (getNudgeFilter() || '') +
       '|' +
-      getSmartFeedExpanded() +
-      '|' +
       getTodayBriefingExpanded() +
       '|' +
       getShowTagFilter() +
@@ -637,22 +623,15 @@ export function createDashboard(deps) {
           _renderNowProjectView(c, ha, data, bulkMode);
           break;
         case 'dump':
-          $('#viewTitle').textContent = 'Brainstorm';
-          $('#viewSub').textContent = 'Write everything on your mind \u2014 AI will do the rest';
-          ha.innerHTML = '';
-          {
-            const _dumpResult = renderDump();
-            if (_dumpResult && typeof _dumpResult.then === 'function') {
-              c.innerHTML = '';
-              _dumpResult.then((html) => {
-                c.innerHTML = html;
-                initDumpDropZone();
-              });
-            } else {
-              c.innerHTML = _dumpResult;
-              initDumpDropZone();
-            }
-          }
+          // Brainstorm opens as modal — redirect back to dashboard
+          setView('dashboard');
+          openBrainstormModal();
+          return;
+        case 'calendar':
+          $('#viewTitle').textContent = 'Calendar';
+          $('#viewSub').textContent = '';
+          ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${dashViewMode === 'week' || dashViewMode === 'list' ? 'active' : ''}" data-action="dash-view" data-mode="week">Week</button><button class="view-toggle-btn ${dashViewMode === 'month' ? 'active' : ''}" data-action="dash-view" data-mode="month">Month</button></div>`;
+          c.innerHTML = renderCalendar();
           break;
         case 'review':
           $('#viewTitle').textContent = 'Weekly Review';
@@ -951,64 +930,6 @@ export function createDashboard(deps) {
     return html;
   }
 
-  function _renderHabitsWidget(active) {
-    const recurring = active.filter((t) => t.recurrence);
-    if (!recurring.length) return '';
-    let html = '<div class="habits-widget">';
-    html += '<div class="habits-widget-header">Today\'s Recurring</div>';
-    recurring.forEach((t) => {
-      const isDone = t.status === 'done';
-      html += `<div class="habits-widget-row">`;
-      html += `<div class="task-check${isDone ? ' done' : ''}" data-action="complete-task" data-task-id="${t.id}" role="checkbox" aria-checked="${isDone}" tabindex="0" aria-label="Mark ${esc(t.title)} done"></div>`;
-      html += `<span class="habits-widget-title${isDone ? ' done-text' : ''}">${esc(t.title)}</span>`;
-      html += `<span class="habits-widget-recurrence">↻ ${t.recurrence}</span>`;
-      html += `</div>`;
-    });
-    html += '</div>';
-    return html;
-  }
-
-  function _renderDashboardSmartFeed() {
-    let html = '';
-    const _nudgeFilter = getNudgeFilter();
-    let feedItems = getSmartFeedItems();
-    if (_nudgeFilter) {
-      const today = todayStr();
-      const data = getData();
-      const allActive = data.tasks.filter((t) => t.status !== 'done' && !t.archived);
-      let filtered = [];
-      if (_nudgeFilter === 'overdue') filtered = allActive.filter((t) => t.dueDate && t.dueDate < today);
-      else if (_nudgeFilter === 'stale')
-        filtered = allActive.filter((t) => {
-          const lt = t.updates?.length ? t.updates[t.updates.length - 1].date : t.createdAt;
-          return lt && Date.now() - new Date(lt).getTime() > STALE_TASK_DAYS * MS_PER_DAY;
-        });
-      else if (_nudgeFilter === 'unassigned') filtered = allActive.filter((t) => !t.project);
-      if (filtered.length) feedItems = filtered.map((t) => ({ task: t, source: _nudgeFilter }));
-    }
-    const _smartFeedExpanded = getSmartFeedExpanded();
-    const feedLimit = _smartFeedExpanded ? feedItems.length : Math.min(10, feedItems.length);
-
-    if (feedItems.length > 0) {
-      html += `<div class="smart-feed">`;
-      html += `<div class="smart-feed-header"><div class="smart-feed-title">Your Focus</div><div class="smart-feed-count">${feedItems.length}</div><div class="smart-feed-line"></div></div>`;
-
-      feedItems.slice(0, feedLimit).forEach((item, _i) => {
-        html += renderTaskRow(item.task, true);
-        if (item.why)
-          html += `<div style="margin-left:28px;font-size:11px;color:var(--text3);margin-bottom:4px;margin-top:-4px;font-style:italic">↳ ${esc(item.why)}</div>`;
-      });
-
-      if (feedItems.length > 10 && !_smartFeedExpanded) {
-        html += `<button class="smart-feed-more" data-action="smart-feed-expand">Show ${feedItems.length - 10} more</button>`;
-      } else if (_smartFeedExpanded && feedItems.length > 10) {
-        html += `<button class="smart-feed-more" data-action="smart-feed-collapse">Show less</button>`;
-      }
-      html += `</div>`;
-    }
-    return html;
-  }
-
   // ===== Day Plan Centerpiece =====
 
   function _renderDayPlanCenterpiece() {
@@ -1196,51 +1117,6 @@ export function createDashboard(deps) {
     return html;
   }
 
-  // Legacy wrapper for _renderAIInsights compatibility
-  function _renderTodayBriefingAndPlan() {
-    let html = '';
-    const planKey = userKey('whiteboard_plan_' + todayStr());
-    const cachedPlan = localStorage.getItem(planKey);
-    if (cachedPlan || getPlanGenerating()) return html;
-    const briefingKey = userKey('whiteboard_briefing_' + todayStr());
-    const cachedBriefing = localStorage.getItem(briefingKey);
-    const _briefingGenerating = getBriefingGenerating();
-    if (cachedBriefing || _briefingGenerating) {
-      html += `<div class="today-card">`;
-      html += `<div class="today-card-header">
-        <span style="font-size:14px">\u2726</span>
-        <div class="today-card-title">Today</div>
-        <div class="today-card-date">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-      </div>`;
-      const _todayBriefingExpanded = getTodayBriefingExpanded();
-      if (cachedBriefing) {
-        if (_todayBriefingExpanded) {
-          html += `<div class="today-briefing-body" id="briefingBody">${sanitizeAIHTML(cachedBriefing)}</div>`;
-          html += `<button class="briefing-generate" data-action="briefing-collapse" style="font-size:11px;margin-top:6px;margin-bottom:8px">Show less</button>`;
-        } else {
-          html += `<div style="font-size:13px;color:var(--text2);line-height:1.7;max-height:2.8em;overflow:hidden;position:relative;cursor:pointer" data-action="briefing-expand" id="briefingBody">
-            ${sanitizeAIHTML(cachedBriefing)}
-            <div style="position:absolute;bottom:0;left:0;right:0;height:1.4em;background:linear-gradient(transparent,var(--bg));pointer-events:none"></div>
-          </div>`;
-          html += `<button class="briefing-generate" data-action="briefing-expand" style="font-size:11px;margin-top:4px;margin-bottom:8px">Read more</button>`;
-        }
-      } else if (_briefingGenerating) {
-        html += `<div class="skeleton-pulse" style="padding:16px 20px;min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:8px"><span style="font-size:12px;color:var(--text3)">Generating your briefing...</span></div>`;
-      }
-      html += `<div style="display:flex;gap:8px;margin-top:12px">
-        <button class="briefing-generate" data-action="generate-briefing" id="briefingBtn">${cachedBriefing ? '\u21bb Refresh' : _briefingGenerating ? '\u2726 Generating...' : '\u2726 Generate Briefing'}</button>
-        <button class="briefing-generate" data-action="plan-my-day" id="planBtn" style="color:var(--accent)">\u25ce Plan My Day</button>
-      </div>`;
-      html += `</div>`;
-    }
-    return html;
-  }
-
-  // Legacy _renderDayPlan kept for any external callers
-  function _renderDayPlan(cachedPlan, planKey) {
-    return _renderDayPlanActive(cachedPlan, planKey);
-  }
-
   function _renderEndOfDay(data) {
     let html = '';
     const eodKey = userKey('wb_eod_' + todayStr());
@@ -1278,45 +1154,6 @@ export function createDashboard(deps) {
         </div>`;
       }
     }
-    return html;
-  }
-
-  function _renderDashboardToday(data) {
-    let html = '';
-    html += _renderTodayBriefingAndPlan();
-    html += _renderEndOfDay(data);
-    return html;
-  }
-
-  function _renderDashboardBoards(data) {
-    let html = '';
-    html += `<div class="section"><div class="section-header"><h3 class="section-title">Boards</h3><div class="section-count">${data.projects.length}</div><div class="section-line"></div></div>`;
-    if (data.projects.length === 0) {
-      html += `<div class="empty"><div class="empty-icon">◈</div><div class="empty-text">No boards yet. Create one to get started.</div><button class="btn btn-primary" data-action="open-new-project">+ New Board</button></div>`;
-    } else {
-      html += '<div class="project-grid">';
-      data.projects.forEach((p) => {
-        const pt = projectTasks(p.id);
-        const ptActive = pt.filter((t) => t.status !== 'done');
-        const urgentP = ptActive.filter((t) => t.priority === 'urgent');
-        const topTasks = sortTasks(ptActive).slice(0, 3);
-
-        html += `<div class="project-grid-card" data-project="${p.id}">
-          <div class="project-grid-header">
-            <div class="project-grid-dot" style="background:${p.color}"></div>
-            <div class="project-grid-name">${esc(p.name)}</div>
-          </div>
-          <div class="project-grid-stats">
-            <div class="project-grid-stat"><strong>${ptActive.length}</strong> active</div>
-            ${urgentP.length ? `<div class="project-grid-stat" style="color:var(--red)"><strong>${urgentP.length}</strong> urgent</div>` : ''}
-          </div>
-          ${topTasks.length ? `<div class="project-grid-tasks">${topTasks.map((t) => `<div class="project-grid-task"><div class="mini-dot" style="background:${priorityColor(t.priority)}"></div>${esc(t.title)}</div>`).join('')}</div>` : ''}
-          ${p.description ? `<div class="ai-summary">${esc(p.description).slice(0, DESC_TRUNCATE_SHORT)}${p.description.length > DESC_TRUNCATE_SHORT ? '...' : ''}</div>` : ''}
-        </div>`;
-      });
-      html += '</div>';
-    }
-    html += '</div>';
     return html;
   }
 
@@ -1360,159 +1197,6 @@ export function createDashboard(deps) {
         '</div>';
     }
     html += '</div>';
-    return html;
-  }
-
-  // --- AI Insights: collapsible section consolidating all AI/proactive cards ---
-  function _renderAIInsights(data) {
-    // Collect all AI insight content
-    const parts = [];
-
-    // Stuck tasks
-    const _stuckForCard = getStuckTasks();
-    if (_stuckForCard.length > 0) {
-      let sh = '<div class="stuck-card" style="margin-bottom:0">';
-      sh +=
-        '<div class="stuck-header"><span style="font-size:14px">&#9888;</span><span class="stuck-title">Stuck Tasks</span><span style="font-size:11px;color:var(--text3);margin-left:auto">' +
-        _stuckForCard.length +
-        ' task' +
-        (_stuckForCard.length > 1 ? 's' : '') +
-        '</span></div>';
-      _stuckForCard.forEach(function (t) {
-        const lastTouch = t.updates && t.updates.length ? t.updates[t.updates.length - 1].date : t.createdAt;
-        const days = Math.floor((Date.now() - new Date(lastTouch).getTime()) / 86400000);
-        sh += '<div class="stuck-task-row">';
-        sh +=
-          '<div class="stuck-task-info"><span class="stuck-task-title">' +
-          esc(t.title) +
-          '</span><span class="stuck-task-days">' +
-          days +
-          'd in-progress</span></div>';
-        sh += '<div class="stuck-task-actions">';
-        sh +=
-          '<button class="btn btn-sm" data-action="stuck-help" data-task-id="' +
-          t.id +
-          '" style="font-size:10px;padding:2px 8px">Get Help</button>';
-        sh +=
-          '<button class="btn btn-sm" data-action="stuck-breakdown" data-task-id="' +
-          t.id +
-          '" style="font-size:10px;padding:2px 8px">Break Down</button>';
-        sh +=
-          '<button class="btn btn-sm" data-action="stuck-reschedule" data-task-id="' +
-          t.id +
-          '" style="font-size:10px;padding:2px 8px">Reschedule</button>';
-        sh += '</div></div>';
-      });
-      sh += '</div>';
-      parts.push(sh);
-    }
-
-    // Vague task suggestion
-    if (typeof detectVagueTasks === 'function') {
-      const vagueTask = detectVagueTasks();
-      if (vagueTask) {
-        let vh =
-          '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;display:flex;align-items:center;gap:12px">';
-        vh += '<span style="font-size:14px;flex-shrink:0">&#9986;</span>';
-        vh +=
-          '<span style="font-size:12px;color:var(--text2);flex:1">&ldquo;' +
-          esc(vagueTask.title.slice(0, 50)) +
-          (vagueTask.title.length > 50 ? '...' : '') +
-          '&rdquo; seems vague. Break it down?</span>';
-        vh +=
-          '<button class="btn btn-sm" data-action="breakdown-task" data-task-id="' +
-          vagueTask.id +
-          '" style="font-size:11px;padding:3px 10px;flex-shrink:0">Break Down</button>';
-        vh +=
-          '<button class="btn btn-sm" data-action="breakdown-dismiss" data-task-id="' +
-          vagueTask.id +
-          '" style="font-size:11px;padding:3px 10px;flex-shrink:0;color:var(--text3)">Dismiss</button>';
-        vh += '</div>';
-        parts.push(vh);
-      }
-    }
-
-    // Memory insights
-    const mic = renderMemoryInsightsCard();
-    if (mic) parts.push(mic);
-
-    // Briefing, plan, EOD
-    const todayHtml = _renderDashboardToday(data);
-    if (todayHtml) parts.push(todayHtml);
-
-    // Nudges (without tag filter — that stays outside)
-    const nudgesHtml = _renderDashboardNudgesInner();
-    if (nudgesHtml) parts.push(nudgesHtml);
-
-    if (!parts.length) return '';
-
-    // Build summary line for collapsed state
-    const summaryItems = [];
-    if (_stuckForCard.length > 0) summaryItems.push(_stuckForCard.length + ' stuck');
-    const nudges = getSmartNudges();
-    if (nudges.length > 0) summaryItems.push(nudges.length + ' nudge' + (nudges.length > 1 ? 's' : ''));
-    const briefingKey = userKey('whiteboard_briefing_' + todayStr());
-    if (localStorage.getItem(briefingKey)) summaryItems.push('briefing');
-    const planKey = userKey('whiteboard_plan_' + todayStr());
-    if (localStorage.getItem(planKey)) summaryItems.push('day plan');
-    const summaryText = summaryItems.length ? summaryItems.join(', ') : 'AI coaching & insights';
-
-    const expanded = localStorage.getItem(userKey('wb_ai_insights_expanded')) !== 'false';
-
-    let html = '<div class="ai-insights-section" style="margin-bottom:20px">';
-    html += `<div class="ai-insights-toggle" data-action="toggle-ai-insights" role="button" tabindex="0" aria-expanded="${expanded}" style="display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;user-select:none">
-      <span style="font-size:14px;color:var(--accent)">\u2726</span>
-      <span style="font-size:13px;font-weight:600;color:var(--text)">AI Insights</span>
-      <span style="font-size:11px;color:var(--text3)">${esc(summaryText)}</span>
-      <span style="margin-left:auto;font-size:10px;color:var(--text3);transition:transform 0.2s${expanded ? ';transform:rotate(90deg)' : ''}">\u25b8</span>
-    </div>`;
-
-    if (expanded) {
-      html += '<div class="ai-insights-body" style="display:flex;flex-direction:column;gap:12px">';
-      html += parts.join('');
-      html += '</div>';
-    }
-
-    html += '</div>';
-    return html;
-  }
-
-  // Inner nudges rendering (without tag/nudge filter UI — those stay at dashboard level)
-  function _renderDashboardNudgesInner() {
-    let html = '';
-    const nudges = getSmartNudges();
-    const stuckTasks = getStuckTasks();
-    const colorMap = {
-      urgent: 'var(--red)',
-      warning: 'var(--orange)',
-      action: 'var(--accent)',
-      positive: 'var(--green)',
-      stale: 'var(--text3)',
-      habit: 'var(--purple)',
-    };
-
-    if (nudges.length > 0 || stuckTasks.length > 0) {
-      html += `<div class="ai-hero-nudges">`;
-      nudges.forEach((n) => {
-        html += `<div class="ai-hero-nudge" style="border-left:3px solid ${colorMap[n.type] || 'var(--accent)'}">
-          <span style="flex-shrink:0">${n.icon}</span>
-          <span style="font-size:12px;color:var(--text2);line-height:1.4;flex:1">${n.text}</span>
-          ${n.actionLabel ? `<button class="btn btn-sm" data-nudge-action="${esc(n.actionFn)}" style="flex-shrink:0;font-size:11px;padding:3px 10px;white-space:nowrap">${n.actionLabel}</button>` : ''}
-        </div>`;
-      });
-      stuckTasks.slice(0, 2).forEach((t) => {
-        const lastTouch = t.updates?.length ? t.updates[t.updates.length - 1].date : t.createdAt;
-        const days = Math.floor((Date.now() - new Date(lastTouch).getTime()) / MS_PER_DAY);
-        html += `<div class="ai-hero-nudge" style="border-left:3px solid var(--amber)">
-          <span style="flex-shrink:0">◇</span>
-          <span style="font-size:12px;color:var(--text2);line-height:1.4;flex:1">
-            <strong>${esc(t.title)}</strong> has been in-progress for ${days} days.
-            ${hasAI() ? `<span style="color:var(--accent);cursor:pointer" data-stuck-task-id="${esc(t.id)}">Think through it?</span>` : ''}
-          </span>
-        </div>`;
-      });
-      html += `</div>`;
-    }
     return html;
   }
 
@@ -1640,6 +1324,33 @@ export function createDashboard(deps) {
     _planIndexDate = date;
   }
 
+  // === Brainstorm Modal ===
+  function openBrainstormModal() {
+    const root = $('#modalRoot');
+    if (!root) return;
+    const dumpResult = renderDump();
+    const renderModal = (dumpHtml) => {
+      root.innerHTML = `<div class="modal-overlay" data-action="close-modal" data-click-self="true">
+        <div class="modal" style="max-width:640px;width:100%;max-height:85vh;overflow-y:auto" aria-labelledby="modal-title-brainstorm">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h2 id="modal-title-brainstorm" style="font-size:18px;font-weight:600;margin:0">Brainstorm</h2>
+            <button class="btn btn-sm" data-action="close-modal" style="color:var(--text3);font-size:16px;padding:4px 8px" aria-label="Close">\u2715</button>
+          </div>
+          <div style="font-size:13px;color:var(--text3);margin-bottom:16px">Write everything on your mind \u2014 AI will do the rest</div>
+          ${dumpHtml}
+        </div>
+      </div>`;
+      initDumpDropZone();
+    };
+    if (dumpResult && typeof dumpResult.then === 'function') {
+      root.innerHTML =
+        '<div class="modal-overlay"><div class="modal" style="max-width:640px;width:100%;padding:40px;text-align:center"><span class="skeleton-pulse" style="display:inline-block;padding:12px 20px;font-size:13px;color:var(--text3)">Loading brainstorm...</span></div></div>';
+      dumpResult.then(renderModal);
+    } else {
+      renderModal(dumpResult);
+    }
+  }
+
   /** Reset render memoization so the next _renderNow/renderSidebar always runs. */
   function invalidateRenderMemo() {
     _lastSidebarState = null;
@@ -1662,5 +1373,6 @@ export function createDashboard(deps) {
     setPlanIndexCache,
     renderMemoryInsightsCard,
     invalidateRenderMemo,
+    openBrainstormModal,
   };
 }
