@@ -2944,18 +2944,52 @@ h3.section-title {
   .task-row {
     flex-wrap: wrap;
     position: relative;
+    overflow: hidden;
+    max-width: 100vw;
   }
   .task-row .task-tags {
     display: flex !important;
     width: 100%;
     margin-top: 4px;
     padding-left: 36px;
+    flex-wrap: wrap;
+    overflow: hidden;
   }
   .task-row .task-actions {
     position: absolute;
     right: 8px;
     top: 8px;
     display: flex !important;
+  }
+  /* Expanded task mobile fixes */
+  .task-expanded {
+    max-width: 100%;
+    overflow: hidden;
+    padding: 12px;
+  }
+  .task-expanded .task-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .task-expanded .task-body {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .task-expanded .task-title {
+    font-size: 15px;
+    line-height: 1.3;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .task-expanded .task-note {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+  }
+  .task-detail-row {
+    flex-wrap: wrap;
   }
   .mobile-hamburger {
     width: 44px !important;
@@ -3078,7 +3112,8 @@ h3.section-title {
   align-items: center;
   justify-content: center;
   font-family: 'Inter', sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   transition:
     opacity 0.5s ease,
     transform 0.5s ease;
@@ -3266,6 +3301,10 @@ h3.section-title {
   color: var(--text3);
 }
 @media (max-width: 640px) {
+  .landing-page {
+    justify-content: flex-start;
+    padding: 40px 16px env(safe-area-inset-bottom, 20px);
+  }
   .landing-features {
     grid-template-columns: 1fr;
   }
@@ -3276,6 +3315,9 @@ h3.section-title {
   .landing-cta-secondary {
     width: 100%;
     justify-content: center;
+  }
+  .landing-h1 {
+    font-size: clamp(24px, 6vw, 36px);
   }
 }
 
