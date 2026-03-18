@@ -61,6 +61,7 @@ export function createDataLayer(deps) {
   let _taskMapVersion = -1;
   let _dataVersion = 0;
   let _saveDebounceTimer = null;
+  let _quotaWarned = false;
   let _saveDebounceData = null;
 
   // --- Corruption recovery state ---
@@ -293,6 +294,22 @@ export function createDataLayer(deps) {
           return false;
         }
       }
+      // Early warning: check storage usage after successful save
+      if (!_quotaWarned) {
+        try {
+          let totalUsed = 0;
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            totalUsed += k.length + (localStorage.getItem(k) || '').length;
+          }
+          if ((totalUsed * 2) / (1024 * 1024) > 4) {
+            _quotaWarned = true;
+            getShowToast()('Storage nearly full \u2014 export your data from Settings as backup', true);
+          }
+        } catch (_qc) {
+          /* ignore */
+        }
+      }
       if (!getSuppressCloudSync() && !getBatchMode()) {
         const scheduleSyncToCloud = getScheduleSyncToCloud();
         if (scheduleSyncToCloud) scheduleSyncToCloud();
@@ -361,6 +378,10 @@ export function createDataLayer(deps) {
     const t = findTask(id);
     if (!t) return;
     validateTaskFields(u);
+    // Undo for meaningful changes (status, priority, title, dueDate, project)
+    if (u.status || u.priority || u.title || u.dueDate !== undefined || u.project !== undefined) {
+      pushUndo('Update: ' + (t.title || '').slice(0, 30));
+    }
     const wasNotDone = t.status !== 'done';
     Object.assign(t, u);
     if (t.title && t.title.length > 500) t.title = t.title.slice(0, 500);

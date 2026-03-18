@@ -522,11 +522,11 @@ export function createDashboard(deps) {
     c.innerHTML = renderProject(p);
   }
 
-  function _triggerAutoAI(data, currentView, dashViewMode) {
+  function _triggerAutoAI(data, currentView) {
     const _hasEverBriefed = localStorage.getItem(userKey('wb_has_ever_briefed'));
     const _activeCount = data.tasks.filter((t) => t.status !== 'done' && !t.archived).length;
     const _readyForBriefing = _hasEverBriefed || _activeCount >= 3;
-    if (currentView === 'dashboard' && dashViewMode === 'list' && data.tasks.length > 0 && _readyForBriefing) {
+    if (currentView === 'dashboard' && data.tasks.length > 0 && _readyForBriefing) {
       if (hasAI() && !localStorage.getItem(userKey('whiteboard_briefing_' + todayStr())) && !getBriefingGenerating()) {
         if (!_hasEverBriefed) localStorage.setItem(userKey('wb_has_ever_briefed'), '1');
         setBriefingGenerating(true);
@@ -667,7 +667,7 @@ export function createDashboard(deps) {
       renderBulkBar();
 
       // Auto-generate briefing and plan on first dashboard load of the day
-      _triggerAutoAI(data, currentView, dashViewMode);
+      _triggerAutoAI(data, currentView);
     } catch (err) {
       console.error('Render error:', err);
       const c = $('#content');
@@ -1088,18 +1088,11 @@ export function createDashboard(deps) {
   }
 
   function _renderNoPlanState() {
-    let html = '';
-    html += `<div class="day-plan-centerpiece" style="background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;text-align:center">`;
-    html += `<div style="font-size:16px;color:var(--text3);margin-bottom:4px">\u25ce</div>`;
-    html += `<div style="font-size:14px;color:var(--text2);margin-bottom:12px">No plan yet for today</div>`;
-    if (hasAI()) {
-      html += `<div style="display:flex;gap:8px;justify-content:center">
-        <button class="btn btn-primary btn-sm" data-action="plan-my-day" id="planBtn">\u25ce Plan my day</button>
-        <button class="btn btn-sm" data-action="dismiss-plan-prompt" id="wingItBtn" style="color:var(--text3)">I'll wing it</button>
-      </div>`;
-    }
-    html += `</div>`;
-    return html;
+    if (!hasAI()) return '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:12px 0;margin-bottom:8px">
+      <button class="btn btn-sm" data-action="plan-my-day" id="planBtn" style="color:var(--accent);font-size:12px">\u25ce Plan my day</button>
+      <span style="font-size:11px;color:var(--text3)">or just start adding tasks below</span>
+    </div>`;
   }
 
   function _renderBriefingToggle(cachedBriefing, _briefingGenerating) {
@@ -1233,15 +1226,17 @@ export function createDashboard(deps) {
     }
 
     let html = '';
-    html += _renderDashboardHero(data, active, done, inProgress, urgent);
 
-    // Day plan is the MAIN content of the dashboard
+    // Plan FIRST — the main thing you see when you open the app
     html += _renderDashboardPlanFirst(data);
 
-    // Tag & nudge filters (stay at dashboard level, outside AI Insights)
+    // Then the input + status
+    html += _renderDashboardHero(data, active, done, inProgress, urgent);
+
+    // Tag & nudge filters
     html += _renderDashboardFilters();
 
-    // Nudges → toast only (show top nudge as toast, once per session)
+    // Nudges → toast only
     _showNudgeAsToast();
 
     return html;
