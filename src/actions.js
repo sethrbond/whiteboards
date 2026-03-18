@@ -123,7 +123,6 @@ export function createActions(deps) {
     acceptReschedule,
     skipReschedule,
     acceptAllReschedules,
-    showFeatureTips,
     showOnboardingExperience,
     // State getters/setters
     getExpandedTask,

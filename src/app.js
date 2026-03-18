@@ -1199,7 +1199,7 @@ function showFollowUpToast(suggestions) {
   el.style.cssText =
     'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:14px 20px;border-radius:var(--radius);font-size:13px;z-index:9999;max-width:480px;text-align:center;box-shadow:var(--shadow);line-height:1.5;animation:toastIn 0.3s ease';
   let html = '<span style="color:var(--accent);margin-right:6px">\u2726</span>';
-  html += s.text;
+  html += esc(s.text);
   if (suggestions.length > 1)
     html += ' <span style="color:var(--text3);font-size:11px">(+' + (suggestions.length - 1) + ' more)</span>';
   el.innerHTML = html;
