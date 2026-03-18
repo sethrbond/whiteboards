@@ -518,7 +518,7 @@ export function createDashboard(deps) {
     c.innerHTML = dashViewMode === 'list' ? renderDashboard() : renderCalendar();
   }
 
-  function _renderNowProjectView(c, ha, data, bulkMode) {
+  function _renderNowProjectView(c, ha, data) {
     const currentProject = getCurrentProject();
     const p = data.projects.find((x) => x.id === currentProject);
     if (!p) {
@@ -528,7 +528,7 @@ export function createDashboard(deps) {
     $('#viewTitle').textContent = p.name;
     $('#viewSub').textContent = '';
     const vm = getProjectViewMode(p.id) || 'list';
-    ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${vm === 'list' ? 'active' : ''}" data-action="project-view-mode" data-project-id="${esc(p.id)}" data-mode="list">List</button><button class="view-toggle-btn ${vm === 'board' ? 'active' : ''}" data-action="project-view-mode" data-project-id="${esc(p.id)}" data-mode="board">Board</button></div><button class="btn btn-sm${bulkMode ? ' btn-active' : ''}" data-action="toggle-bulk" title="Select multiple tasks">\u2630 Bulk</button><button class="btn btn-sm" data-action="open-project-chat" data-project-id="${esc(p.id)}">\u2726 AI</button><button class="btn btn-primary btn-sm" data-action="open-new-task" data-project-id="${esc(p.id)}">+ Task</button><div class="dropdown" style="position:relative"><button class="btn btn-sm" data-action="toggle-dropdown">\u00b7\u00b7\u00b7</button><div class="dropdown-menu"><button data-action="start-focus-project" data-project-id="${esc(p.id)}">\u25ce Focus Mode</button><button data-action="ai-reorganize" data-project-id="${esc(p.id)}">\u2726 Reorganize</button><button data-action="open-edit-project" data-project-id="${esc(p.id)}">Edit Board</button></div></div>`;
+    ha.innerHTML = `<div class="view-toggle"><button class="view-toggle-btn ${vm === 'list' ? 'active' : ''}" data-action="project-view-mode" data-project-id="${esc(p.id)}" data-mode="list">List</button><button class="view-toggle-btn ${vm === 'board' ? 'active' : ''}" data-action="project-view-mode" data-project-id="${esc(p.id)}" data-mode="board">Board</button></div><button class="btn btn-sm" data-action="open-project-chat" data-project-id="${esc(p.id)}"><span class="ai-badge" style="font-size:9px;width:20px;height:20px;display:inline-flex;vertical-align:middle;margin-right:4px">ai</span>Ask</button><button class="btn btn-primary btn-sm" data-action="open-new-task" data-project-id="${esc(p.id)}">+ Task</button><div class="dropdown" style="position:relative"><button class="btn btn-sm" data-action="toggle-dropdown">\u00b7\u00b7\u00b7</button><div class="dropdown-menu"><button data-action="start-focus-project" data-project-id="${esc(p.id)}">\u25ce Focus Mode</button><button data-action="ai-reorganize" data-project-id="${esc(p.id)}"><span class="ai-badge" style="font-size:8px;width:16px;height:16px;display:inline-flex;vertical-align:middle;margin-right:4px">ai</span> Reorganize</button><button data-action="open-edit-project" data-project-id="${esc(p.id)}">Edit Board</button></div></div>`;
     c.innerHTML = renderProject(p);
   }
 
@@ -634,7 +634,7 @@ export function createDashboard(deps) {
           _renderNowDashboardView(c, ha, data, bulkMode, dashViewMode);
           break;
         case 'project':
-          _renderNowProjectView(c, ha, data, bulkMode);
+          _renderNowProjectView(c, ha, data);
           break;
         case 'dump':
           // Brainstorm opens as modal — redirect back to dashboard
