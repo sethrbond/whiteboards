@@ -471,7 +471,7 @@ export function createActions(deps) {
         const stTaskId = actionEl.dataset.taskId;
         // Find the subtask title span in the same row
         const row = actionEl.closest('div');
-        const titleSpan = row ? row.querySelector('span:not([style*="flex-shrink"])') : null;
+        const titleSpan = row ? row.querySelector('.subtask-title') : null;
         if (titleSpan) {
           const oldTitle = titleSpan.textContent;
           const input = document.createElement('input');

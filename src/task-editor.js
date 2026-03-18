@@ -156,10 +156,8 @@ export function createTaskEditor(deps) {
       } else {
         html += `<div style="width:16px;flex-shrink:0"></div>`;
       }
-      html += `<div style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer" role="checkbox" aria-checked="${s.done}" aria-label="Mark subtask: ${esc(s.title)} complete" tabindex="0" data-action="toggle-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}">`;
-      html += `<div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done ? 'var(--accent)' : 'var(--border2)'};background:${s.done ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0">${s.done ? '\u2713' : ''}</div>`;
-      html += `<span style="font-size:${Math.max(11, 12 - depth)}px;color:${s.done ? 'var(--text3)' : 'var(--text)'};${s.done ? 'text-decoration:line-through' : ''}">${esc(s.title)}</span>`;
-      html += `</div>`;
+      html += `<div style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${s.done ? 'var(--accent)' : 'var(--border2)'};background:${s.done ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;flex-shrink:0;cursor:pointer" role="checkbox" aria-checked="${s.done}" aria-label="Mark subtask: ${esc(s.title)} complete" tabindex="0" data-action="toggle-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}">${s.done ? '\u2713' : ''}</div>`;
+      html += `<span class="subtask-title" style="font-size:${Math.max(11, 12 - depth)}px;color:${s.done ? 'var(--text3)' : 'var(--text)'};${s.done ? 'text-decoration:line-through' : ''};flex:1">${esc(s.title)}</span>`;
       html += `<button style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:2px 4px;opacity:0.3;flex-shrink:0" data-action="edit-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}" title="Edit subtask" aria-label="Edit ${esc(s.title)}">\u270e</button>`;
       html += `<button style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:2px 4px;opacity:0.3;flex-shrink:0" data-action="delete-subtask" data-task-id="${taskId}" data-subtask-id="${s.id}" title="Remove subtask" aria-label="Remove ${esc(s.title)}">\u00d7</button>`;
       html += `</div>`;
