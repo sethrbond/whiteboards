@@ -222,7 +222,7 @@ export function createBrainstorm(deps) {
   async function ensurePDFLib() {
     if (_pdfjsLib) return;
     const pdfjs = await import('pdfjs-dist');
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href;
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
     _pdfjsLib = pdfjs;
   }
 
