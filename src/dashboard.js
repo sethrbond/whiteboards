@@ -629,6 +629,40 @@ export function createDashboard(deps) {
             }
           }
           break;
+        case 'all-tasks': {
+          $('#viewTitle').textContent = 'All Tasks';
+          const allActive = activeTasks();
+          $('#viewSub').textContent = `${allActive.length} active tasks`;
+          ha.innerHTML = '';
+          let atHtml = '';
+          const sorted = sortTasks(allActive);
+          sorted.forEach((t) => {
+            atHtml += renderTaskRow(t, true);
+          });
+          if (!sorted.length)
+            atHtml = '<div style="text-align:center;padding:40px;color:var(--text3)">No active tasks</div>';
+          c.innerHTML = atHtml;
+          break;
+        }
+        case 'completed': {
+          $('#viewTitle').textContent = 'Completed';
+          const allDone = data.tasks.filter((t) => t.status === 'done' && !t.archived);
+          $('#viewSub').textContent = `${allDone.length} completed tasks`;
+          ha.innerHTML = '';
+          const byDate = [...allDone].sort((a, b) => {
+            const aD = a.completedAt || '0';
+            const bD = b.completedAt || '0';
+            return bD.localeCompare(aD); // newest first
+          });
+          let compHtml = '';
+          byDate.forEach((t) => {
+            compHtml += renderTaskRow(t, true);
+          });
+          if (!byDate.length)
+            compHtml = '<div style="text-align:center;padding:40px;color:var(--text3)">No completed tasks yet</div>';
+          c.innerHTML = compHtml;
+          break;
+        }
         case 'archive':
           $('#viewTitle').textContent = 'Archive';
           $('#viewSub').textContent = '';
