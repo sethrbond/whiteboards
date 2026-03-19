@@ -1414,7 +1414,8 @@ describe('actions.js — createActions()', () => {
       vi.useRealTimers();
     });
 
-    it('clear-plan removes plan from localStorage and renders', () => {
+    it('clear-plan removes plan from localStorage after confirm', () => {
+      window.confirm = vi.fn(() => true);
       localStorage.setItem('test_plan_key', 'plan data');
       click(makeActionEl('clear-plan', { planKey: 'test_plan_key' }));
       expect(localStorage.getItem('test_plan_key')).toBeNull();

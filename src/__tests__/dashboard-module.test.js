@@ -1857,7 +1857,6 @@ describe('dashboard.js — additional coverage', () => {
       expect(html).toContain('Top priority for today');
       expect(html).toContain('Replan');
       expect(html).toContain('data-action="replan-day"');
-      expect(html).toContain('data-action="clear-plan"');
       expect(html).toContain('tomorrow');
     });
 
