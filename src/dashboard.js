@@ -132,6 +132,12 @@ export function createDashboard(deps) {
       if (sd) return sd;
       const pd = po[a.priority] - po[b.priority];
       if (pd) return pd;
+      // Due date: no-date first (needs attention), then chronological
+      const aDate = a.dueDate || '';
+      const bDate = b.dueDate || '';
+      if (aDate && !bDate) return 1;
+      if (!aDate && bDate) return -1;
+      if (aDate && bDate && aDate !== bDate) return aDate.localeCompare(bDate);
       return (b.interest || 3) - (a.interest || 3);
     });
   }
@@ -475,7 +481,7 @@ export function createDashboard(deps) {
   function _renderNowDashboardView(c, ha, _data, _bulkMode, dashViewMode) {
     $('#viewSub').textContent = '';
     ha.innerHTML = `<button class="btn btn-sm" data-action="toggle-chat"><span class="ai-badge" style="margin-right:4px" aria-hidden="true">ai</span>Ask</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
-    c.innerHTML = dashViewMode === 'list' ? renderDashboard() : renderCalendar();
+    c.innerHTML = renderDashboard();
   }
 
   function _renderNowProjectView(c, ha, data) {
@@ -575,7 +581,9 @@ export function createDashboard(deps) {
       '|' +
       (localStorage.getItem(userKey('whiteboard_plan_' + todayStr())) || '').length +
       '|' +
-      (localStorage.getItem(userKey('whiteboard_briefing_' + todayStr())) || '').length;
+      (localStorage.getItem(userKey('whiteboard_briefing_' + todayStr())) || '').length +
+      '|' +
+      (currentView === 'calendar' ? Date.now() : ''); // calendar always re-renders (offset changes)
     if (contentState === _lastContentState) {
       return;
     }
