@@ -246,7 +246,9 @@ export function createChat(deps) {
       : buildAIContext('all', null, 'standard');
 
     const settings = getSettings();
-    const systemPrompt = `${AI_PERSONA}
+    // Build system prompt and truncate to stay under API limit (16K chars)
+    const MAX_SYSTEM_CHARS = 15000;
+    const preamble = `${AI_PERSONA}
 
 ${AI_ACTIONS_SPEC}
 
@@ -261,7 +263,11 @@ RULES:
 - TRUST task data over AI memory. Memory may be stale.
 - Be concise. Don't repeat what the user knows.
 
-${context}`;
+`;
+    const remainingChars = MAX_SYSTEM_CHARS - preamble.length;
+    const systemPrompt =
+      preamble +
+      (context.length > remainingChars ? context.slice(0, remainingChars) + '\n[context truncated]' : context);
 
     chatHistory.push({ role: 'user', content: msg, ts: Date.now() });
     saveChatHistory();
