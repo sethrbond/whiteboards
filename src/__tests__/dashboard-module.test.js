@@ -804,7 +804,7 @@ describe('dashboard.js — createDashboard()', () => {
 
       dashboard._renderNow();
       expect(document.getElementById('viewTitle').textContent).toBe('Dashboard');
-      expect(document.getElementById('viewSub').textContent).toContain('1 active tasks');
+      expect(document.getElementById('viewSub').textContent).toBe('');
     });
 
     it('renders header actions with Ask AI and New Board buttons', () => {
@@ -1000,7 +1000,7 @@ describe('dashboard.js — createDashboard()', () => {
       expect(deps.attachListeners).not.toHaveBeenCalled();
     });
 
-    it('shows estimated hours in subtitle when tasks have estimates', () => {
+    it('dashboard subtitle is clean (no task counts)', () => {
       setupDomForRenderNow();
       const tasks = [
         { id: 't1', status: 'todo', priority: 'normal', estimatedMinutes: 60 },
@@ -1010,8 +1010,6 @@ describe('dashboard.js — createDashboard()', () => {
       deps.getCurrentView.mockReturnValue('dashboard');
       deps.getDashViewMode.mockReturnValue('list');
       deps.activeTasks.mockReturnValue(tasks);
-      deps.urgentTasks.mockReturnValue([]);
-      deps.doneTasks.mockReturnValue([]);
       deps.projectTasks.mockReturnValue([]);
       deps.archivedTasks.mockReturnValue([]);
       deps.getBrainstormModule.mockReturnValue({
@@ -1022,7 +1020,7 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       dashboard._renderNow();
-      expect(document.getElementById('viewSub').textContent).toContain('2.5h estimated');
+      expect(document.getElementById('viewSub').textContent).toBe('');
     });
   });
 
