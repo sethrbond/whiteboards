@@ -431,28 +431,25 @@ describe('dashboard.js — createDashboard()', () => {
 
   // ── renderDashboard ───────────────────────────────────────────────
   describe('renderDashboard', () => {
-    it('shows welcome/empty state when no tasks and at most 1 project', () => {
+    it('shows onboarding with dump textarea when no tasks', () => {
       deps.getData.mockReturnValue({ tasks: [], projects: [] });
-      deps.urgentTasks.mockReturnValue([]);
       deps.activeTasks.mockReturnValue([]);
-      deps.doneTasks.mockReturnValue([]);
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('What are you working on');
-      expect(html).toContain('data-action="go-dump"');
+      expect(html).toContain('Drop everything here');
+      expect(html).toContain('onboardDump');
+      expect(html).toContain('data-action="onboard-process"');
     });
 
-    it('shows welcome state with typing phrases data attribute', () => {
+    it('shows skip option and attach files link in onboarding', () => {
       deps.getData.mockReturnValue({ tasks: [], projects: [] });
-      deps.urgentTasks.mockReturnValue([]);
       deps.activeTasks.mockReturnValue([]);
-      deps.doneTasks.mockReturnValue([]);
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('Plan my week');
-      expect(html).toContain('Brain dump');
+      expect(html).toContain('onboard-skip');
+      expect(html).toContain('attach files');
     });
 
     it('shows overdue sub-greeting when tasks are overdue', () => {
@@ -474,12 +471,10 @@ describe('dashboard.js — createDashboard()', () => {
       expect(html).toContain('1 overdue');
     });
 
-    it('shows "Nothing pressing" when no active tasks', () => {
+    it('shows greeting and quickCapture when no active tasks', () => {
       const projects = [{ id: 'p1', name: 'Work', color: '#818cf8' }];
       deps.getData.mockReturnValue({ tasks: [{ id: 't1', status: 'done' }], projects });
-      deps.urgentTasks.mockReturnValue([]);
       deps.activeTasks.mockReturnValue([]);
-      deps.doneTasks.mockReturnValue([{ id: 't1', status: 'done' }]);
       deps.projectTasks.mockReturnValue([]);
       deps.getBrainstormModule.mockReturnValue({
         isDumpInProgress: () => false,
@@ -489,15 +484,14 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('No tasks yet');
+      expect(html).toContain('Good');
+      expect(html).toContain('quickCapture');
     });
 
     it('renders quickCapture input', () => {
       const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
       deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'Work', color: '#818cf8' }] });
-      deps.urgentTasks.mockReturnValue([]);
       deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
       deps.projectTasks.mockReturnValue(tasks);
       deps.getBrainstormModule.mockReturnValue({
         isDumpInProgress: () => false,
@@ -509,7 +503,6 @@ describe('dashboard.js — createDashboard()', () => {
       const html = dashboard.renderDashboard();
       expect(html).toContain('id="quickCapture"');
       expect(html).toContain('data-keydown-action="hero-input"');
-      expect(html).toContain('id="brainstormHint"');
     });
 
     it('renders generating state for briefing', () => {
@@ -554,71 +547,6 @@ describe('dashboard.js — createDashboard()', () => {
       expect(html).toContain("Today's Plan");
       expect(html).toContain('Most important today');
       expect(html).toContain('Replan');
-    });
-
-    it('renders nudge filter indicator when active', () => {
-      const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getNudgeFilter.mockReturnValue('overdue');
-      deps.getSmartFeedItems.mockReturnValue([]);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Filtering: Overdue tasks');
-      expect(html).toContain('clearNudgeFilter()');
-    });
-
-    it('renders tag filter when tags exist and filter is shown', () => {
-      const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getAllTags.mockReturnValue(['bug', 'feature']);
-      deps.getShowTagFilter.mockReturnValue(true);
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('tag-filter-btn');
-      expect(html).toContain('bug');
-      expect(html).toContain('feature');
-    });
-
-    it('renders active tag filter chip', () => {
-      const tasks = [{ id: 't1', title: 'Task', status: 'todo', priority: 'normal' }];
-      deps.getData.mockReturnValue({ tasks, projects: [{ id: 'p1', name: 'W', color: '#f00' }] });
-      deps.urgentTasks.mockReturnValue([]);
-      deps.activeTasks.mockReturnValue(tasks);
-      deps.doneTasks.mockReturnValue([]);
-      deps.projectTasks.mockReturnValue(tasks);
-      deps.getAllTags.mockReturnValue(['bug']);
-      deps.getActiveTagFilter.mockReturnValue('bug');
-      deps.getBrainstormModule.mockReturnValue({
-        isDumpInProgress: () => false,
-        getDumpHistory: () => [],
-        shouldShowDumpInvite: () => false,
-      });
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('selected');
-      expect(html).toContain('clear-tag-filter');
-      expect(html).toContain('bug');
     });
 
     it('does not render today card when no AI', () => {
@@ -1877,35 +1805,6 @@ describe('dashboard.js — additional coverage', () => {
       });
     }
 
-    it('renders "Filter by tag" toggle when tags exist but filter not shown', () => {
-      setupDashWithTasks();
-      deps.getAllTags.mockReturnValue(['bug', 'feature']);
-      deps.getShowTagFilter.mockReturnValue(false);
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Filter by tag');
-      expect(html).toContain('data-action="toggle-tag-filter"');
-    });
-
-    it('renders nudge filter with stale label', () => {
-      setupDashWithTasks();
-      deps.getNudgeFilter.mockReturnValue('stale');
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Filtering: Stale tasks (10+ days)');
-    });
-
-    it('renders nudge filter with unassigned label', () => {
-      setupDashWithTasks();
-      deps.getNudgeFilter.mockReturnValue('unassigned');
-      dashboard = createDashboard(deps);
-
-      const html = dashboard.renderDashboard();
-      expect(html).toContain('Filtering: Unassigned tasks');
-    });
-
     it('does not render tag filter section when no tags', () => {
       setupDashWithTasks();
       deps.getAllTags.mockReturnValue([]);
@@ -2484,10 +2383,9 @@ describe('dashboard.js — additional coverage', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('What are you working on');
-      expect(html).toContain('Plan my week');
-      expect(html).toContain('Brain dump');
-      expect(html).toContain('data-action="go-dump"');
+      expect(html).toContain('Drop everything here');
+      expect(html).toContain('onboardDump');
+      expect(html).toContain('data-action="onboard-process"');
     });
 
     it('does not show welcome state when more than 1 project exists', () => {

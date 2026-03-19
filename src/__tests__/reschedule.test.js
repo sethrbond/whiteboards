@@ -507,10 +507,10 @@ describe('Smart Auto-Reschedule', () => {
     });
 
     it('returns true when a day has >5 tasks', () => {
-      const today = '2026-03-16';
+      const today = '2026-03-19';
       const tasks = [];
       for (let i = 0; i < 6; i++) {
-        tasks.push({ id: 'tx' + i, title: 'Task ' + i, status: 'todo', dueDate: '2026-03-18', archived: false });
+        tasks.push({ id: 'tx' + i, title: 'Task ' + i, status: 'todo', dueDate: '2026-03-22', archived: false });
       }
       deps = makeDeps({ getData: vi.fn(() => ({ tasks, projects: [] })), todayStr: vi.fn(() => today) });
       proactive = createProactive(deps);

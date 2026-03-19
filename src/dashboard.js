@@ -24,8 +24,6 @@ export function createDashboard(deps) {
     userKey,
     findTask,
     activeTasks,
-    doneTasks,
-    urgentTasks,
     projectTasks,
     archivedTasks,
     sortTasksDeps, // { PRIORITY_ORDER, todayStr, userKey, getDataVersion }
@@ -71,13 +69,8 @@ export function createDashboard(deps) {
     setBriefingGenerating,
     getPlanGenerating,
     setPlanGenerating,
-    getNudgeFilter,
     setNudgeFilter,
     getTodayBriefingExpanded,
-    getShowTagFilter,
-    getActiveTagFilter,
-    getAllTags,
-    getTagColor,
     // Render helpers
     renderDump,
     initDumpDropZone,
@@ -605,13 +598,7 @@ export function createDashboard(deps) {
       '|' +
       (getProjectViewMode(_currentProject || '') || '') +
       '|' +
-      (getActiveTagFilter() || '') +
-      '|' +
-      (getNudgeFilter() || '') +
-      '|' +
       getTodayBriefingExpanded() +
-      '|' +
-      getShowTagFilter() +
       '|' +
       getSectionShowCount('dash') +
       '|' +
@@ -899,47 +886,6 @@ export function createDashboard(deps) {
   }
   // ===== Dashboard sub-functions =====
 
-  function _renderDashboardHero(data, active, _done, _inProgress, _urgent) {
-    let html = '';
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    const dueToday = active.filter((t) => t.dueDate === todayStr());
-    const overdue = active.filter((t) => t.dueDate && t.dueDate < todayStr());
-
-    // Brief status line
-    const statusParts = [];
-    if (overdue.length) statusParts.push(`${overdue.length} overdue`);
-    if (dueToday.length) statusParts.push(`${dueToday.length} due today`);
-    if (!overdue.length && !dueToday.length) {
-      if (active.length) statusParts.push(`${active.length} active tasks`);
-      else statusParts.push('No tasks yet');
-    }
-    // Next upcoming deadline
-    const upcoming = active
-      .filter((t) => t.dueDate && t.dueDate > todayStr())
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-    if (upcoming.length && !overdue.length) {
-      statusParts.push(
-        `next: ${esc(upcoming[0].title.slice(0, 25))}${upcoming[0].title.length > 25 ? '...' : ''} ${fmtDate(upcoming[0].dueDate)}`,
-      );
-    }
-    const briefStatus = statusParts.join(' \u00b7 ');
-
-    html += `<div class="ai-hero-card">`;
-    html += `<div class="ai-hero-greeting">${greeting}</div>`;
-    html += `<div class="ai-hero-sub">${briefStatus}</div>`;
-
-    // Simple task input
-    html += `<input class="conversational-input" id="quickCapture" placeholder="Add a task..." aria-label="Add a task" data-keydown-action="hero-input" data-oninput-action="preview-quick-capture" autocomplete="off">`;
-    html += `<div id="quickCapturePreview" class="smart-date-preview" style="padding-left:0"></div>`;
-    html += `<div id="brainstormHint" style="display:none;font-size:11px;color:var(--accent);padding:6px 0 0;opacity:0.85;transition:opacity 0.2s"><kbd style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;font-family:inherit">Shift+Enter</kbd> &rarr; Organize with AI</div>`;
-    const projOpts = data.projects.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-    html += `<select class="quick-capture-project" id="quickCaptureProject" style="display:none" aria-label="Select project for quick capture">${projOpts}</select>`;
-
-    html += `</div>`; // end ai-hero-card
-    return html;
-  }
-
   // ===== Day Plan Centerpiece =====
 
   function _renderDayPlanCenterpiece() {
@@ -1032,7 +978,7 @@ export function createDashboard(deps) {
 
       // Active tasks in plan order
       const _expandedTask = getExpandedTask();
-      activePlanItems.forEach((p) => {
+      activePlanItems.forEach((p, i) => {
         const t = p._task;
         const isExpanded = _expandedTask === t.id;
 
@@ -1055,7 +1001,8 @@ export function createDashboard(deps) {
               ? ` <span style="font-size:10px;color:var(--text3)">(${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length})</span>`
               : '';
 
-          html += `<div class="plan-task-row">
+          html += `<div class="plan-task-row" draggable="true" data-plan-drag="${p.id}" data-plan-index="${i}">
+            <div style="cursor:grab;color:var(--text3);font-size:10px;padding:0 4px;flex-shrink:0;opacity:0.3" aria-hidden="true">\u2261</div>
             <div class="task-check" data-action="complete-task" data-task-id="${t.id}" role="checkbox" aria-checked="false" tabindex="0" aria-label="Mark ${esc(t.title)} done" style="flex-shrink:0"></div>
             <div style="flex:1;min-width:0">
               <span style="font-size:13px;color:var(--text);cursor:pointer" data-action="toggle-expand" data-task="${t.id}">${esc(t.title)}</span>
@@ -1217,34 +1164,49 @@ export function createDashboard(deps) {
 
   function renderDashboard() {
     const data = getData();
-    const urgent = urgentTasks();
     const active = activeTasks();
-    const done = doneTasks();
-    const inProgress = active.filter((t) => t.status === 'in-progress');
 
-    // Fresh start welcome — clean and simple
+    // First-time onboarding — teach by doing
     if (data.tasks.length === 0 && data.projects.length <= 1) {
-      return `<div style="max-width:480px;margin:60px auto;text-align:center">
-        <div style="font-size:28px;margin-bottom:8px">\u25ce</div>
-        <div style="font-size:20px;font-weight:600;margin-bottom:8px;color:var(--text)">What are you working on?</div>
-        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:28px">Type a task above to get started, or dump everything on your mind at once.</p>
-        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-          <button class="btn btn-primary" data-action="go-dump" style="padding:10px 20px">Brain dump \u2192</button>
-          <button class="btn" data-action="go-dump-weekly" style="padding:10px 20px">Plan my week</button>
+      return `<div style="max-width:520px;margin:40px auto">
+        <div style="font-size:20px;font-weight:600;margin-bottom:6px;color:var(--text)">Drop everything here.</div>
+        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:20px">Meeting notes, plans, ideas, to-do lists, a PDF \u2014 paste it all in. AI reads it and creates organized tasks and boards for you.</p>
+        <textarea id="onboardDump" style="width:100%;min-height:140px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:14px;color:var(--text);font-family:inherit;resize:vertical;outline:none;line-height:1.6;box-sizing:border-box" placeholder="Paste meeting notes, write your thoughts, list everything on your mind..."></textarea>
+        <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
+          <button class="btn btn-primary" data-action="onboard-process" style="padding:10px 20px">Organize this \u2192</button>
+          <span style="font-size:12px;color:var(--text3)">or <span style="color:var(--accent);cursor:pointer" data-action="go-dump">attach files</span> \u00b7 <span style="color:var(--accent);cursor:pointer" data-action="onboard-skip">skip, I'll add tasks manually</span></span>
         </div>
       </div>`;
     }
 
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const overdue = active.filter((t) => t.dueDate && t.dueDate < todayStr());
+    const dueToday = active.filter((t) => t.dueDate === todayStr());
+
     let html = '';
 
-    // Plan FIRST — the main thing you see when you open the app
-    html += _renderDashboardPlanFirst(data);
+    // Minimal header: greeting + status in one line
+    const statusBits = [];
+    if (overdue.length) statusBits.push(`${overdue.length} overdue`);
+    if (dueToday.length) statusBits.push(`${dueToday.length} due today`);
+    if (!statusBits.length && active.length) statusBits.push(`${active.length} active`);
+    html += `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+      <span style="font-size:16px;font-weight:600;color:var(--text)">${greeting}</span>
+      <span style="font-size:12px;color:var(--text3)">${statusBits.join(' \u00b7 ')}</span>
+    </div>`;
 
-    // Then the input + status
-    html += _renderDashboardHero(data, active, done, inProgress, urgent);
+    // THE PLAN — this is the entire dashboard
+    html += _renderDayPlanCenterpiece();
 
-    // Tag & nudge filters
-    html += _renderDashboardFilters();
+    // Compact input below plan
+    html += `<div style="margin-top:16px">
+      <input class="conversational-input" id="quickCapture" placeholder="Add a task..." aria-label="Add a task" data-keydown-action="hero-input" data-oninput-action="preview-quick-capture" autocomplete="off" style="font-size:13px">
+      <div id="quickCapturePreview" class="smart-date-preview" style="padding-left:0"></div>
+    </div>`;
+
+    // EOD only — no briefing card, no filters, no tag UI
+    html += _renderEndOfDay(data);
 
     // Nudges → toast only
     _showNudgeAsToast();
@@ -1253,13 +1215,6 @@ export function createDashboard(deps) {
   }
 
   // === Plan-first dashboard: day plan centerpiece is the main content ===
-  function _renderDashboardPlanFirst(data) {
-    let html = '';
-    html += _renderDayPlanCenterpiece();
-    html += _renderEndOfDay(data);
-    return html;
-  }
-
   // Nudges → toast only: show the top nudge as a toast notification, once per app open
   function _showNudgeAsToast() {
     const sessionFlag = '__tb_nudge_toast_shown';
@@ -1270,48 +1225,6 @@ export function createDashboard(deps) {
       showToast(top.text, false, true);
       if (typeof window !== 'undefined' && window.sessionStorage) window.sessionStorage.setItem(sessionFlag, '1');
     }
-  }
-
-  // Tag and nudge filter controls (extracted from _renderDashboardNudges)
-  function _renderDashboardFilters() {
-    let html = '';
-
-    // Nudge filter indicator
-    const _nudgeFilter = getNudgeFilter();
-    if (_nudgeFilter) {
-      const nfLabels = { overdue: 'Overdue tasks', stale: 'Stale tasks (10+ days)', unassigned: 'Unassigned tasks' };
-      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;margin-bottom:12px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius-xs)">
-        <span style="font-size:12px;color:var(--accent);font-weight:500">Filtering: ${nfLabels[_nudgeFilter] || _nudgeFilter}</span>
-        <span style="font-size:11px;color:var(--accent);cursor:pointer;margin-left:auto" data-nudge-action="clearNudgeFilter()">Clear filter</span>
-      </div>`;
-    }
-
-    // Tag filter
-    const allTags = getAllTags();
-    const activeTagFilter = getActiveTagFilter();
-    if (allTags.length) {
-      if (activeTagFilter) {
-        html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-          <span style="font-size:10px;color:var(--text3);margin-right:4px">Tag:</span>
-          <span class="tag-chip tag-filter-btn selected" style="background:${getTagColor(activeTagFilter).bg};color:${getTagColor(activeTagFilter).color};font-size:10px" data-tag="${esc(activeTagFilter)}">${esc(activeTagFilter)}</span>
-          <span style="font-size:10px;color:var(--accent);cursor:pointer;margin-left:4px" data-action="clear-tag-filter" role="button" tabindex="0" aria-label="Clear tag filter">\u2715 clear</span>
-        </div>`;
-      } else {
-        const _showTagFilterVal = getShowTagFilter();
-        html += `<div style="margin-bottom:8px"><span data-action="toggle-tag-filter" style="font-size:10px;color:var(--text3);cursor:pointer;user-select:none">${_showTagFilterVal ? '\u25be' : '\u25b8'} Filter by tag</span></div>`;
-        if (_showTagFilterVal) {
-          html += `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-            ${allTags
-              .map((tag) => {
-                const c = getTagColor(tag);
-                return `<span class="tag-chip tag-filter-btn" style="background:${c.bg};color:${c.color};font-size:10px" data-tag="${esc(tag)}">${esc(tag)}</span>`;
-              })
-              .join('')}
-          </div>`;
-        }
-      }
-    }
-    return html;
   }
 
   // Expose setPlanIndexCache for proactive module

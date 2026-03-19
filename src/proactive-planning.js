@@ -84,17 +84,17 @@ ALL ACTIVE TASKS (id|title|priority|status|due|project|blocked|estimate):
 ${taskList}
 
 RULES:
-- STRICTLY pick 5-8 tasks MAXIMUM. Never more than 8. Be ruthless — a focused plan beats a long list.
-- Put urgent/overdue first, then high-impact, then quick wins
+- Pick 5-8 tasks. MINIMUM 3, MAXIMUM 8. A day with 1 task is not a plan.
+- ALWAYS include overdue tasks and tasks due today — these are non-negotiable
+- Then add high-impact and quick wins to fill the plan
 - Consider energy: harder tasks earlier, lighter tasks later${orderHint}
-- Include at least one in-progress task (momentum matters)
-- Skip blocked tasks and vague multi-day efforts
-- If a task has subtasks, it's fine to include it — just note which subtask to start with
-- Respect time estimates — don't plan more than 6-7 hours of work total
-- Leave buffer time — the user has meetings, breaks, and interruptions
-- If in doubt, leave it OUT. Tomorrow exists.
+- Include in-progress tasks (momentum matters)
+- Skip BLOCKED tasks only — everything else is fair game
+- If a task has subtasks, include it and note which subtask to start with
+- Respect time estimates — aim for 5-7 hours of actual work
+- Use the task IDs EXACTLY as provided — copy them character for character
 
-Return ONLY a JSON array (5-8 items max), no other text:
+Return ONLY a JSON array (3-8 items), no other text:
 [
   { "id": "task_id", "why": "brief reason — 8 words max" },
   ...
@@ -111,6 +111,19 @@ Return ONLY a JSON array (5-8 items max), no other text:
       if (Array.isArray(json) && json.length) {
         // Validate IDs exist, hard cap at 8 tasks
         const valid = json.filter((p) => findTask(p.id)).slice(0, 8);
+        // If AI returned too few, auto-add overdue and due-today tasks
+        if (valid.length < 3) {
+          const today = todayStr();
+          const validIds = new Set(valid.map((p) => p.id));
+          const urgent = active.filter(
+            (t) => !validIds.has(t.id) && ((t.dueDate && t.dueDate <= today) || t.priority === 'urgent'),
+          );
+          urgent.forEach((t) => {
+            if (valid.length < 8) {
+              valid.push({ id: t.id, why: t.dueDate && t.dueDate < today ? 'Overdue' : 'Due today' });
+            }
+          });
+        }
         localStorage.setItem(userKey('whiteboard_plan_' + todayStr()), JSON.stringify(valid));
         setPlanIndexCache(null, ''); // invalidate sort cache
         render();

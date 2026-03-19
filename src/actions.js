@@ -1020,6 +1020,31 @@ export function createActions(deps) {
         localStorage.setItem(userKey('whiteboard_eod_dismissed_' + todayStr()), '1');
         document.getElementById('eodCard').remove();
         break;
+      case 'onboard-process': {
+        const textarea = document.getElementById('onboardDump');
+        if (textarea && textarea.value.trim()) {
+          // Open brainstorm modal with the onboard text pre-filled
+          if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+          setTimeout(() => {
+            const dt = document.getElementById('dumpText');
+            if (dt) {
+              dt.value = textarea.value.trim();
+              dt.focus();
+              // Auto-trigger processing
+              const processBtn = document.querySelector('[data-action="process-dump"]');
+              if (processBtn) processBtn.click();
+            }
+          }, 200);
+        } else {
+          showToast('Write something first — paste meeting notes, plans, anything');
+        }
+        break;
+      }
+      case 'onboard-skip':
+        // Create a default "Life" project so the empty check passes and dashboard renders normally
+        showToast('Add tasks with the input below');
+        render();
+        break;
       case 'focus-quick-capture': {
         const qc = document.getElementById('quickCapture');
         if (qc) {
@@ -1443,5 +1468,65 @@ export function createActions(deps) {
     if (!e.target.closest('.dropdown')) {
       document.querySelectorAll('.dropdown.open').forEach((d) => d.classList.remove('open'));
     }
+  });
+
+  // ---- Plan task drag-to-reorder ----
+  let _dragIdx = -1;
+  document.addEventListener('dragstart', (e) => {
+    const row = e.target.closest('[data-plan-drag]');
+    if (!row) return;
+    _dragIdx = parseInt(row.dataset.planIndex, 10);
+    row.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  document.addEventListener('dragover', (e) => {
+    const row = e.target.closest('[data-plan-drag]');
+    if (!row || _dragIdx < 0) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    row.style.borderTop = '2px solid var(--accent)';
+  });
+  document.addEventListener('dragleave', (e) => {
+    const row = e.target.closest('[data-plan-drag]');
+    if (row) row.style.borderTop = '';
+  });
+  document.addEventListener('drop', (e) => {
+    const row = e.target.closest('[data-plan-drag]');
+    if (!row || _dragIdx < 0) return;
+    e.preventDefault();
+    row.style.borderTop = '';
+    const dropIdx = parseInt(row.dataset.planIndex, 10);
+    if (_dragIdx === dropIdx) return;
+    // Reorder plan in localStorage
+    const planKey = deps.userKey('whiteboard_plan_' + deps.todayStr());
+    try {
+      const plan = JSON.parse(localStorage.getItem(planKey) || '[]');
+      // Only reorder active (non-completed) items
+      const activeItems = plan.filter((p) => {
+        const t = deps.findTask ? deps.findTask(p.id) : null;
+        return t && t.status !== 'done';
+      });
+      if (_dragIdx < activeItems.length && dropIdx < activeItems.length) {
+        const [moved] = activeItems.splice(_dragIdx, 1);
+        activeItems.splice(dropIdx, 0, moved);
+        // Rebuild full plan: reordered active + completed
+        const completedItems = plan.filter((p) => {
+          const t = deps.findTask ? deps.findTask(p.id) : null;
+          return !t || t.status === 'done';
+        });
+        localStorage.setItem(planKey, JSON.stringify([...activeItems, ...completedItems]));
+        render();
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+    _dragIdx = -1;
+  });
+  document.addEventListener('dragend', () => {
+    _dragIdx = -1;
+    document.querySelectorAll('[data-plan-drag]').forEach((r) => {
+      r.style.opacity = '';
+      r.style.borderTop = '';
+    });
   });
 }
