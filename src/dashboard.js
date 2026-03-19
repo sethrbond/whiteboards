@@ -985,7 +985,12 @@ export function createDashboard(deps) {
 
         if (isExpanded) {
           // Show full expanded view inline
-          html += renderTaskExpanded(t, true);
+          try {
+            html += renderTaskExpanded(t, true);
+          } catch (_expandErr) {
+            console.warn('Task expand failed:', _expandErr);
+            html += `<div style="padding:8px;color:var(--red);font-size:12px">Error rendering task details</div>`;
+          }
         } else {
           const priorityBadge =
             t.priority === 'urgent' || t.priority === 'important' ? renderPriorityTag(t.priority) : '';
@@ -1058,9 +1063,9 @@ export function createDashboard(deps) {
     const _todayBriefingExpanded = getTodayBriefingExpanded();
     if (cachedBriefing) {
       html += `<div style="margin-bottom:16px">`;
-      html += `<div data-action="briefing-expand" role="button" tabindex="0" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:6px 0">
+      html += `<div data-action="${_todayBriefingExpanded ? 'briefing-collapse' : 'briefing-expand'}" role="button" tabindex="0" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:6px 0">
         <span style="font-size:12px;color:var(--text3);transition:transform 0.2s${_todayBriefingExpanded ? ';transform:rotate(90deg)' : ''}">\u25b8</span>
-        <span style="font-size:12px;color:var(--text3)">\uD83D\uDCCB Show today's briefing</span>
+        <span style="font-size:12px;color:var(--text3)">\uD83D\uDCCB ${_todayBriefingExpanded ? 'Hide' : 'Show'} today's briefing</span>
       </div>`;
       if (_todayBriefingExpanded) {
         html += `<div class="today-briefing-body" id="briefingBody" style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:4px">${sanitizeAIHTML(cachedBriefing)}</div>`;
