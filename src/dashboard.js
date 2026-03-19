@@ -472,7 +472,7 @@ export function createDashboard(deps) {
     return html;
   }
 
-  function _renderNowDashboardView(c, ha, data, _bulkMode, dashViewMode) {
+  function _renderNowDashboardView(c, ha, _data, _bulkMode, dashViewMode) {
     $('#viewSub').textContent = '';
     ha.innerHTML = `<button class="btn btn-sm" data-action="toggle-chat"><span class="ai-badge" style="margin-right:4px">ai</span>Ask</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
     c.innerHTML = dashViewMode === 'list' ? renderDashboard() : renderCalendar();

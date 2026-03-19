@@ -47,7 +47,6 @@ export const MAX_BRAINSTORM_INPUT_CHARS = 200000;
 export const AI_CONTEXT_MAX_LENGTH = 30000;
 export const AI_REQUEST_TIMEOUT_MS = 90000;
 export const SAVE_DEBOUNCE_MS = 300;
-export const SIMILARITY_THRESHOLD = 0.3;
 export const MAX_CHAT_HISTORY = 15;
 export const MODAL_ANIMATION_MS = 150;
 

@@ -3648,29 +3648,6 @@ h3.section-title {
   background: var(--accent);
   flex-shrink: 0;
 }
-.ai-hero-nudges {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-.ai-hero-nudge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: var(--radius-xs);
-}
-.ai-hero-nudge .nudge-text {
-  font-size: 12px;
-  color: var(--text2);
-  line-height: 1.4;
-  flex: 1;
-}
-.ai-hero-nudge .nudge-action {
-  flex-shrink: 0;
-}
 .conversational-input {
   width: 100%;
   padding: 12px 0;
@@ -3689,90 +3666,6 @@ h3.section-title {
 .conversational-input::placeholder {
   color: var(--text3);
   font-weight: 400;
-}
-
-/* Habits Widget (Today's Recurring) */
-.habits-widget {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 20px;
-  margin-bottom: 20px;
-}
-.habits-widget-header {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text2);
-  margin-bottom: 12px;
-}
-.habits-widget-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-}
-.habits-widget-row + .habits-widget-row {
-  border-top: 1px solid var(--border);
-}
-.habits-widget-title {
-  font-size: 13px;
-  color: var(--text);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.habits-widget-recurrence {
-  font-size: 10px;
-  color: var(--purple);
-  background: rgba(168, 85, 247, 0.08);
-  padding: 2px 6px;
-  border-radius: var(--radius-xs);
-  flex-shrink: 0;
-}
-
-/* Smart Feed */
-.smart-feed {
-  margin-bottom: 28px;
-}
-.smart-feed-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.smart-feed-title {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text3);
-}
-.smart-feed-count {
-  font-size: 10px;
-  color: var(--text3);
-  background: var(--surface3);
-  padding: 1px 6px;
-  border-radius: 10px;
-}
-.smart-feed-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-}
-.smart-feed-more {
-  font-size: 11px;
-  color: var(--accent);
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-family: inherit;
-  padding: 6px 0;
-  margin-top: 4px;
-}
-.smart-feed-more:hover {
-  text-decoration: underline;
 }
 
 /* Today Card (merged briefing + plan) */
@@ -3928,23 +3821,6 @@ h3.section-title {
 /* ==================== HOVER CLASSES (converted from inline JS) ==================== */
 
 /* Empty-state brainstorm CTA card */
-.brainstorm-cta-hover {
-  transition: all 0.2s;
-}
-.brainstorm-cta-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(129, 140, 248, 0.15);
-}
-
-/* Empty-state template cards */
-.dashboard-card-hover {
-  transition: all 0.2s;
-}
-.dashboard-card-hover:hover {
-  border-color: var(--accent) !important;
-  transform: translateY(-2px);
-}
-
 /* Brainstorm CTA on main dashboard */
 .brainstorm-cta-main:hover {
   border-color: var(--accent) !important;
@@ -4082,18 +3958,6 @@ h3.section-title {
   .today-card {
     padding: 16px;
   }
-  .ai-hero-nudge {
-    padding: 10px 12px;
-    min-height: 44px;
-  }
-  .ai-hero-nudge .btn-sm {
-    min-height: 44px;
-    padding: 10px 14px;
-  }
-  .smart-feed-more {
-    min-height: 44px;
-    padding: 12px 0;
-  }
   .briefing-generate {
     min-height: 44px;
     padding: 12px 18px;
@@ -4148,9 +4012,6 @@ h3.section-title {
   }
   .chat-panel {
     box-shadow: -8px 0 32px rgba(0, 0, 0, 0.08);
-  }
-  .ai-hero-nudge {
-    background: rgba(0, 0, 0, 0.04);
   }
   .landing-bg-glow {
     background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(147, 51, 234, 0.03) 30%, transparent 70%);

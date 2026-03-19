@@ -116,7 +116,6 @@ let dashViewMode = 'list';
 const TASKS_PER_PAGE = 50;
 const _sectionShowCount = {};
 let _archiveShowCount = 50;
-let _smartFeedExpanded = false;
 let _todayBriefingExpanded = false;
 // eslint-disable-next-line prefer-const
 let _renderNow;
@@ -480,12 +479,8 @@ const openEditTask = _taskEditor.openEditTask;
 const saveEditTask = _taskEditor.saveEditTask;
 const autoClassifyTask = _taskEditor.autoClassifyTask;
 const runTaskCmd = _taskEditor.runTaskCmd;
-const _runTaskCmdAI = _taskEditor.runTaskCmdAI;
-const _addDep = _taskEditor.addDep;
 const removeDep = _taskEditor.removeDep;
 const showDepResults = _taskEditor.showDepResults;
-const _selectDep = _taskEditor.selectDep;
-const _wouldCreateCircularDep = _taskEditor.wouldCreateCircularDep;
 const guardedCloseEditModal = _taskEditor.guardedCloseEditModal;
 
 // ============================================================
@@ -1324,7 +1319,6 @@ const _dashboard = createDashboard({
   setNudgeFilter: (v) => {
     _nudgeFilter = v;
   },
-  getSmartFeedExpanded: () => _smartFeedExpanded,
   getTodayBriefingExpanded: () => _todayBriefingExpanded,
   getShowTagFilter: () => _showTagFilter,
   getActiveTagFilter: () => activeTagFilter,
@@ -1538,9 +1532,6 @@ createActions({
     _archiveShowCount = v;
   },
   TASKS_PER_PAGE,
-  setSmartFeedExpanded: (v) => {
-    _smartFeedExpanded = v;
-  },
   setTodayBriefingExpanded: (v) => {
     _todayBriefingExpanded = v;
   },
@@ -1693,12 +1684,6 @@ exposeWindowAPI(
       get: () => _todayBriefingExpanded,
       set: (v) => {
         _todayBriefingExpanded = v;
-      },
-    },
-    _smartFeedExpanded: {
-      get: () => _smartFeedExpanded,
-      set: (v) => {
-        _smartFeedExpanded = v;
       },
     },
   },
