@@ -504,9 +504,7 @@ export function createDashboard(deps) {
   }
 
   function _renderNowDashboardView(c, ha, data, _bulkMode, dashViewMode) {
-    const _estTotal = activeTasks().reduce((s, t) => s + (t.estimatedMinutes || 0), 0);
-    const _estStr = _estTotal > 0 ? ` \u00b7 ~${Math.round((_estTotal / 60) * 10) / 10}h estimated` : '';
-    $('#viewSub').textContent = `${activeTasks().length} active tasks across ${data.projects.length} boards${_estStr}`;
+    $('#viewSub').textContent = '';
     ha.innerHTML = `<button class="btn btn-sm" data-action="toggle-chat"><span class="ai-badge" style="font-size:9px;width:20px;height:20px;display:inline-flex;vertical-align:middle;margin-right:4px">ai</span>Ask</button><button class="btn btn-primary btn-sm" data-action="new-project">+ Board</button>`;
     c.innerHTML = dashViewMode === 'list' ? renderDashboard() : renderCalendar();
   }
