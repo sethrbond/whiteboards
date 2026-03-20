@@ -422,7 +422,7 @@ describe('brainstorm.js — createBrainstorm()', () => {
     const html = bs.renderDump();
     expect(html).toContain('Work');
     expect(html).toContain('Personal');
-    expect(html).toContain('toggle-what-changed');
+    // Details always visible (no toggle)
   });
 
   it('renderDump shows new-brainstorm and view-organized buttons in result', () => {

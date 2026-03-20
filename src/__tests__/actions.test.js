@@ -68,7 +68,14 @@ function makeDeps(overrides = {}) {
     applyDumpResults: vi.fn(),
     submitClarify: vi.fn(),
     skipClarify: vi.fn(),
-    getBrainstormModule: vi.fn(() => ({ setLastDumpResult: vi.fn(), removeDumpAttachment: vi.fn() })),
+    getBrainstormModule: vi.fn(() =>
+      Promise.resolve({
+        setLastDumpResult: vi.fn(),
+        getLastDumpResult: vi.fn(() => null),
+        removeDumpAttachment: vi.fn(),
+        resetState: vi.fn(),
+      }),
+    ),
     // Settings
     openSettings: vi.fn(),
     exportData: vi.fn(),
@@ -1423,24 +1430,6 @@ describe('actions.js — createActions()', () => {
       expect(document.getElementById('eodCard')).toBeNull();
     });
 
-    it('toggle-what-changed toggles sibling open class', () => {
-      const container = document.createElement('div');
-      const btn = document.createElement('button');
-      btn.dataset.action = 'toggle-what-changed';
-      btn.textContent = 'What changed';
-      const sibling = document.createElement('div');
-      container.appendChild(btn);
-      container.appendChild(sibling);
-      document.body.appendChild(container);
-      click(btn);
-      expect(sibling.classList.contains('open')).toBe(true);
-      expect(btn.textContent).toBe('Hide details');
-      click(btn);
-      expect(sibling.classList.contains('open')).toBe(false);
-      expect(btn.textContent).toBe('What changed');
-      container.remove();
-    });
-
     it('delete-task-confirm calls confirmAction and deletes on yes', async () => {
       deps.confirmAction.mockResolvedValue(true);
       click(makeActionEl('delete-task-confirm', { taskId: 't_1' }));
@@ -1637,19 +1626,25 @@ describe('actions.js — createActions()', () => {
       delete window._cmdCreateTitle;
     });
 
-    it('view-organized navigates to dashboard', () => {
+    it('view-organized navigates to dashboard by default', async () => {
       click(makeActionEl('view-organized'));
-      expect(deps.setView).toHaveBeenCalledWith('dashboard');
+      await vi.waitFor(() => {
+        expect(deps.setView).toHaveBeenCalledWith('dashboard');
+      });
     });
 
-    it('new-brainstorm clears last dump result and renders', () => {
+    it('new-brainstorm resets state and opens modal', async () => {
       click(makeActionEl('new-brainstorm'));
-      expect(deps.render).toHaveBeenCalled();
+      await vi.waitFor(() => {
+        expect(deps.render).toHaveBeenCalled();
+      });
     });
 
-    it('remove-dump-attachment removes attachment by index', () => {
+    it('remove-dump-attachment removes attachment by index', async () => {
       click(makeActionEl('remove-dump-attachment', { idx: '2' }));
-      expect(deps.render).toHaveBeenCalled();
+      await vi.waitFor(() => {
+        expect(deps.render).toHaveBeenCalled();
+      });
     });
 
     it('cal-expand sets expanded day and renders', () => {

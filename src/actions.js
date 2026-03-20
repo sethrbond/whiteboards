@@ -717,25 +717,34 @@ export function createActions(deps) {
         cancelDump();
         break;
       case 'view-organized': {
-        const bm = getBrainstormModule();
-        if (bm && bm.setLastDumpResult) bm.setLastDumpResult(null);
-        closeModal();
-        setView('dashboard');
-        render();
+        (async () => {
+          const bm = await getBrainstormModule();
+          const result = bm.getLastDumpResult();
+          const boardId = result?.primaryBoardId || null;
+          bm.setLastDumpResult(null);
+          closeModal();
+          if (boardId) setView('project', boardId);
+          else setView('dashboard');
+        })();
         break;
       }
       case 'new-brainstorm': {
-        const bm2 = getBrainstormModule();
-        if (bm2 && bm2.setLastDumpResult) bm2.setLastDumpResult(null);
-        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-        else render();
+        (async () => {
+          const bm = await getBrainstormModule();
+          bm.resetState();
+          if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+          else render();
+        })();
         break;
       }
-
-      case 'remove-dump-attachment':
-        getBrainstormModule().removeDumpAttachment(parseInt(actionEl.dataset.idx));
-        render();
+      case 'remove-dump-attachment': {
+        (async () => {
+          const bm = await getBrainstormModule();
+          bm.removeDumpAttachment(parseInt(actionEl.dataset.idx));
+          render();
+        })();
         break;
+      }
       case 'dismiss-onboarding-hint':
         localStorage.removeItem(userKey('wb_onboarding_hint'));
         render();
@@ -1224,8 +1233,8 @@ export function createActions(deps) {
         if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
         else setView('dump');
         const idx = parseInt(actionEl.dataset.dumpIndex, 10);
-        setTimeout(() => {
-          const bsMod = typeof deps.getBrainstormModule === 'function' ? deps.getBrainstormModule() : null;
+        setTimeout(async () => {
+          const bsMod = typeof deps.getBrainstormModule === 'function' ? await deps.getBrainstormModule() : null;
           if (bsMod && typeof bsMod.getDumpHistory === 'function') {
             const history = bsMod.getDumpHistory();
             const entry = history[idx];
@@ -1251,13 +1260,6 @@ export function createActions(deps) {
             t.setSelectionRange(t.value.length, t.value.length);
           }
         }, 100);
-        break;
-      }
-      // Dump what-changed toggle
-      case 'toggle-what-changed': {
-        const sibling = actionEl.nextElementSibling;
-        sibling.classList.toggle('open');
-        actionEl.textContent = sibling.classList.contains('open') ? 'Hide details' : 'What changed';
         break;
       }
       // resend verification

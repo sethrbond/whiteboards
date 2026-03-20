@@ -52,6 +52,14 @@ export function createChat(deps) {
     }
   }
 
+  // Strip action blocks from AI responses — handles both complete and incomplete (truncated) blocks
+  function stripActionBlocks(text) {
+    return text
+      .replace(/```(?:actions|json)[\s\S]*?```/g, '')
+      .replace(/```(?:actions|json)[\s\S]*$/g, '')
+      .trim();
+  }
+
   function chatTimeStr(date) {
     if (!date) date = new Date();
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -96,7 +104,7 @@ export function createChat(deps) {
       if (chatHistory.length > 0 && messagesEl) {
         messagesEl.innerHTML = chatHistory
           .map((m, i) => {
-            const formatted = esc(m.content.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim())
+            const formatted = esc(stripActionBlocks(m.content))
               .replace(/\n/g, '<br>')
               .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             const timeStr = m.ts ? chatTimeStr(new Date(m.ts)) : '';
@@ -198,7 +206,7 @@ export function createChat(deps) {
     incrementAIInteraction();
     const a = await executeAIActions(f);
     if (a.applied) render();
-    const clean = f.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim();
+    const clean = stripActionBlocks(f);
     te.innerHTML =
       '<div class="chat-bubble ai">' +
       esc(clean)
@@ -344,7 +352,7 @@ RULES:
               if (event.type === 'content_block_delta' && event.delta?.text) {
                 fullText += event.delta.text;
                 // Strip action blocks from display
-                const display = fullText.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim();
+                const display = stripActionBlocks(fullText);
                 bubble.innerHTML = esc(display).replace(/\n/g, '<br>');
                 chatMsgs.scrollTop = chatMsgs.scrollHeight;
               }
@@ -364,7 +372,7 @@ RULES:
       const { applied, insights } = await executeAIActions(reply);
       if (applied) render();
 
-      const cleanReply = reply.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim();
+      const cleanReply = stripActionBlocks(reply);
       const insightHtml = insights
         .map(
           (i) =>
@@ -547,7 +555,7 @@ ${AI_ACTIONS_SPEC}`;
         const actions = await executeAIActions(reply);
         if (actions.applied) render();
 
-        const clean = reply.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim();
+        const clean = stripActionBlocks(reply);
         const formatted = esc(clean)
           .replace(/\n/g, '<br>')
           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -575,7 +583,7 @@ ${AI_ACTIONS_SPEC}`;
       if (chatMsgs) {
         chatMsgs.innerHTML = twHistory
           .map((m) => {
-            const clean = m.content.replace(/```(?:actions|json)[\s\S]*?```/g, '').trim();
+            const clean = stripActionBlocks(m.content);
             const formatted = esc(clean)
               .replace(/\n/g, '<br>')
               .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -657,6 +665,34 @@ ${AI_ACTIONS_SPEC}`;
     saveChatHistory();
   }
 
+  // Open chat with brainstorm completion context (follows maybeProactiveChat pattern)
+  function openChatWithBrainstormContext(taskCount, boardNames) {
+    const panel = document.getElementById('chatPanel');
+    if (panel && panel.classList.contains('open')) return;
+
+    const msg = `I organized ${taskCount} task${taskCount !== 1 ? 's' : ''} across ${boardNames.length} board${boardNames.length !== 1 ? 's' : ''}: ${boardNames.join(', ')}.\n\nWant me to help prioritize, set deadlines, or break down any tasks?`;
+
+    chatContext = null;
+    const messagesEl = document.getElementById('chatMessages');
+    if (messagesEl) {
+      messagesEl.innerHTML =
+        '<div class="chat-msg ai stagger chat-welcome-msg">' +
+        esc(msg).replace(/\n/g, '<br>') +
+        '<span class="chat-ts">' +
+        chatTimeStr() +
+        '</span></div>';
+    }
+    if (panel) panel.classList.add('open');
+    _chatSessionStarted = true;
+    chatHistory.push({ role: 'assistant', content: msg, ts: Date.now() });
+    saveChatHistory();
+    const fab = document.getElementById('mobileChatFab');
+    if (fab) {
+      fab.classList.add('hidden');
+      fab.classList.remove('unread');
+    }
+  }
+
   // Reset state (used on sign-out)
   function resetChatState() {
     // Back up current chat history before clearing so it can be restored
@@ -715,5 +751,6 @@ ${AI_ACTIONS_SPEC}`;
     resetChatState,
     reloadChatHistory,
     maybeProactiveChat,
+    openChatWithBrainstormContext,
   };
 }

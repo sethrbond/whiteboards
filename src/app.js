@@ -122,6 +122,15 @@ let _renderNow;
 let kbIdx = -1;
 window._welcomeTypingInterval = null;
 
+// Track mouse drag to distinguish clicks from text selection
+let _mouseDidDrag = false;
+document.addEventListener('mousedown', () => {
+  _mouseDidDrag = false;
+});
+document.addEventListener('mousemove', () => {
+  _mouseDidDrag = true;
+});
+
 // Task expand click handler — registered early, top-level, no delegation conflicts
 document.addEventListener(
   'click',
@@ -129,6 +138,7 @@ document.addEventListener(
     // Skip if user is selecting text, clicking interactive elements, or inside inputs
     const sel = window.getSelection();
     if (sel && sel.toString().length > 0) return;
+    if (_mouseDidDrag) return; // user was dragging/selecting, not clicking
     if (
       e.target.closest('button') ||
       e.target.closest('input') ||
@@ -623,6 +633,7 @@ async function _loadBrainstorm() {
           _batchMode = v;
         },
         saveData: (d) => _dataLayer.saveData(d),
+        openChatWithBrainstormContext: _chat.openChatWithBrainstormContext,
       });
     }
     return _brainstormMod;

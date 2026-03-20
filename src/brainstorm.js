@@ -68,6 +68,7 @@ export function createBrainstorm(deps) {
   let _convAppliedTasks = [];
   let _convOriginalInput = '';
   let _convParsedFull = null; // Full parsed response for fallback
+  let _convProjectMap = {}; // board name → project ID, accumulated across theme applications
 
   function _resetConvState() {
     _convState = 'IDLE';
@@ -77,6 +78,7 @@ export function createBrainstorm(deps) {
     _convAppliedTasks = [];
     _convOriginalInput = '';
     _convParsedFull = null;
+    _convProjectMap = {};
   }
 
   function getConvState() {
@@ -150,9 +152,10 @@ export function createBrainstorm(deps) {
           ${r.summary ? `<div style="font-size:13px;color:var(--text2);line-height:1.6;text-align:left;margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:var(--radius-sm);border-left:2px solid var(--accent)">${esc(r.summary)}</div>` : ''}
           ${
             r.tasksByBoard && Object.keys(r.tasksByBoard).length
-              ? `<div style="margin-bottom:16px"><button class="btn btn-sm" data-action="toggle-what-changed" style="font-size:11px;color:var(--text3)">Hide details</button><div class="dump-what-changed open"><div style="text-align:left;padding:12px 0;border-top:1px solid var(--border);margin-top:8px">${Object.entries(
+              ? `<div style="text-align:left;padding:12px 0;border-top:1px solid var(--border);margin-top:8px;margin-bottom:16px">${Object.entries(
                   r.tasksByBoard,
                 )
+                  .sort((a, b) => b[1] - a[1])
                   .map(
                     ([b, c]) =>
                       '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--text2)">' +
@@ -161,7 +164,7 @@ export function createBrainstorm(deps) {
                       c +
                       '</span></div>',
                   )
-                  .join('')}</div></div></div>`
+                  .join('')}</div>`
               : ``
           }
           <div style="display:flex;gap:8px;justify-content:center">
@@ -661,22 +664,35 @@ ${_getTaskExtractionRules()}
       "narrative": "What you found and why it matters. Be specific about timing and urgency.",
       "questions": ["Optional clarifying question 1", "Optional question 2"],
       "suggestedBoard": "Board name for these tasks — ALWAYS provide this",
-      "boardDescription": "One sentence subtitle, max 12 words — REQUIRED for new boards",
-      "boardBackground": "## Origin\\nWhere this came from and why it matters\\n## Where It's Going\\nThe goal\\n## Key Details\\nImportant context, dates, constraints\\n## Next Steps\\nWhat needs to happen next — REQUIRED: put ALL detailed context here, not in task notes",
+      "boardDescription": "Short subtitle, max 12 words — REQUIRED, e.g. 'Planning and logistics for summer Morocco trip'",
+      "boardBackground": "## Origin\\nSpecific context: where this came from, why it matters now\\n## Where It's Going\\nThe concrete goal or desired outcome\\n## Key Details\\nImportant context, dates, constraints, people involved\\n## Next Steps\\nWhat needs to happen next — put ALL detailed context HERE, not in task notes",
       "isNewBoard": true,
       "tasks": [
         {
           "action": "create",
-          "title": "Clear task title",
-          "notes": "Context. Max 20 words.",
-          "status": "todo",
-          "priority": "normal",
-          "priorityReason": "Why this priority level, referencing dates or context",
+          "title": "Submit visa application",
+          "notes": "Already downloaded forms last week",
+          "status": "done",
+          "priority": "urgent",
+          "priorityReason": "Already submitted — tracking completion",
           "dueDate": "",
           "phase": "",
-          "subtasks": ["Step 1", "Step 2"],
+          "subtasks": [],
           "recurrence": "",
-          "estimatedMinutes": 30
+          "estimatedMinutes": 15
+        },
+        {
+          "action": "create",
+          "title": "Book Airbnb in Marrakech",
+          "notes": "Check Riad options in the medina",
+          "status": "todo",
+          "priority": "important",
+          "priorityReason": "Trip is in 2 weeks, accommodation not yet booked",
+          "dueDate": "2026-04-01",
+          "phase": "",
+          "subtasks": ["Research riads", "Compare prices", "Book and confirm"],
+          "recurrence": "",
+          "estimatedMinutes": 45
         }
       ]
     }
@@ -690,6 +706,8 @@ ${_getTaskExtractionRules()}
 - COMPLETED WORK matters. Past tense = status "done". Checkmarks [x] = "done".
 - Do NOT create tasks for background info. That goes in boardBackground.
 - A 1-page dump = 3-10 tasks. A 10-page doc = 15-40 tasks.
+- boardDescription is REQUIRED for every theme — write a real subtitle, not a template.
+- boardBackground is REQUIRED for every theme — fill in ALL sections with REAL content from the input, not placeholders.
 
 STATUS DETECTION — GET THIS RIGHT:
 DONE/COMPLETED: [x], "completed", "done", "finished", "submitted", "signed", "applied", "APPLIED", "SUBMITTED", "sent", "filed", "approved", "received", "confirmed", "secured", "decided", "locked", "locked in", past tense verbs = status "done". Items under headers like "COMPLETED", "DONE", "IN PROGRESS" with status labels = use that status. AGGRESSIVELY detect completed work. If a document describes something as already accomplished, it is DONE.
@@ -1079,6 +1097,7 @@ ${text}${getDumpAttachmentText()}`;
         _applyTaskItem(item, projId);
         _convAppliedTasks.push(item);
       });
+      Object.assign(_convProjectMap, projectMap);
     } finally {
       if (deps.setBatchMode) deps.setBatchMode(false);
     }
@@ -1106,6 +1125,8 @@ ${text}${getDumpAttachmentText()}`;
       boards[b] = (boards[b] || 0) + 1;
     });
 
+    const primaryBoardName = Object.entries(boards).sort((a, b) => b[1] - a[1])[0]?.[0];
+
     lastDumpResult = {
       wordCount: text.split(/\s+/).filter(Boolean).length,
       tasksCreated: created,
@@ -1117,6 +1138,8 @@ ${text}${getDumpAttachmentText()}`;
       inputSnippet: text.slice(0, 200),
       summary: _convParsedFull?.opening || '',
       tasksByBoard: boards,
+      primaryBoardId: _convProjectMap[primaryBoardName] || null,
+      boardIdMap: { ..._convProjectMap },
     };
 
     saveDumpHistory({
@@ -1146,6 +1169,12 @@ ${text}${getDumpAttachmentText()}`;
       true,
     );
     _refreshConversationUI();
+
+    // Open chat with brainstorm follow-up context
+    if (typeof deps.openChatWithBrainstormContext === 'function') {
+      const boardNames = Object.keys(boards);
+      setTimeout(() => deps.openChatWithBrainstormContext(_convAppliedTasks.length, boardNames), 300);
+    }
   }
 
   // ── Input validation ──────────────────────────────────────────────────
@@ -1171,6 +1200,7 @@ ${text}${getDumpAttachmentText()}`;
   function cancelDump() {
     if (dumpAbort) dumpAbort.abort();
     _dumpInProgress = false;
+    lastDumpResult = null;
     _resetConvState();
   }
 
