@@ -926,9 +926,15 @@ export function createDashboard(deps) {
     const cachedNarrative = localStorage.getItem(narrativeKey);
 
     if (cachedPlan) {
-      // Narrative brief above the plan
+      // Narrative brief above the plan — with reply input for conversation
       if (cachedNarrative) {
-        html += `<div style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:20px;padding:16px 20px;background:var(--surface);border-radius:var(--radius);border-left:3px solid var(--accent)">${esc(cachedNarrative)}</div>`;
+        html += `<div style="margin-bottom:20px;padding:16px 20px;background:var(--surface);border-radius:var(--radius);border-left:3px solid var(--accent)">
+          <div style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:12px">${esc(cachedNarrative)}</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="narrativeReply" placeholder="Reply... (e.g. 'the tax return can wait, CPA is handling it')" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface2);outline:none;font-family:inherit" data-keydown-action="narrative-reply">
+            <button class="btn btn-sm" data-action="send-narrative-reply" style="flex-shrink:0;color:var(--accent)">Reply</button>
+          </div>
+        </div>`;
       }
       html += _renderDayPlanActive(cachedPlan, planKey);
       return html;

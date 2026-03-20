@@ -921,6 +921,7 @@ RULES:
     maybeProactiveEnhance,
     runProactiveWorker,
     planMyDay: planning.planMyDay,
+    sendNarrativeReply: planning.sendNarrativeReply,
     snoozePlanTask: planning.snoozePlanTask,
     replanDay: planning.replanDay,
     generateAIBriefing: briefing.generateAIBriefing,

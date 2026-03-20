@@ -168,6 +168,102 @@ Return ONLY this JSON object, no other text:
     if (btn) btn.textContent = '◎ Plan My Day';
   }
 
+  async function sendNarrativeReply(userMsg) {
+    if (!hasAI()) return;
+    const narrativeKey = userKey('whiteboard_narrative_' + todayStr());
+    const currentNarrative = localStorage.getItem(narrativeKey) || '';
+    const planKey = userKey('whiteboard_plan_' + todayStr());
+    const currentPlan = localStorage.getItem(planKey);
+
+    let planContext = '';
+    if (currentPlan) {
+      try {
+        const plan = JSON.parse(currentPlan);
+        planContext = plan
+          .map((p) => {
+            const t = findTask(p.id);
+            return t ? `- ${t.title} (${t.priority}, ${t.status}${t.dueDate ? ', due ' + t.dueDate : ''})` : '';
+          })
+          .filter(Boolean)
+          .join('\n');
+      } catch {
+        /* */
+      }
+    }
+
+    const prompt = `${AI_PERSONA}
+
+The user is responding to their morning briefing. Update the narrative based on their feedback.
+
+CURRENT NARRATIVE:
+${currentNarrative}
+
+CURRENT PLAN:
+${planContext}
+
+USER SAYS: "${userMsg}"
+
+RULES:
+- Acknowledge what they said and adjust the narrative accordingly
+- If they say something can wait or is handled, remove it from focus and mention what moves up
+- If they add context (e.g. "CPA is handling the tax return"), incorporate it
+- Keep the same warm, direct tone
+- 2-4 sentences
+- If the plan should change (tasks removed/reordered), include an actions block
+
+Return ONLY a JSON object:
+{
+  "narrative": "Updated 2-4 sentence narrative reflecting their feedback",
+  "planChanges": []
+}
+
+planChanges is optional. If tasks should be removed from today's plan: [{ "action": "remove", "id": "task_id" }]
+If tasks should be added: [{ "action": "add", "id": "task_id", "why": "reason" }]
+Leave planChanges empty if no changes needed.`;
+
+    try {
+      showToast('Updating...');
+      const reply = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
+      const cleaned = reply
+        .replace(/```json?\s*/g, '')
+        .replace(/```/g, '')
+        .trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (parsed.narrative) {
+        localStorage.setItem(narrativeKey, parsed.narrative);
+      }
+
+      // Apply plan changes if any
+      if (parsed.planChanges && parsed.planChanges.length && currentPlan) {
+        try {
+          let plan = JSON.parse(currentPlan);
+          parsed.planChanges.forEach((change) => {
+            if (change.action === 'remove') {
+              plan = plan.filter((p) => p.id !== change.id);
+            } else if (change.action === 'add' && findTask(change.id)) {
+              plan.push({ id: change.id, why: change.why || '' });
+            }
+          });
+          localStorage.setItem(planKey, JSON.stringify(plan));
+          setPlanIndexCache(null, '');
+        } catch {
+          /* */
+        }
+      }
+
+      render();
+      // Re-enable the input
+      const inp = document.getElementById('narrativeReply');
+      if (inp) inp.disabled = false;
+    } catch (err) {
+      console.error('Narrative reply error:', err);
+      showToast('Could not update \u2014 try again', true);
+      const inp = document.getElementById('narrativeReply');
+      if (inp) inp.disabled = false;
+    }
+  }
+
   function snoozePlanTask(taskId) {
     const planKey = userKey('whiteboard_plan_' + todayStr());
     try {
@@ -486,6 +582,7 @@ Return ONLY this JSON object, no other text:
 
   return {
     planMyDay,
+    sendNarrativeReply,
     snoozePlanTask,
     replanDay,
     analyzeWorkload,

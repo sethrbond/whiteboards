@@ -263,6 +263,19 @@ export function createActions(deps) {
       case 'focus-task':
         openFocusView(actionEl.dataset.taskId);
         break;
+      case 'send-narrative-reply': {
+        const _nrInput = document.getElementById('narrativeReply');
+        if (_nrInput && _nrInput.value.trim()) {
+          const _nrMsg = _nrInput.value.trim();
+          _nrInput.value = '';
+          _nrInput.disabled = true;
+          // Send the reply to the AI chat with plan context
+          if (typeof deps.sendNarrativeReply === 'function') {
+            deps.sendNarrativeReply(_nrMsg);
+          }
+        }
+        break;
+      }
       case 'task-work':
         if (typeof deps.openTaskWork === 'function') {
           deps.openTaskWork(actionEl.dataset.taskId).catch((err) => {
@@ -1310,6 +1323,12 @@ export function createActions(deps) {
           e.preventDefault();
           const bmce = getBrainstormModule();
           if (bmce && bmce.submitThemeClarify) bmce.submitThemeClarify();
+          break;
+        }
+        case 'narrative-reply': {
+          e.preventDefault();
+          const _nrBtn = document.querySelector('[data-action="send-narrative-reply"]');
+          if (_nrBtn) _nrBtn.click();
           break;
         }
         case 'quick-add-submit':
