@@ -182,7 +182,7 @@ If this seems like it needs more detail (e.g., the user asked to "email someone"
 
 If the task is simple and doesn't need enhancement, return: { "notes": "", "subtasks": [] }
 Keep notes concise and actionable. Today is ${todayStr()}.`,
-      { maxTokens: 512, temperature: 0.3 },
+      { maxTokens: 4096, temperature: 0.3 },
     )
       .then((reply) => {
         try {

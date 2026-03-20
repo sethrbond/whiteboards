@@ -506,7 +506,7 @@ ONLY return JSON.`;
     const prompt = _buildTaskCmdPrompt(t, input);
 
     try {
-      const content = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
+      const content = await callAI(prompt, { maxTokens: 4096, temperature: 0.3 });
       const cmd = JSON.parse(content.match(/\{[\s\S]*\}/)?.[0] || '{}');
       _applyTaskCmd(cmd, taskId, t, input);
       render();

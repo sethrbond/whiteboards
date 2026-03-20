@@ -419,7 +419,7 @@ ONE sentence max. Be genuine, not performative. No "Great job!" energy.`;
         '"' +
         (task.notes ? '\nNotes: ' + task.notes : '') +
         '\n\nReturn ONLY a JSON array of strings, no other text:\n["subtask 1", "subtask 2", ...]';
-      const reply = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
+      const reply = await callAI(prompt, { maxTokens: 4096, temperature: 0.3 });
       const subtasks = JSON.parse(
         reply
           .replace(/```json?\s*/g, '')

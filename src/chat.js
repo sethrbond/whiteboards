@@ -293,7 +293,7 @@ RULES:
         },
         body: JSON.stringify({
           model: settings.aiModel || 'claude-haiku-4-5-20251001',
-          max_tokens: 2048,
+          max_tokens: 8192,
           system: systemPrompt,
           messages: chatHistory.slice(-MAX_CHAT_HISTORY).map((m) => ({ role: m.role, content: m.content })),
           stream: true,
@@ -537,7 +537,7 @@ ${AI_ACTIONS_SPEC}`;
       try {
         const reply = await callAI(
           `${taskWorkPrompt}\n\nHelp me work on this task. Research what's needed, create specific actionable steps, and tell me what to do first.`,
-          { maxTokens: 2048, temperature: 0.3 },
+          { maxTokens: 8192, temperature: 0.3 },
         );
 
         chatHistory.push({ role: 'assistant', content: reply, ts: Date.now() });

@@ -355,7 +355,7 @@ Write a weekly review with these sections:
 Keep it under 250 words. Be direct and honest.`;
 
     try {
-      let text = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
+      let text = await callAI(prompt, { maxTokens: 4096, temperature: 0.3 });
       text = sanitizeAIHTML(text);
       const reviewKey = userKey('whiteboard_review_' + weekStart);
       localStorage.setItem(reviewKey, text);

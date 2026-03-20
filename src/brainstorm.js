@@ -640,9 +640,9 @@ ${_getTaskExtractionRules()}
       "name": "Theme Name",
       "narrative": "What you found and why it matters. Be specific about timing and urgency.",
       "questions": ["Optional clarifying question 1", "Optional question 2"],
-      "suggestedBoard": "Board name for these tasks",
-      "boardDescription": "One sentence, max 12 words",
-      "boardBackground": "## Origin\\nContext\\n## Next Steps\\nWhat's next",
+      "suggestedBoard": "Board name for these tasks — ALWAYS provide this",
+      "boardDescription": "One sentence subtitle, max 12 words — REQUIRED for new boards",
+      "boardBackground": "## Origin\\nWhere this came from and why it matters\\n## Where It's Going\\nThe goal\\n## Key Details\\nImportant context, dates, constraints\\n## Next Steps\\nWhat needs to happen next — REQUIRED: put ALL detailed context here, not in task notes",
       "isNewBoard": true,
       "tasks": [
         {

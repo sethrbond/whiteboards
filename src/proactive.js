@@ -902,7 +902,7 @@ RULES:
 
     try {
       showToast('Generating board summary...');
-      const reply = await callAI(prompt, { maxTokens: 300, temperature: 0.3 });
+      const reply = await callAI(prompt, { maxTokens: 2048, temperature: 0.3 });
       const narrative = reply.trim();
       localStorage.setItem(userKey('whiteboard_board_narrative_' + projectId), narrative);
       render();

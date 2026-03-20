@@ -223,7 +223,7 @@ Leave planChanges empty if no changes needed.`;
 
     try {
       showToast('Updating...');
-      const reply = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
+      const reply = await callAI(prompt, { maxTokens: 4096, temperature: 0.3 });
       const cleaned = reply
         .replace(/```json?\s*/g, '')
         .replace(/```/g, '')

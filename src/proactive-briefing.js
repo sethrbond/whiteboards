@@ -60,7 +60,7 @@ STRUCTURE (use all 4 sections, 1-2 bullets each):
 Be direct. Use task names. Under 200 words. No fluff. You're not a reporter — you're their assistant.`;
 
     try {
-      let text = await callAI(prompt, { maxTokens: 1024, temperature: 0.3 });
+      let text = await callAI(prompt, { maxTokens: 4096, temperature: 0.3 });
       text = text.replace(/^[-•*]\s*/gm, '');
       const briefingKey = userKey('whiteboard_briefing_' + todayStr());
       localStorage.setItem(briefingKey, text);
@@ -102,7 +102,7 @@ Be direct. Use task names. Under 200 words. No fluff. You're not a reporter — 
       eodOverdue.length +
       ' tasks\n\nRespond in 2-3 sentences. Acknowledge what was done. If they mentioned blockers or feelings, respond warmly. Suggest ONE thing for tomorrow morning. Be genuine, not performative.';
     try {
-      const reply = await callAI(eodPrompt, { maxTokens: 512, temperature: 0.3 });
+      const reply = await callAI(eodPrompt, { maxTokens: 4096, temperature: 0.3 });
       localStorage.setItem(userKey('wb_eod_' + today), reply);
       addAIMemory(userInput + ' — AI: ' + reply.replace(/\n/g, ' ').slice(0, TRUNCATE_DESC), 'reflection');
       const card = document.getElementById('eodCard');
