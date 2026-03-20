@@ -104,8 +104,11 @@ export function createActions(deps) {
     breakdownTask,
     dismissVagueTask,
     offerStuckHelp,
+    openTaskWork,
+    sendNarrativeReply,
     submitEndOfDay,
     aiReorganize,
+    generateBoardNarrative,
     generateWeeklyReview,
     discussReview,
     // UI helpers
@@ -270,23 +273,23 @@ export function createActions(deps) {
           _nrInput.value = '';
           _nrInput.disabled = true;
           // Send the reply to the AI chat with plan context
-          if (typeof deps.sendNarrativeReply === 'function') {
-            deps.sendNarrativeReply(_nrMsg);
+          if (typeof sendNarrativeReply === 'function') {
+            sendNarrativeReply(_nrMsg);
           }
         }
         break;
       }
       case 'task-work': {
         const _twTaskId = actionEl.dataset.taskId;
-        e.stopPropagation(); // Prevent parent handlers from collapsing the task
-        if (typeof deps.openTaskWork === 'function') {
+        e.stopPropagation();
+        if (typeof openTaskWork === 'function') {
           showToast('Starting AI task assistant...');
-          deps.openTaskWork(_twTaskId).catch((err) => {
+          openTaskWork(_twTaskId).catch((err) => {
             console.error('Task work error:', err);
             showToast('Error: ' + err.message, true);
           });
         } else {
-          showToast('Task work not available — check API key', true);
+          showToast('Task work not available', true);
         }
         break;
       }
@@ -481,8 +484,8 @@ export function createActions(deps) {
         break;
       case 'generate-board-narrative': {
         const _bnPid = actionEl.dataset.projectId;
-        if (typeof deps.generateBoardNarrative === 'function') {
-          deps.generateBoardNarrative(_bnPid).catch((_e) => console.error('Board narrative error:', _e));
+        if (typeof generateBoardNarrative === 'function') {
+          generateBoardNarrative(_bnPid).catch((_e) => console.error('Board narrative error:', _e));
         }
         break;
       }
