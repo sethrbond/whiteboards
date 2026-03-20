@@ -45,6 +45,7 @@ export function createActions(deps) {
     openEditProject,
     saveEditProject,
     confirmDeleteProject,
+    openProjectChat,
     // Bulk
     toggleBulkMode,
     bulkAction,
@@ -470,7 +471,7 @@ export function createActions(deps) {
         render();
         break;
       case 'open-project-chat':
-        deps.openProjectChat(actionEl.dataset.projectId);
+        openProjectChat(actionEl.dataset.projectId);
         break;
       case 'open-new-task':
         openNewTask(actionEl.dataset.projectId || '');
@@ -503,50 +504,23 @@ export function createActions(deps) {
           showToast('No tasks in this board to re-analyze');
           break;
         }
-        showToast('Re-analyzing board...');
-        // getBrainstormModule() returns a Promise — must await it
-        (async () => {
-          try {
-            const _raBm = await getBrainstormModule();
-            if (_raBm && _raBm.resetState) _raBm.resetState();
-            if (_raBm && _raBm.setLastDumpResult) _raBm.setLastDumpResult(null);
-            // Build the analysis input with all task data
-            const _raSummary = _raTasks
-              .map((t) => {
-                const status = t.status === 'done' ? '[DONE]' : t.status === 'in-progress' ? '[IN PROGRESS]' : '[TODO]';
-                const prio = `(${t.priority})`;
-                const due = t.dueDate ? `due ${t.dueDate}` : '';
-                const notes = t.notes ? `- ${t.notes.slice(0, 80)}` : '';
-                return `${status} ${t.title} ${prio} ${due}\n${notes}`.trim();
-              })
-              .join('\n\n');
-            const _raInput = `Re-analyze board "${_raProj?.name || 'Unknown'}":\n\n${_raSummary}`;
-            // Open brainstorm modal — state is now clean so textarea will render
-            if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-            // Wait for modal to render, then fill textarea and auto-run
-            let _raRetries = 0;
-            const _raInterval = setInterval(() => {
-              _raRetries++;
-              const ta = document.getElementById('dumpText');
-              if (ta) {
-                clearInterval(_raInterval);
-                ta.value = _raInput;
-                ta.dispatchEvent(new Event('input'));
-                setTimeout(() => {
-                  const btn = document.querySelector('[data-action="process-dump"]');
-                  if (btn) btn.click();
-                }, 200);
-              }
-              if (_raRetries > 30) {
-                clearInterval(_raInterval);
-                showToast('Could not start re-analysis', true);
-              }
-            }, 50);
-          } catch (_raErr) {
-            console.error('Re-analyze error:', _raErr);
-            showToast('Re-analysis failed: ' + _raErr.message, true);
+        // Use the chat panel — open project chat and send analysis request
+        const _raSummary = _raTasks
+          .map((t) => {
+            const status = t.status === 'done' ? '[DONE]' : t.status === 'in-progress' ? '[WIP]' : '';
+            const due = t.dueDate ? `due ${t.dueDate}` : '';
+            const notes = t.notes ? `(${t.notes.slice(0, 50)})` : '';
+            return `- ${status} ${t.title} [${t.priority}] ${due} ${notes}`.trim();
+          })
+          .join('\n');
+        openProjectChat(_raPid);
+        setTimeout(() => {
+          const chatInput = document.getElementById('chatInput');
+          if (chatInput) {
+            chatInput.value = `Re-analyze this board. Here are all ${_raTasks.length} tasks:\n\n${_raSummary}\n\nFor each group: flag vague tasks, suggest priority changes with reasons, find duplicates, and make improvements. Use actions to update tasks directly.`;
+            sendChat();
           }
-        })();
+        }, 300);
         break;
       }
       case 'open-edit-project':
