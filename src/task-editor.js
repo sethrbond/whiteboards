@@ -137,6 +137,7 @@ export function createTaskEditor(deps) {
       ${t.estimatedMinutes ? `<span style="font-size:10px;color:var(--text3)">${fmtEstimate(t.estimatedMinutes)}</span>` : ''}
     </div>
     <div class="task-actions">
+      ${!isDone ? `<button class="task-action-btn" title="Defer to tomorrow" aria-label="Defer task" data-action="defer-task" data-task-id="${t.id}">\u21b7</button>` : ''}
       <button class="task-action-btn" title="Edit" aria-label="Edit task" data-action="edit-task" data-task-id="${t.id}">\u270e</button>
       ${!isDone ? `<button class="task-action-btn" title="Done" aria-label="Mark task done" data-action="complete-task" data-task-id="${t.id}">\u2713</button>` : ''}
     </div>

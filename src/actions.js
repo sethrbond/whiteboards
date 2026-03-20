@@ -311,6 +311,28 @@ export function createActions(deps) {
         }
         break;
       }
+      case 'defer-task': {
+        const _dfTaskId = actionEl.dataset.taskId;
+        const _dfTask = findTask(_dfTaskId);
+        if (_dfTask) {
+          const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+          updateTask(_dfTaskId, { dueDate: tomorrow });
+          render();
+          const _dfTitle =
+            _dfTask.title
+              .slice(0, 30)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;') + (_dfTask.title.length > 30 ? '...' : '');
+          showToast(
+            `\u21b7 ${_dfTitle} deferred to tomorrow \u2014 <span style="color:var(--accent);cursor:pointer;text-decoration:underline" data-action="undo-btn">Undo</span>`,
+            false,
+            true,
+          );
+        }
+        break;
+      }
       case 'complete-task': {
         const _cTaskId = actionEl.dataset.taskId;
         const _cTask = findTask(_cTaskId);
