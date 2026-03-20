@@ -763,28 +763,39 @@ export function createActions(deps) {
         break;
       // Conversational brainstorm actions
       case 'brainstorm-approve-theme': {
-        const bmc = getBrainstormModule();
-        if (bmc && bmc.approveTheme) bmc.approveTheme(parseInt(actionEl.dataset.themeIdx));
+        // getBrainstormModule() returns a Promise — must await
+        (async () => {
+          const bmc = await getBrainstormModule();
+          if (bmc && bmc.approveTheme) bmc.approveTheme(parseInt(actionEl.dataset.themeIdx));
+        })();
         break;
       }
       case 'brainstorm-skip-theme': {
-        const bms = getBrainstormModule();
-        if (bms && bms.skipTheme) bms.skipTheme(parseInt(actionEl.dataset.themeIdx));
+        (async () => {
+          const bms = await getBrainstormModule();
+          if (bms && bms.skipTheme) bms.skipTheme(parseInt(actionEl.dataset.themeIdx));
+        })();
         break;
       }
       case 'brainstorm-clarify-theme': {
-        const bmcl = getBrainstormModule();
-        if (bmcl && bmcl.startThemeClarify) bmcl.startThemeClarify(parseInt(actionEl.dataset.themeIdx));
+        (async () => {
+          const bmcl = await getBrainstormModule();
+          if (bmcl && bmcl.startThemeClarify) bmcl.startThemeClarify(parseInt(actionEl.dataset.themeIdx));
+        })();
         break;
       }
       case 'brainstorm-submit-clarify': {
-        const bmsc = getBrainstormModule();
-        if (bmsc && bmsc.submitThemeClarify) bmsc.submitThemeClarify();
+        (async () => {
+          const bmsc = await getBrainstormModule();
+          if (bmsc && bmsc.submitThemeClarify) bmsc.submitThemeClarify();
+        })();
         break;
       }
       case 'brainstorm-skip-clarify': {
-        const bmskc = getBrainstormModule();
-        if (bmskc && bmskc.skipThemeClarify) bmskc.skipThemeClarify();
+        (async () => {
+          const bmskc = await getBrainstormModule();
+          if (bmskc && bmskc.skipThemeClarify) bmskc.skipThemeClarify();
+        })();
         break;
       }
       // Search / Command palette
