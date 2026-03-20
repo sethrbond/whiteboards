@@ -5,6 +5,7 @@
 // inline commands, dependencies, and task CRUD modals.
 
 import { TRUNCATE_TITLE } from './constants.js';
+import { parseNaturalDate } from './dates.js';
 /**
  * Factory function to create task editor functions.
  * @param {Object} deps - Dependencies from the main app
@@ -216,7 +217,7 @@ export function createTaskEditor(deps) {
       ${t.updates && t.updates.length > 0 ? `<div style="margin-top:8px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">UPDATES</div>${t.updates.map((u) => `<div style="font-size:12px;color:var(--text2);padding:3px 0"><span style="color:var(--text3)">${u.date}</span> — ${esc(u.text)}</div>`).join('')}</div>` : ''}
     </div>
     <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-      <input class="task-cmd" data-cmd="${t.id}" placeholder="Type: complete, update, deadline friday, move to [board]..." aria-label="Task command input" data-keydown-action="run-task-cmd" data-task-id="${t.id}" style="flex:1">
+      <input class="task-cmd" data-cmd="${t.id}" placeholder="done, defer, urgent, due friday, move to [board], or ask anything..." aria-label="Task command input" data-keydown-action="run-task-cmd" data-task-id="${t.id}" style="flex:1">
       ${!isDone ? `<button class="btn btn-sm" data-action="task-work" data-task-id="${t.id}" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);flex-shrink:0">\u2726 Help me work on this</button>` : ''}
     </div>
   </div>`;
@@ -401,6 +402,67 @@ export function createTaskEditor(deps) {
       return;
     }
 
+    if (['defer', 'snooze', 'tomorrow', 'later'].includes(lower)) {
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+      updateTask(taskId, { dueDate: tomorrow });
+      render();
+      showToast('Deferred to tomorrow');
+      return;
+    }
+
+    if (['urgent', 'asap', 'critical'].includes(lower)) {
+      updateTask(taskId, { priority: 'urgent' });
+      render();
+      showToast('Priority set to urgent');
+      return;
+    }
+
+    if (['important', 'high'].includes(lower)) {
+      updateTask(taskId, { priority: 'important' });
+      render();
+      showToast('Priority set to important');
+      return;
+    }
+
+    if (['low', 'low priority', 'backlog'].includes(lower)) {
+      updateTask(taskId, { priority: 'low' });
+      render();
+      showToast('Priority set to low');
+      return;
+    }
+
+    if (['normal', 'medium'].includes(lower)) {
+      updateTask(taskId, { priority: 'normal' });
+      render();
+      showToast('Priority set to normal');
+      return;
+    }
+
+    // "deadline X" or "due X" — parse natural date
+    const deadlineMatch = lower.match(/^(?:deadline|due)\s+(.+)/);
+    if (deadlineMatch) {
+      const parsedDate = parseNaturalDate(deadlineMatch[1]);
+      if (parsedDate) {
+        updateTask(taskId, { dueDate: parsedDate });
+        render();
+        showToast(`Due date set to ${parsedDate}`);
+        return;
+      }
+    }
+
+    // "move to X" — find matching project
+    const moveMatch = lower.match(/^(?:move|move to|board)\s+(.+)/);
+    if (moveMatch) {
+      const target = moveMatch[1].toLowerCase();
+      const proj = data.projects.find((p) => p.name.toLowerCase().includes(target));
+      if (proj) {
+        updateTask(taskId, { project: proj.id });
+        render();
+        showToast(`Moved to ${proj.name}`);
+        return;
+      }
+    }
+
     // For everything else, use AI if available
     if (hasAI()) {
       await runTaskCmdAI(taskId, input);
@@ -523,7 +585,7 @@ ONLY return JSON.`;
       const ci = document.querySelector(`[data-cmd="${taskId}"]`);
       if (ci) {
         ci.disabled = false;
-        ci.placeholder = 'Type: complete, update, deadline friday, move to [board]...';
+        ci.placeholder = 'done, defer, urgent, due friday, move to [board], or ask anything...';
       }
     }
   }
