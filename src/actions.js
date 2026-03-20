@@ -276,14 +276,20 @@ export function createActions(deps) {
         }
         break;
       }
-      case 'task-work':
+      case 'task-work': {
+        const _twTaskId = actionEl.dataset.taskId;
+        e.stopPropagation(); // Prevent parent handlers from collapsing the task
         if (typeof deps.openTaskWork === 'function') {
-          deps.openTaskWork(actionEl.dataset.taskId).catch((err) => {
+          showToast('Starting AI task assistant...');
+          deps.openTaskWork(_twTaskId).catch((err) => {
             console.error('Task work error:', err);
-            showToast('Could not start task work: ' + err.message, true);
+            showToast('Error: ' + err.message, true);
           });
+        } else {
+          showToast('Task work not available — check API key', true);
         }
         break;
+      }
       case 'complete-task': {
         const _cTaskId = actionEl.dataset.taskId;
         const _cTask = findTask(_cTaskId);
@@ -494,6 +500,11 @@ export function createActions(deps) {
           showToast('No tasks in this board to re-analyze');
           break;
         }
+        showToast('Starting board re-analysis...');
+        // Reset brainstorm state so textarea renders (not conversation UI)
+        const _raBm = getBrainstormModule();
+        if (_raBm && _raBm.resetState) _raBm.resetState();
+        if (_raBm && _raBm.setLastDumpResult) _raBm.setLastDumpResult(null);
         // Build the analysis input with all task data
         const _raSummary = _raTasks
           .map((t) => {
@@ -505,9 +516,8 @@ export function createActions(deps) {
           })
           .join('\n\n');
         const _raInput = `Re-analyze board "${_raProj?.name || 'Unknown'}":\n\n${_raSummary}`;
-        // Open brainstorm modal and pre-fill, then auto-trigger after modal renders
+        // Open brainstorm modal and pre-fill, then auto-trigger
         if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-        // Use multiple retries to find the textarea (modal may take time to render)
         let _raRetries = 0;
         const _raInterval = setInterval(() => {
           _raRetries++;
@@ -516,13 +526,16 @@ export function createActions(deps) {
             clearInterval(_raInterval);
             ta.value = _raInput;
             ta.dispatchEvent(new Event('input'));
-            // Auto-click the analyze button
+            // Auto-click analyze
             setTimeout(() => {
               const btn = document.querySelector('[data-action="process-dump"]');
               if (btn) btn.click();
-            }, 150);
+            }, 200);
           }
-          if (_raRetries > 20) clearInterval(_raInterval);
+          if (_raRetries > 30) {
+            clearInterval(_raInterval);
+            showToast('Could not open brainstorm', true);
+          }
         }, 50);
         break;
       }
