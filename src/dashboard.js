@@ -426,10 +426,14 @@ export function createDashboard(deps) {
     // Board narrative (cached) with inline reply
     const narrativeKey = userKey('whiteboard_board_narrative_' + p.id);
     const cachedNarrative = localStorage.getItem(narrativeKey);
+    const lastBoardResponse = localStorage.getItem(userKey('whiteboard_board_reply_' + p.id));
     if (hasAI()) {
       html += `<div style="margin-bottom:20px;padding:14px 16px;background:var(--surface);border-radius:var(--radius);border-left:3px solid var(--accent)">`;
       if (cachedNarrative) {
         html += `<div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">${esc(cachedNarrative)}</div>`;
+      }
+      if (lastBoardResponse) {
+        html += `<div style="font-size:12px;color:var(--accent);line-height:1.5;margin-bottom:10px;padding:8px 10px;background:rgba(var(--accent-rgb,99,102,241),0.06);border-radius:6px">\u2726 ${esc(lastBoardResponse)}</div>`;
       }
       html += `<div style="display:flex;gap:8px;align-items:center">
             <input type="text" id="boardReply" placeholder="${cachedNarrative ? "Reply... (e.g. 'defer the low priority stuff')" : 'Ask about this board or tell me what to change...'}" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface2);outline:none;font-family:inherit" data-keydown-action="board-reply" data-project-id="${esc(p.id)}">

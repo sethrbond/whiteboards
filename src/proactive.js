@@ -936,9 +936,9 @@ Leave changes empty [] if just answering a question.`;
         localStorage.setItem(narrativeKey, parsed.narrative);
       }
 
-      // Show response as toast
+      // Store last response for inline display
       if (parsed.response) {
-        showToast(parsed.response, false, true);
+        localStorage.setItem(userKey('whiteboard_board_reply_' + projectId), parsed.response);
       }
 
       render();
