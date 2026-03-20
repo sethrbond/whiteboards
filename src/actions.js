@@ -503,43 +503,50 @@ export function createActions(deps) {
           showToast('No tasks in this board to re-analyze');
           break;
         }
-        showToast('Starting board re-analysis...');
-        // Reset brainstorm state so textarea renders (not conversation UI)
-        const _raBm = getBrainstormModule();
-        if (_raBm && _raBm.resetState) _raBm.resetState();
-        if (_raBm && _raBm.setLastDumpResult) _raBm.setLastDumpResult(null);
-        // Build the analysis input with all task data
-        const _raSummary = _raTasks
-          .map((t) => {
-            const status = t.status === 'done' ? '[DONE]' : t.status === 'in-progress' ? '[IN PROGRESS]' : '[TODO]';
-            const prio = `(${t.priority})`;
-            const due = t.dueDate ? `due ${t.dueDate}` : '';
-            const notes = t.notes ? `- ${t.notes.slice(0, 80)}` : '';
-            return `${status} ${t.title} ${prio} ${due}\n${notes}`.trim();
-          })
-          .join('\n\n');
-        const _raInput = `Re-analyze board "${_raProj?.name || 'Unknown'}":\n\n${_raSummary}`;
-        // Open brainstorm modal and pre-fill, then auto-trigger
-        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-        let _raRetries = 0;
-        const _raInterval = setInterval(() => {
-          _raRetries++;
-          const ta = document.getElementById('dumpText');
-          if (ta) {
-            clearInterval(_raInterval);
-            ta.value = _raInput;
-            ta.dispatchEvent(new Event('input'));
-            // Auto-click analyze
-            setTimeout(() => {
-              const btn = document.querySelector('[data-action="process-dump"]');
-              if (btn) btn.click();
-            }, 200);
+        showToast('Re-analyzing board...');
+        // getBrainstormModule() returns a Promise — must await it
+        (async () => {
+          try {
+            const _raBm = await getBrainstormModule();
+            if (_raBm && _raBm.resetState) _raBm.resetState();
+            if (_raBm && _raBm.setLastDumpResult) _raBm.setLastDumpResult(null);
+            // Build the analysis input with all task data
+            const _raSummary = _raTasks
+              .map((t) => {
+                const status = t.status === 'done' ? '[DONE]' : t.status === 'in-progress' ? '[IN PROGRESS]' : '[TODO]';
+                const prio = `(${t.priority})`;
+                const due = t.dueDate ? `due ${t.dueDate}` : '';
+                const notes = t.notes ? `- ${t.notes.slice(0, 80)}` : '';
+                return `${status} ${t.title} ${prio} ${due}\n${notes}`.trim();
+              })
+              .join('\n\n');
+            const _raInput = `Re-analyze board "${_raProj?.name || 'Unknown'}":\n\n${_raSummary}`;
+            // Open brainstorm modal — state is now clean so textarea will render
+            if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+            // Wait for modal to render, then fill textarea and auto-run
+            let _raRetries = 0;
+            const _raInterval = setInterval(() => {
+              _raRetries++;
+              const ta = document.getElementById('dumpText');
+              if (ta) {
+                clearInterval(_raInterval);
+                ta.value = _raInput;
+                ta.dispatchEvent(new Event('input'));
+                setTimeout(() => {
+                  const btn = document.querySelector('[data-action="process-dump"]');
+                  if (btn) btn.click();
+                }, 200);
+              }
+              if (_raRetries > 30) {
+                clearInterval(_raInterval);
+                showToast('Could not start re-analysis', true);
+              }
+            }, 50);
+          } catch (_raErr) {
+            console.error('Re-analyze error:', _raErr);
+            showToast('Re-analysis failed: ' + _raErr.message, true);
           }
-          if (_raRetries > 30) {
-            clearInterval(_raInterval);
-            showToast('Could not open brainstorm', true);
-          }
-        }, 50);
+        })();
         break;
       }
       case 'open-edit-project':
