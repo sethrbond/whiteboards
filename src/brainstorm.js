@@ -733,7 +733,10 @@ For updates: { "action": "update", "id": "existing_task_id", "updateFields": { "
 
   // ── Main processing (conversational) ──────────────────────────────────
   async function processDump(skipClarifyPass) {
-    if (_dumpInProgress) return;
+    if (_dumpInProgress) {
+      showToast('Brainstorm already in progress', false);
+      return;
+    }
 
     const text = _validateDumpInput();
     if (text === null) return;
@@ -859,6 +862,9 @@ ${text}${getDumpAttachmentText()}`;
       render();
     } finally {
       dumpAbort = null;
+      // Safety net: ensure _dumpInProgress is never stuck true
+      // (it's set false in catch blocks, but also here as final guarantee)
+      if (_convState === 'IDLE') _dumpInProgress = false;
     }
   }
 
