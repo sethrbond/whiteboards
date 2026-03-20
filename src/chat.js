@@ -509,16 +509,20 @@ ${AI_ACTIONS_SPEC}`;
       : [{ role: 'user', content: `Help me work on: "${t.title}"`, ts: Date.now() }];
     saveChatHistory();
 
-    // Ensure chat panel is open
+    // Open chat panel directly (don't use toggleChat — it renders greeting and overwrites content)
+    _chatSessionStarted = true; // Prevent toggleChat from overwriting
     const panel = document.getElementById('chatPanel');
-    if (panel && !panel.classList.contains('open')) {
-      toggleChat(); // Use toggleChat to properly initialize the panel
+    if (panel) {
+      panel.classList.add('open');
+      // Hide mobile FAB
+      const fab = document.getElementById('mobileChatFab');
+      if (fab) {
+        fab.classList.add('hidden');
+        fab.classList.remove('unread');
+      }
     }
-    // Update title after panel is open
-    setTimeout(() => {
-      const titleEl = document.getElementById('chatTitle');
-      if (titleEl) titleEl.textContent = `Working: ${t.title.slice(0, 30)}${t.title.length > 30 ? '...' : ''}`;
-    }, 50);
+    const titleEl = document.getElementById('chatTitle');
+    if (titleEl) titleEl.textContent = `Working: ${t.title.slice(0, 30)}${t.title.length > 30 ? '...' : ''}`;
 
     // If this is a fresh start, generate the initial research response
     if (!twHistory.length) {

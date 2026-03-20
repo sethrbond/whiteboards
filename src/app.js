@@ -1170,6 +1170,7 @@ const filterAIPrepared = _proactive.filterAIPrepared;
 const maybeProactiveEnhance = _proactive.maybeProactiveEnhance;
 let runProactiveWorker = _proactive.runProactiveWorker;
 let planMyDay = _proactive.planMyDay;
+const sendNarrativeReply = _proactive.sendNarrativeReply;
 const snoozePlanTask = _proactive.snoozePlanTask;
 const replanDay = _proactive.replanDay;
 let generateAIBriefing = _proactive.generateAIBriefing;
@@ -1618,6 +1619,7 @@ exposeWindowAPI(
     updateChatChips,
     aiReorganize,
     generateBoardNarrative,
+    sendNarrativeReply,
     startFocus: (...args) => startFocus(...args),
     closeFocus: (...args) => closeFocus(...args),
     openFocusView: (...args) => openFocusView(...args),
