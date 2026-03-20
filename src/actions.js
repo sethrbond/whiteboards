@@ -38,6 +38,7 @@ export function createActions(deps) {
     restoreFromBackup,
     dismissCorruption,
     findTask,
+    getData,
     // Projects
     openNewProject,
     saveNewProject,
@@ -263,7 +264,12 @@ export function createActions(deps) {
         openFocusView(actionEl.dataset.taskId);
         break;
       case 'task-work':
-        if (typeof deps.openTaskWork === 'function') deps.openTaskWork(actionEl.dataset.taskId);
+        if (typeof deps.openTaskWork === 'function') {
+          deps.openTaskWork(actionEl.dataset.taskId).catch((err) => {
+            console.error('Task work error:', err);
+            showToast('Could not start task work: ' + err.message, true);
+          });
+        }
         break;
       case 'complete-task': {
         const _cTaskId = actionEl.dataset.taskId;
@@ -461,12 +467,32 @@ export function createActions(deps) {
       case 'reanalyze-board': {
         const _raPid = actionEl.dataset.projectId;
         if (actionEl.closest('.dropdown')) actionEl.closest('.dropdown').classList.remove('open');
-        // Open brainstorm modal and pre-fill with board re-analysis request
+        const _raData = getData();
+        const _raProj = _raData.projects.find((p) => p.id === _raPid);
+        const _raTasks = _raData.tasks.filter((t) => t.project === _raPid && !t.archived);
+        if (!_raTasks.length) {
+          showToast('No tasks in this board to re-analyze');
+          break;
+        }
+        const _raSummary = _raTasks
+          .map((t) => {
+            const status = t.status === 'done' ? '[DONE]' : t.status === 'in-progress' ? '[IN PROGRESS]' : '[TODO]';
+            const prio = `(${t.priority})`;
+            const due = t.dueDate ? `due ${t.dueDate}` : '';
+            const notes = t.notes ? `notes: ${t.notes.slice(0, 80)}` : '';
+            const subs = t.subtasks?.length
+              ? `[${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length} subtasks]`
+              : '';
+            return `- ${status} ${t.title} ${prio} ${due} ${notes} ${subs}`.trim();
+          })
+          .join('\n');
+        const _raInput = `RE-ANALYZE THIS BOARD: "${_raProj?.name || 'Unknown'}"\n\nCurrent tasks:\n${_raSummary}\n\n${_raProj?.background ? `Board background:\n${_raProj.background.slice(0, 500)}` : ''}\n\nPlease review all ${_raTasks.length} tasks above. For each theme you find:\n- Flag vague tasks that need breakdown\n- Suggest priority adjustments with reasons\n- Identify duplicates or tasks that should be merged\n- Propose subtask enrichment for bare items\n- Note tasks that might belong in a different board`;
         if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
         setTimeout(() => {
           const ta = document.getElementById('dumpText');
           if (ta) {
-            ta.value = `[RE-ANALYZE BOARD: ${_raPid}] Please re-analyze all tasks in this board. Identify themes, flag vague tasks, suggest breakdowns, add priority reasons, find duplicates, and propose improvements.`;
+            ta.value = _raInput;
+            ta.dispatchEvent(new Event('input'));
           }
         }, 100);
         break;

@@ -1398,6 +1398,7 @@ createActions({
   unarchiveTask,
   deleteArchivedPermanently,
   findTask,
+  getData: () => data,
   restoreFromBackup,
   dismissCorruption,
   openNewProject,

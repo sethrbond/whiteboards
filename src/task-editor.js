@@ -216,7 +216,7 @@ export function createTaskEditor(deps) {
     </div>
     <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
       <input class="task-cmd" data-cmd="${t.id}" placeholder="Type: complete, update, deadline friday, move to [board]..." aria-label="Task command input" data-keydown-action="run-task-cmd" data-task-id="${t.id}" style="flex:1">
-      ${!isDone ? `<button class="btn btn-sm" data-action="task-work" data-task-id="${t.id}" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);flex-shrink:0">\u2726 Work on this</button>` : ''}
+      ${!isDone ? `<button class="btn btn-sm" data-action="task-work" data-task-id="${t.id}" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);flex-shrink:0">\u2726 Help me work on this</button>` : ''}
     </div>
   </div>`;
     return html;
