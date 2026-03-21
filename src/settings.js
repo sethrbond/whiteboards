@@ -264,6 +264,7 @@ export function createSettings(deps) {
       <button class="btn btn-sm" data-action="import-click">Import</button>
       <input type="file" id="importFile" accept=".json" style="display:none" data-onchange-action="import-data">
       <button class="btn btn-sm btn-danger" data-action="confirm-reset-data">Reset All Data</button>
+      <button class="btn btn-sm btn-danger" data-action="delete-account" style="margin-left:4px">Delete Account</button>
     </div>
     <div class="modal-actions"><button class="btn" data-action="close-modal">Cancel</button><button class="btn btn-primary" data-action="save-settings">Save</button></div>
     <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">

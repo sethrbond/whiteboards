@@ -1499,6 +1499,7 @@ createActions({
   generateWeeklyReview: (...args) => generateWeeklyReview(...args),
   discussReview: (...args) => discussReview(...args),
   showToast,
+  getSupabase: () => sb,
   filterByTag,
   addTagToPicker,
   previewSmartDate,

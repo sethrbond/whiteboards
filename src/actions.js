@@ -546,6 +546,31 @@ export function createActions(deps) {
       case 'start-fresh':
         dismissCorruption();
         break;
+      case 'delete-account': {
+        if (typeof deps.confirmAction === 'function') {
+          deps.confirmAction('Permanently delete your account and all data? This cannot be undone.').then((yes) => {
+            if (!yes) return;
+            const sb = deps.getSupabase ? deps.getSupabase() : null;
+            if (!sb) { showToast('Not signed in', true); return; }
+            sb.auth.getSession().then(({ data: { session } }) => {
+              if (!session) { showToast('Not signed in', true); return; }
+              fetch(sb.supabaseUrl + '/functions/v1/delete-account', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token, apikey: sb.supabaseKey },
+              }).then((r) => r.json()).then((result) => {
+                if (result.success) {
+                  localStorage.clear();
+                  showToast('Account deleted');
+                  setTimeout(() => location.reload(), 1000);
+                } else {
+                  showToast('Failed to delete account: ' + (result.error || 'unknown error'), true);
+                }
+              }).catch(() => showToast('Failed to delete account', true));
+            });
+          });
+        }
+        break;
+      }
       case 'export-data':
         exportData();
         break;
