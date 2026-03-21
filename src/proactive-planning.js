@@ -108,11 +108,33 @@ RULES FOR NARRATIVE:
 - Don't list tasks — explain the situation. The task list is below.
 - Write in second person ("You have...", "Your...") — calm, warm, direct
 
+TIME BLOCKS:
+- Group the selected tasks into 2-4 time blocks based on their project/board
+- Each block represents a focused work session on one project
+- Assign realistic time ranges (e.g. "9am – 12pm")
+- You can include break blocks (lunch, rest)
+- Order blocks by energy: harder/urgent projects earlier, lighter ones later
+- Each block's duration should roughly match the total estimated minutes of its tasks
+
 Return ONLY this JSON object, no other text:
 {
   "narrative": "2-4 sentence brief about what matters today and why",
-  "tasks": [
-    { "id": "task_id", "why": "brief reason — 8 words max" }
+  "blocks": [
+    {
+      "label": "Morning Focus",
+      "time": "9am – 12pm",
+      "projectName": "Board name these tasks belong to",
+      "isBreak": false,
+      "tasks": [
+        { "id": "task_id", "why": "brief reason — 8 words max" }
+      ]
+    },
+    {
+      "label": "Lunch",
+      "time": "12pm – 1pm",
+      "isBreak": true,
+      "tasks": []
+    }
   ]
 }`;
 
@@ -124,40 +146,76 @@ Return ONLY this JSON object, no other text:
         .trim();
       const parsed = JSON.parse(cleaned);
 
-      // Support both new format {narrative, tasks} and legacy [tasks] format
-      let taskArray, narrative;
+      // Support three formats: blocks {narrative, blocks}, flat {narrative, tasks}, legacy [tasks]
+      let narrative = '';
+      let planData;
+
       if (Array.isArray(parsed)) {
-        taskArray = parsed;
-        narrative = '';
-      } else if (parsed && parsed.tasks) {
-        taskArray = parsed.tasks;
+        // Legacy: bare array of tasks
+        planData = parsed.filter((p) => findTask(p.id)).slice(0, 8);
+      } else if (parsed && parsed.blocks && parsed.blocks.length) {
+        // New: time-blocked format
         narrative = parsed.narrative || '';
+        const blocks = parsed.blocks.map((b) => ({
+          label: b.label || '',
+          time: b.time || '',
+          projectName: b.projectName || '',
+          isBreak: !!b.isBreak,
+          tasks: b.isBreak ? [] : (b.tasks || []).filter((p) => findTask(p.id)),
+        }));
+        planData = { blocks };
+      } else if (parsed && parsed.tasks) {
+        // Flat: {narrative, tasks}
+        narrative = parsed.narrative || '';
+        planData = parsed.tasks.filter((p) => findTask(p.id)).slice(0, 8);
       } else {
-        taskArray = [];
-        narrative = '';
+        planData = [];
       }
 
-      if (taskArray.length) {
-        const valid = taskArray.filter((p) => findTask(p.id)).slice(0, 8);
-        if (valid.length < 3) {
+      // Validate: ensure we have enough tasks
+      const allTasks = Array.isArray(planData)
+        ? planData
+        : planData.blocks
+          ? planData.blocks.flatMap((b) => b.tasks || [])
+          : [];
+
+      if (allTasks.length) {
+        // If too few tasks, backfill with urgent/overdue
+        if (allTasks.length < 3) {
           const today = todayStr();
-          const validIds = new Set(valid.map((p) => p.id));
+          const validIds = new Set(allTasks.map((p) => p.id));
           const urgent = active.filter(
             (t) => !validIds.has(t.id) && ((t.dueDate && t.dueDate <= today) || t.priority === 'urgent'),
           );
+          const backfill = [];
           urgent.forEach((t) => {
-            if (valid.length < 8) {
-              valid.push({ id: t.id, why: t.dueDate && t.dueDate < today ? 'Overdue' : 'Due today' });
+            if (allTasks.length + backfill.length < 8) {
+              backfill.push({ id: t.id, why: t.dueDate && t.dueDate < today ? 'Overdue' : 'Due today' });
             }
           });
+          if (backfill.length) {
+            if (Array.isArray(planData)) {
+              planData.push(...backfill);
+            } else if (planData.blocks && planData.blocks.length) {
+              // Add backfill to first non-break block
+              const firstBlock = planData.blocks.find((b) => !b.isBreak);
+              if (firstBlock) firstBlock.tasks.push(...backfill);
+            }
+          }
         }
-        localStorage.setItem(userKey('whiteboard_plan_' + todayStr()), JSON.stringify(valid));
+
+        localStorage.setItem(userKey('whiteboard_plan_' + todayStr()), JSON.stringify(planData));
         if (narrative) {
           localStorage.setItem(userKey('whiteboard_narrative_' + todayStr()), narrative);
         }
         setPlanIndexCache(null, ''); // invalidate sort cache
         render();
-        showToast(`Day planned: ${valid.length} tasks`);
+        const taskCount = Array.isArray(planData)
+          ? planData.length
+          : planData.blocks
+            ? planData.blocks.reduce((s, b) => s + (b.tasks?.length || 0), 0)
+            : 0;
+        showToast(`Day planned: ${taskCount} tasks`);
         notifyOverdueTasks();
       }
     } catch (err) {
@@ -176,16 +234,35 @@ Return ONLY this JSON object, no other text:
     const currentPlan = localStorage.getItem(planKey);
 
     let planContext = '';
+    let hasBlocks = false;
     if (currentPlan) {
       try {
         const plan = JSON.parse(currentPlan);
-        planContext = plan
-          .map((p) => {
-            const t = findTask(p.id);
-            return t ? `- ${t.title} (${t.priority}, ${t.status}${t.dueDate ? ', due ' + t.dueDate : ''})` : '';
-          })
-          .filter(Boolean)
-          .join('\n');
+        if (plan && plan.blocks) {
+          hasBlocks = true;
+          planContext = plan.blocks
+            .map((b) => {
+              if (b.isBreak) return `[${b.time}] ${b.label} (break)`;
+              const tasks = (b.tasks || [])
+                .map((p) => {
+                  const t = findTask(p.id);
+                  return t ? `  - ${t.title} (${t.priority}${t.dueDate ? ', due ' + t.dueDate : ''})` : '';
+                })
+                .filter(Boolean)
+                .join('\n');
+              return `[${b.time}] ${b.label}${b.projectName ? ' — ' + b.projectName : ''}\n${tasks}`;
+            })
+            .join('\n');
+        } else {
+          const items = Array.isArray(plan) ? plan : [];
+          planContext = items
+            .map((p) => {
+              const t = findTask(p.id);
+              return t ? `- ${t.title} (${t.priority}, ${t.status}${t.dueDate ? ', due ' + t.dueDate : ''})` : '';
+            })
+            .filter(Boolean)
+            .join('\n');
+        }
       } catch {
         /* */
       }
@@ -209,17 +286,21 @@ RULES:
 - If they add context (e.g. "CPA is handling the tax return"), incorporate it
 - Keep the same warm, direct tone
 - 2-4 sentences
-- If the plan should change (tasks removed/reordered), include an actions block
+- If the plan should change (tasks removed/reordered), include planChanges
+- If they want to restructure time blocks (e.g. "spend morning on X", "swap afternoon blocks"), return a full new blocks array in restructuredBlocks
 
 Return ONLY a JSON object:
 {
   "narrative": "Updated 2-4 sentence narrative reflecting their feedback",
-  "planChanges": []
+  "planChanges": [],
+  "restructuredBlocks": null
 }
 
-planChanges is optional. If tasks should be removed from today's plan: [{ "action": "remove", "id": "task_id" }]
-If tasks should be added: [{ "action": "add", "id": "task_id", "why": "reason" }]
-Leave planChanges empty if no changes needed.`;
+planChanges: If tasks should be removed: [{ "action": "remove", "id": "task_id" }]. Added: [{ "action": "add", "id": "task_id", "why": "reason" }]. Empty if no changes.
+
+restructuredBlocks: ONLY if user requests time restructuring. Return the FULL blocks array:
+[{ "label": "Morning", "time": "9am – 12pm", "projectName": "Board", "isBreak": false, "tasks": [{"id": "...", "why": "..."}] }]
+Leave null if no block restructuring needed.`;
 
     try {
       showToast('Updating...');
@@ -234,18 +315,49 @@ Leave planChanges empty if no changes needed.`;
         localStorage.setItem(narrativeKey, parsed.narrative);
       }
 
-      // Apply plan changes if any
-      if (parsed.planChanges && parsed.planChanges.length && currentPlan) {
+      // Apply restructured blocks if AI returned them
+      if (parsed.restructuredBlocks && parsed.restructuredBlocks.length) {
+        const blocks = parsed.restructuredBlocks.map((b) => ({
+          label: b.label || '',
+          time: b.time || '',
+          projectName: b.projectName || '',
+          isBreak: !!b.isBreak,
+          tasks: b.isBreak ? [] : (b.tasks || []).filter((p) => findTask(p.id)),
+        }));
+        localStorage.setItem(planKey, JSON.stringify({ blocks }));
+        setPlanIndexCache(null, '');
+      } else if (parsed.planChanges && parsed.planChanges.length && currentPlan) {
+        // Apply incremental plan changes
         try {
           let plan = JSON.parse(currentPlan);
-          parsed.planChanges.forEach((change) => {
-            if (change.action === 'remove') {
-              plan = plan.filter((p) => p.id !== change.id);
-            } else if (change.action === 'add' && findTask(change.id)) {
-              plan.push({ id: change.id, why: change.why || '' });
-            }
-          });
-          localStorage.setItem(planKey, JSON.stringify(plan));
+          if (plan && plan.blocks) {
+            // Apply changes to blocks format
+            parsed.planChanges.forEach((change) => {
+              if (change.action === 'remove') {
+                plan.blocks.forEach((b) => {
+                  if (b.tasks) b.tasks = b.tasks.filter((p) => p.id !== change.id);
+                });
+              } else if (change.action === 'add' && findTask(change.id)) {
+                const firstBlock = plan.blocks.find((b) => !b.isBreak);
+                if (firstBlock) {
+                  if (!firstBlock.tasks) firstBlock.tasks = [];
+                  firstBlock.tasks.push({ id: change.id, why: change.why || '' });
+                }
+              }
+            });
+            localStorage.setItem(planKey, JSON.stringify(plan));
+          } else {
+            // Apply changes to flat format
+            let items = Array.isArray(plan) ? plan : [];
+            parsed.planChanges.forEach((change) => {
+              if (change.action === 'remove') {
+                items = items.filter((p) => p.id !== change.id);
+              } else if (change.action === 'add' && findTask(change.id)) {
+                items.push({ id: change.id, why: change.why || '' });
+              }
+            });
+            localStorage.setItem(planKey, JSON.stringify(items));
+          }
           setPlanIndexCache(null, '');
         } catch {
           /* */
@@ -267,9 +379,17 @@ Leave planChanges empty if no changes needed.`;
   function snoozePlanTask(taskId) {
     const planKey = userKey('whiteboard_plan_' + todayStr());
     try {
-      const plan = JSON.parse(localStorage.getItem(planKey) || '[]');
-      const updated = plan.filter((p) => p.id !== taskId);
-      localStorage.setItem(planKey, JSON.stringify(updated));
+      const raw = JSON.parse(localStorage.getItem(planKey) || '[]');
+      if (raw && raw.blocks) {
+        // Remove from blocks format
+        raw.blocks.forEach((b) => {
+          if (b.tasks) b.tasks = b.tasks.filter((p) => p.id !== taskId);
+        });
+        localStorage.setItem(planKey, JSON.stringify(raw));
+      } else {
+        const updated = (Array.isArray(raw) ? raw : []).filter((p) => p.id !== taskId);
+        localStorage.setItem(planKey, JSON.stringify(updated));
+      }
       setPlanIndexCache(null, '');
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);

@@ -965,10 +965,58 @@ export function createDashboard(deps) {
     return html;
   }
 
+  function _renderPlanTaskRow(p, t, i, totalActive) {
+    const _expandedTask = getExpandedTask();
+    const isExpanded = _expandedTask === t.id;
+    let html = '';
+
+    if (isExpanded) {
+      try {
+        html += renderTaskExpanded(t, true);
+      } catch (_expandErr) {
+        console.warn('Task expand failed:', _expandErr);
+        html += `<div style="padding:8px;color:var(--red);font-size:12px">Error rendering task details</div>`;
+      }
+    } else {
+      const dueDateStr = t.dueDate
+        ? ` <span style="font-size:10px;color:var(--text3)">${fmtDate(t.dueDate)}</span>`
+        : '';
+      const subtaskInfo =
+        t.subtasks && t.subtasks.length
+          ? ` <span style="font-size:10px;color:var(--text3)">(${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length})</span>`
+          : '';
+      const estStr = t.estimatedMinutes
+        ? ` <span style="font-size:10px;color:var(--text3)">~${t.estimatedMinutes}m</span>`
+        : '';
+      const borderColor =
+        t.priority === 'urgent' ? 'var(--red)' : t.priority === 'important' ? 'var(--orange)' : 'transparent';
+
+      html += `<div class="plan-task-row" draggable="true" data-plan-drag="${p.id}" data-plan-index="${i}" role="listitem" style="border-left:3px solid ${borderColor}">
+        <div class="task-check" data-action="complete-task" data-task-id="${t.id}" role="checkbox" aria-checked="false" tabindex="0" aria-label="Mark ${esc(t.title)} done" style="flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <span style="font-size:14px;color:var(--text);cursor:pointer" data-action="toggle-expand" data-task="${t.id}">${esc(t.title)}</span>
+          ${dueDateStr}${subtaskInfo}${estStr}
+        </div>
+        <button data-action="snooze-plan-task" data-task-id="${p.id}" class="snooze-btn-hover" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:4px 8px;white-space:nowrap;flex-shrink:0;border-radius:var(--radius-xs);transition:all 0.15s;opacity:0" title="Move to tomorrow">\u2192</button>
+      </div>`;
+      if (p.why)
+        html += `<div style="margin-left:26px;font-size:11px;color:var(--text3);margin-bottom:4px;margin-top:-4px;font-style:italic">${esc(p.why)}</div>`;
+    }
+    return html;
+  }
+
   function _renderDayPlanActive(cachedPlan, _planKey) {
     let html = '';
     try {
-      const plan = JSON.parse(cachedPlan);
+      const raw = JSON.parse(cachedPlan);
+
+      // Detect format: blocks vs flat
+      if (raw && raw.blocks) {
+        return _renderBlockedPlan(raw);
+      }
+
+      // Flat format (legacy + simple)
+      const plan = Array.isArray(raw) ? raw : [];
       const validPlan = plan.filter((p) => findTask(p.id));
       const activePlanItems = [];
       const completedPlanItems = [];
@@ -986,19 +1034,12 @@ export function createDashboard(deps) {
 
       const doneCount = completedPlanItems.length;
       const totalCount = validPlan.length;
-
-      // Remaining time from incomplete tasks
-      const remainingMinutes = activePlanItems.reduce((sum, p) => {
-        return sum + (p._task.estimatedMinutes || 0);
-      }, 0);
+      const remainingMinutes = activePlanItems.reduce((sum, p) => sum + (p._task.estimatedMinutes || 0), 0);
       const remainingStr =
         remainingMinutes > 0 ? ` \u00b7 ~${Math.round((remainingMinutes / 60) * 10) / 10}h remaining` : '';
-
       const allDone = doneCount === totalCount && totalCount > 0;
 
       html += `<div class="day-plan-centerpiece" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px">`;
-
-      // Header — clean, calm
       html += `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:15px;font-weight:600;color:var(--text)">Today's Plan</span>
@@ -1007,76 +1048,138 @@ export function createDashboard(deps) {
         <span style="font-size:12px;color:${allDone ? 'var(--green)' : 'var(--text3)'}">${doneCount}/${totalCount}${remainingStr}</span>
       </div>`;
 
-      // Active tasks in plan order — clean, calm rows
       html += `<div role="list" aria-label="Today's plan tasks">`;
-      const _expandedTask = getExpandedTask();
       activePlanItems.forEach((p, i) => {
-        const t = p._task;
-        const isExpanded = _expandedTask === t.id;
-
-        if (isExpanded) {
-          try {
-            html += renderTaskExpanded(t, true);
-          } catch (_expandErr) {
-            console.warn('Task expand failed:', _expandErr);
-            html += `<div style="padding:8px;color:var(--red);font-size:12px">Error rendering task details</div>`;
-          }
-        } else {
-          const dueDateStr = t.dueDate
-            ? ` <span style="font-size:10px;color:var(--text3)">${fmtDate(t.dueDate)}</span>`
-            : '';
-          const subtaskInfo =
-            t.subtasks && t.subtasks.length
-              ? ` <span style="font-size:10px;color:var(--text3)">(${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length})</span>`
-              : '';
-          const borderColor =
-            t.priority === 'urgent' ? 'var(--red)' : t.priority === 'important' ? 'var(--orange)' : 'transparent';
-
-          html += `<div class="plan-task-row" draggable="true" data-plan-drag="${p.id}" data-plan-index="${i}" role="listitem" style="border-left:3px solid ${borderColor}">
-            <div class="plan-reorder-btns" style="display:flex;flex-direction:column;gap:0;flex-shrink:0;opacity:0.3;transition:opacity 0.15s">
-              ${i > 0 ? `<button class="subtask-action" data-action="plan-move-up" data-plan-index="${i}" aria-label="Move up" style="font-size:8px;padding:0 3px;line-height:1">\u25b2</button>` : '<div style="width:16px;height:10px"></div>'}
-              ${i < activePlanItems.length - 1 ? `<button class="subtask-action" data-action="plan-move-down" data-plan-index="${i}" aria-label="Move down" style="font-size:8px;padding:0 3px;line-height:1">\u25bc</button>` : '<div style="width:16px;height:10px"></div>'}
-            </div>
-            <div class="task-check" data-action="complete-task" data-task-id="${t.id}" role="checkbox" aria-checked="false" tabindex="0" aria-label="Mark ${esc(t.title)} done" style="flex-shrink:0"></div>
-            <div style="flex:1;min-width:0">
-              <span style="font-size:14px;color:var(--text);cursor:pointer" data-action="toggle-expand" data-task="${t.id}">${esc(t.title)}</span>
-              ${dueDateStr}${subtaskInfo}
-            </div>
-            <button data-action="snooze-plan-task" data-task-id="${p.id}" class="snooze-btn-hover" style="background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:4px 8px;white-space:nowrap;flex-shrink:0;border-radius:var(--radius-xs);transition:all 0.15s;opacity:0" title="Move to tomorrow">\u2192</button>
-          </div>`;
-          if (p.why)
-            html += `<div style="margin-left:34px;font-size:11px;color:var(--text3);margin-bottom:4px;margin-top:-4px;font-style:italic">${esc(p.why)}</div>`;
-        }
+        html += _renderPlanTaskRow(p, p._task, i, activePlanItems.length);
       });
-      html += `</div>`; // close role="list"
+      html += `</div>`;
 
-      // Completed tasks (collapsed at bottom)
       if (completedPlanItems.length > 0) {
-        html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px;cursor:pointer;user-select:none" data-action="toggle-completed" data-key="plan-done">${getShowCompleted('plan-done') ? '\u25be' : '\u25b8'} Completed (${completedPlanItems.length})</div>`;
-        if (getShowCompleted('plan-done')) {
-          completedPlanItems.forEach((p) => {
-            const t = p._task;
-            html += `<div style="display:flex;align-items:center;gap:10px;padding:4px;opacity:0.45">
-              <div class="task-check done" style="flex-shrink:0"></div>
-              <span style="font-size:12px;color:var(--text3);text-decoration:line-through;flex:1">${esc(t.title)}</span>
-            </div>`;
-          });
-        }
-        html += `</div>`;
+        html += _renderCompletedSection(completedPlanItems);
       }
 
-      // Footer actions
-      html += `<div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-        <button data-action="replan-day" class="briefing-generate" style="color:var(--accent);font-size:11px">\u21bb Replan</button>
-        <button data-action="add-to-plan" class="briefing-generate" style="font-size:11px">+ Add to plan</button>
-      </div>`;
-
+      html += _renderPlanFooter();
       html += `</div>`;
     } catch (e) {
       console.warn('Plan render failed:', e);
     }
     return html;
+  }
+
+  function _renderBlockedPlan(plan) {
+    let html = '';
+    const blocks = plan.blocks || [];
+
+    // Gather stats across all blocks
+    let totalTasks = 0;
+    let doneTasks = 0;
+    let remainingMinutes = 0;
+    const completedItems = [];
+
+    blocks.forEach((block) => {
+      if (block.isBreak) return;
+      (block.tasks || []).forEach((p) => {
+        const t = findTask(p.id);
+        if (!t) return;
+        totalTasks++;
+        if (p.completedInPlan || t.status === 'done') {
+          doneTasks++;
+          completedItems.push({ ...p, _task: t });
+        } else {
+          remainingMinutes += t.estimatedMinutes || 0;
+        }
+      });
+    });
+
+    const remainingStr =
+      remainingMinutes > 0 ? ` \u00b7 ~${Math.round((remainingMinutes / 60) * 10) / 10}h remaining` : '';
+    const allDone = doneTasks === totalTasks && totalTasks > 0;
+
+    html += `<div class="day-plan-centerpiece" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px">`;
+
+    // Header
+    html += `<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:15px;font-weight:600;color:var(--text)">Today's Plan</span>
+        <span style="font-size:11px;color:var(--text3)">${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+      </div>
+      <span style="font-size:12px;color:${allDone ? 'var(--green)' : 'var(--text3)'}">${doneTasks}/${totalTasks}${remainingStr}</span>
+    </div>`;
+
+    // Render each time block
+    let taskIdx = 0;
+    blocks.forEach((block) => {
+      if (block.isBreak) {
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;margin:4px 0">
+          <span style="font-size:11px;color:var(--text3);font-weight:500">${esc(block.time || '')}</span>
+          <span style="font-size:12px;color:var(--text3);font-style:italic">${esc(block.label || 'Break')}</span>
+          <div style="flex:1;height:1px;background:var(--border)"></div>
+        </div>`;
+        return;
+      }
+
+      const blockTasks = (block.tasks || []).filter((p) => {
+        const t = findTask(p.id);
+        return t && t.status !== 'done' && !p.completedInPlan;
+      });
+      const blockMinutes = blockTasks.reduce((s, p) => {
+        const t = findTask(p.id);
+        return s + (t?.estimatedMinutes || 0);
+      }, 0);
+
+      // Block header
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;margin-top:8px">
+        <span style="font-size:11px;color:var(--accent);font-weight:600;white-space:nowrap">${esc(block.time || '')}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text)">${esc(block.label || '')}</span>
+        ${block.projectName ? `<span style="font-size:11px;color:var(--text3)">${esc(block.projectName)}</span>` : ''}
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        ${blockMinutes > 0 ? `<span style="font-size:10px;color:var(--text3)">~${Math.round(blockMinutes / 60 * 10) / 10}h</span>` : ''}
+      </div>`;
+
+      // Block tasks
+      html += `<div role="list" style="margin-left:4px">`;
+      blockTasks.forEach((p) => {
+        const t = findTask(p.id);
+        if (!t) return;
+        html += _renderPlanTaskRow(p, t, taskIdx++, blockTasks.length);
+      });
+      if (blockTasks.length === 0) {
+        html += `<div style="padding:6px 0 6px 26px;font-size:12px;color:var(--text3);font-style:italic">All done in this block \u2713</div>`;
+      }
+      html += `</div>`;
+    });
+
+    // Completed section
+    if (completedItems.length > 0) {
+      html += _renderCompletedSection(completedItems);
+    }
+
+    html += _renderPlanFooter();
+    html += `</div>`;
+    return html;
+  }
+
+  function _renderCompletedSection(completedItems) {
+    let html = `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px;cursor:pointer;user-select:none" data-action="toggle-completed" data-key="plan-done">${getShowCompleted('plan-done') ? '\u25be' : '\u25b8'} Completed (${completedItems.length})</div>`;
+    if (getShowCompleted('plan-done')) {
+      completedItems.forEach((p) => {
+        const t = p._task;
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:4px;opacity:0.45">
+          <div class="task-check done" style="flex-shrink:0"></div>
+          <span style="font-size:12px;color:var(--text3);text-decoration:line-through;flex:1">${esc(t.title)}</span>
+        </div>`;
+      });
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  function _renderPlanFooter() {
+    return `<div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <button data-action="replan-day" class="briefing-generate" style="color:var(--accent);font-size:11px">\u21bb Replan</button>
+      <button data-action="add-to-plan" class="briefing-generate" style="font-size:11px">+ Add to plan</button>
+    </div>`;
   }
 
   function _renderNoPlanState() {
