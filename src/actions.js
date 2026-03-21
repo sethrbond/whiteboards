@@ -112,6 +112,8 @@ export function createActions(deps) {
     generateBoardNarrative,
     sendBoardReply,
     getNextRecommendation,
+    trackFocusSkip,
+    getWeeklyLearnings,
     generateWeeklyReview,
     discussReview,
     // UI helpers
@@ -273,7 +275,8 @@ export function createActions(deps) {
       }
       case 'focus-skip': {
         const _fkTaskId = actionEl.dataset.taskId;
-        // Add to dashboard's skip list and re-render
+        // Track the skip for learning, then add to session skip list
+        if (typeof trackFocusSkip === 'function') trackFocusSkip(_fkTaskId);
         if (typeof deps._addFocusSkip === 'function') deps._addFocusSkip(_fkTaskId);
         render();
         break;
@@ -287,6 +290,10 @@ export function createActions(deps) {
       }
       case 'reset-focus-skips':
         if (typeof deps._resetFocusSkips === 'function') deps._resetFocusSkips();
+        render();
+        break;
+      case 'dismiss-weekly-learnings':
+        sessionStorage.setItem('__tb_weekly_learnings_dismissed', '1');
         render();
         break;
       // Task actions

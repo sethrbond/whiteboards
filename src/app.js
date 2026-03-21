@@ -1188,6 +1188,8 @@ let generateAIBriefing = _proactive.generateAIBriefing;
 const generateBoardNarrative = _proactive.generateBoardNarrative;
 const sendBoardReply = _proactive.sendBoardReply;
 const getNextRecommendation = _proactive.getNextRecommendation;
+const trackFocusSkip = _proactive.trackFocusSkip;
+const getWeeklyLearnings = _proactive.getWeeklyLearnings;
 let submitEndOfDay = _proactive.submitEndOfDay;
 const getSmartNudges = _proactive.getSmartNudges;
 const nudgeFilterOverdue = _proactive.nudgeFilterOverdue;
@@ -1308,6 +1310,7 @@ const _dashboard = createDashboard({
   startFocus: (...args) => startFocus(...args),
   offerStuckHelp,
   getNextRecommendation,
+  getWeeklyLearnings,
   generateAIBriefing: (...args) => generateAIBriefing(...args),
   planMyDay: (...args) => planMyDay(...args),
   runProactiveWorker: (...args) => runProactiveWorker(...args),
@@ -1510,6 +1513,8 @@ createActions({
   generateBoardNarrative,
   sendBoardReply,
   getNextRecommendation,
+  trackFocusSkip,
+  getWeeklyLearnings,
   handleDumpFiles: (...args) => handleDumpFiles(...args),
   handleEscalationAction,
   trackNudgeInteraction,
@@ -1643,6 +1648,8 @@ exposeWindowAPI(
     sendNarrativeReply,
     sendBoardReply,
     getNextRecommendation,
+    trackFocusSkip,
+    getWeeklyLearnings,
     startFocus: (...args) => startFocus(...args),
     closeFocus: (...args) => closeFocus(...args),
     openFocusView: (...args) => openFocusView(...args),

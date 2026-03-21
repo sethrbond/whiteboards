@@ -62,6 +62,7 @@ export function createDashboard(deps) {
     startFocus,
     offerStuckHelp,
     getNextRecommendation,
+    getWeeklyLearnings,
     generateAIBriefing,
     planMyDay,
     runProactiveWorker,
@@ -1301,6 +1302,53 @@ export function createDashboard(deps) {
     return html;
   }
 
+  // ── Weekly Learnings Card ────────────────────────────────────────
+
+  function _renderWeeklyLearnings() {
+    if (typeof getWeeklyLearnings !== 'function') return '';
+    const dismissed = sessionStorage.getItem('__tb_weekly_learnings_dismissed');
+    if (dismissed) return '';
+
+    const learn = getWeeklyLearnings();
+    if (learn.tasksCompleted < 3) return ''; // Not enough data to be meaningful
+
+    const lines = [];
+
+    lines.push(`You completed <strong>${learn.tasksCompleted}</strong> tasks this week`);
+
+    if (learn.peakTime && learn.peakTimeCount >= 2) {
+      lines.push(`Most productive in the <strong>${learn.peakTime}</strong> (${learn.peakTimeCount} tasks)`);
+    }
+
+    if (learn.peakDay && learn.peakDayCount >= 2) {
+      lines.push(`Best day: <strong>${learn.peakDay}</strong> (${learn.peakDayCount} tasks)`);
+    }
+
+    if (learn.avgCompletionDays !== null) {
+      if (learn.avgCompletionDays <= 1) {
+        lines.push('Average task turnaround: <strong>same day</strong>');
+      } else {
+        lines.push(`Average task turnaround: <strong>${learn.avgCompletionDays} days</strong>`);
+      }
+    }
+
+    if (learn.mostSkipped.length > 0) {
+      const skippedNames = learn.mostSkipped.map(([name, count]) => `${name} (${count}x)`).join(', ');
+      lines.push(`Most skipped: ${skippedNames}`);
+    }
+
+    if (lines.length < 2) return ''; // Not interesting enough to show
+
+    return `<div style="margin-top:20px;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);border-left:3px solid var(--purple,#8b5cf6)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">\u2726 What I learned about you this week</span>
+        <button class="btn btn-sm" data-action="dismiss-weekly-learnings" style="font-size:10px;color:var(--text3);padding:2px 6px">\u2715</button>
+      </div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.8">${lines.map((l) => `<div>\u2022 ${l}</div>`).join('')}</div>
+      ${learn.totalActive > 0 ? `<div style="margin-top:10px;font-size:11px;color:var(--text3)">${learn.totalActive} tasks still active across all boards</div>` : ''}
+    </div>`;
+  }
+
   // ── Focus Card: "What should I do right now?" ────────────────────
   let _focusSkippedIds = [];
 
@@ -1351,6 +1399,11 @@ export function createDashboard(deps) {
     if (t.subtasks && t.subtasks.length) {
       const done = t.subtasks.filter((s) => s.done).length;
       html += `<div style="font-size:11px;color:var(--text3);margin-bottom:16px">${done}/${t.subtasks.length} subtasks complete</div>`;
+    }
+
+    // Skip awareness — gentle nudge if this task has been repeatedly skipped
+    if (rec.timesSkipped >= 3) {
+      html += `<div style="font-size:12px;color:var(--orange);line-height:1.5;margin-bottom:14px;padding:8px 12px;background:rgba(var(--orange-rgb,245,158,11),0.06);border-radius:6px">You've skipped this ${rec.timesSkipped} times. Want to break it down, delegate it, or drop it?</div>`;
     }
 
     // Action buttons — decisive, clear
@@ -1412,6 +1465,12 @@ export function createDashboard(deps) {
 
     // EOD only — no briefing card, no filters, no tag UI
     html += _renderEndOfDay(data);
+
+    // Weekly learnings — show on Fridays and weekends
+    const _dayOfWeek = new Date().getDay();
+    if (_dayOfWeek >= 5 || _dayOfWeek === 0) {
+      html += _renderWeeklyLearnings();
+    }
 
     // Nudges → toast only
     _showNudgeAsToast();

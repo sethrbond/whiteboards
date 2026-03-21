@@ -1004,14 +1004,53 @@ RULES:
     }
   }
 
-  // ── Focus Card: "What should I do right now?" ─────────────────────
+  // ── Focus Card: "What should I do right now?" (v6: learns from you) ──
+
+  // Persistent skip tracking — learns what you avoid
+  function _getSkipHistory() {
+    try { return JSON.parse(localStorage.getItem(userKey('wb_focus_skips')) || '[]'); } catch { return []; }
+  }
+  function _saveSkipHistory(history) {
+    try { localStorage.setItem(userKey('wb_focus_skips'), JSON.stringify(history.slice(-200))); } catch { /* */ }
+  }
+
+  function trackFocusSkip(taskId) {
+    const t = findTask(taskId);
+    if (!t) return;
+    const history = _getSkipHistory();
+    history.push({
+      taskId,
+      title: t.title,
+      project: t.project,
+      priority: t.priority,
+      hour: new Date().getHours(),
+      day: new Date().getDay(),
+      ts: Date.now(),
+    });
+    _saveSkipHistory(history);
+
+    // Learn from repeated skips
+    const recentSkips = history.filter((s) => s.taskId === taskId);
+    if (recentSkips.length >= 3 && typeof deps.addAIMemory === 'function') {
+      deps.addAIMemory(
+        `User has skipped "${t.title}" ${recentSkips.length} times — may be a procrastination target or low-priority task`,
+        'pattern',
+      );
+    }
+  }
 
   function getNextRecommendation(skippedIds = []) {
     const data = getData();
     const today = todayStr();
     const hour = new Date().getHours();
+    const dayOfWeek = new Date().getDay();
     const active = data.tasks.filter((t) => t.status !== 'done' && !t.archived && !skippedIds.includes(t.id));
     if (!active.length) return null;
+
+    // Load learned patterns
+    const memories = typeof deps.getAIMemory === 'function' ? deps.getAIMemory() : [];
+    const insights = extractMemoryInsights(memories);
+    const skipHistory = _getSkipHistory();
 
     // Check if there's an active day plan — prefer plan tasks
     const planKey = userKey('whiteboard_plan_' + today);
@@ -1025,6 +1064,10 @@ RULES:
       }
     } catch { /* */ }
 
+    // Build skip frequency map
+    const skipCounts = {};
+    skipHistory.forEach((s) => { skipCounts[s.taskId] = (skipCounts[s.taskId] || 0) + 1; });
+
     // Score each task
     const scored = active
       .filter((t) => !isBlocked(t.id))
@@ -1032,6 +1075,8 @@ RULES:
         let score = 0;
         let reasons = [];
         const proj = data.projects.find((p) => p.id === t.project);
+
+        // ── URGENCY SIGNALS ──
 
         // Overdue — highest priority
         if (t.dueDate && t.dueDate < today) {
@@ -1065,25 +1110,46 @@ RULES:
         if (t.priority === 'urgent') { score += 35; reasons.push('urgent'); }
         else if (t.priority === 'important') { score += 20; reasons.push('important'); }
 
-        // In-progress tasks get a momentum boost
+        // In-progress momentum
         if (t.status === 'in-progress') {
           score += 25;
           reasons.push('already in progress');
         }
 
-        // Quick wins in afternoon (energy management)
-        if (hour >= 14 && t.estimatedMinutes && t.estimatedMinutes <= 20) {
+        // ── v6: LEARNED ENERGY PATTERNS ──
+
+        // Use learned productive_time instead of hardcoded morning/afternoon
+        if (insights.productive_time === 'morning' && hour < 12 && t.estimatedMinutes && t.estimatedMinutes >= 45) {
           score += 15;
-          reasons.push('quick win for the afternoon');
+          reasons.push('your peak focus time');
+        } else if (insights.productive_time === 'afternoon' && hour >= 12 && hour < 17 && t.estimatedMinutes && t.estimatedMinutes >= 45) {
+          score += 15;
+          reasons.push('your peak focus time');
+        } else if (insights.productive_time === 'evening' && hour >= 17 && t.estimatedMinutes && t.estimatedMinutes >= 45) {
+          score += 15;
+          reasons.push('your peak focus time');
+        } else {
+          // Fallback: generic energy management
+          if (hour >= 14 && t.estimatedMinutes && t.estimatedMinutes <= 20) {
+            score += 10;
+            reasons.push('quick win');
+          }
+          if (hour < 12 && t.estimatedMinutes && t.estimatedMinutes >= 60) {
+            score += 10;
+            reasons.push('good time for deep work');
+          }
         }
 
-        // Harder tasks in morning
-        if (hour < 12 && t.estimatedMinutes && t.estimatedMinutes >= 60) {
+        // Use learned task order preference
+        if (insights.task_order_preference === 'easy-first' && t.estimatedMinutes && t.estimatedMinutes <= 15) {
           score += 10;
-          reasons.push('good time for deep work');
+          reasons.push('quick win to build momentum');
+        } else if (insights.task_order_preference === 'hard-first' && t.estimatedMinutes && t.estimatedMinutes >= 60) {
+          score += 10;
+          reasons.push('tackle the hard one first');
         }
 
-        // Tasks with subtask progress — invested work
+        // Subtask progress — invested work
         if (t.subtasks && t.subtasks.length) {
           const done = t.subtasks.filter((s) => s.done).length;
           if (done > 0 && done < t.subtasks.length) {
@@ -1092,7 +1158,7 @@ RULES:
           }
         }
 
-        // Age penalty — old tasks that haven't been touched
+        // Age — old tasks that haven't been touched
         if (t.createdAt) {
           const ageDays = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000);
           if (ageDays > 7) {
@@ -1103,25 +1169,37 @@ RULES:
           }
         }
 
+        // ── v6: SKIP PATTERN AWARENESS ──
+
+        const timesSkipped = skipCounts[t.id] || 0;
+        if (timesSkipped >= 3) {
+          // Heavily skipped → deprioritize but flag
+          score -= timesSkipped * 5;
+          reasons.push(`skipped ${timesSkipped}x — still worth doing?`);
+        }
+
+        // Procrastination detection — boost tasks matching avoidance patterns
+        if (insights.procrastination_types.length > 0) {
+          const titleLower = t.title.toLowerCase();
+          const matchedType = insights.procrastination_types.find((pt) => titleLower.includes(pt));
+          if (matchedType && timesSkipped >= 2) {
+            score += 20; // Push through procrastination
+            reasons.push(`you tend to put off ${matchedType} tasks`);
+          }
+        }
+
         return { task: t, project: proj, score, reasons };
       });
 
     if (!scored.length) return null;
 
-    // Sort by score descending, take the top one
     scored.sort((a, b) => b.score - a.score);
     const pick = scored[0];
 
-    // Build the recommendation reason — pick top 2 reasons
     const topReasons = pick.reasons.slice(0, 2).join(' and ');
-
-    // Build time estimate string
-    const estStr = pick.task.estimatedMinutes
-      ? `~${pick.task.estimatedMinutes} minutes`
-      : '';
-
-    // Peek at what's next
+    const estStr = pick.task.estimatedMinutes ? `~${pick.task.estimatedMinutes} minutes` : '';
     const nextUp = scored[1] ? scored[1].task.title : null;
+    const timesSkipped = skipCounts[pick.task.id] || 0;
 
     return {
       task: pick.task,
@@ -1130,6 +1208,69 @@ RULES:
       estimate: estStr,
       nextUp,
       score: pick.score,
+      timesSkipped,
+    };
+  }
+
+  // ── v6: Weekly Learning Reflection ──
+
+  function getWeeklyLearnings() {
+    const data = getData();
+    const today = todayStr();
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+
+    // Completion stats
+    const completedThisWeek = data.tasks.filter(
+      (t) => t.status === 'done' && t.completedAt && t.completedAt.slice(0, 10) >= weekAgo,
+    );
+
+    // Completion hour distribution
+    const hourBuckets = { morning: 0, afternoon: 0, evening: 0 };
+    completedThisWeek.forEach((t) => {
+      const h = new Date(t.completedAt).getHours();
+      if (h < 12) hourBuckets.morning++;
+      else if (h < 17) hourBuckets.afternoon++;
+      else hourBuckets.evening++;
+    });
+    const peakTime = Object.entries(hourBuckets).sort((a, b) => b[1] - a[1])[0];
+
+    // Day distribution
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayBuckets = {};
+    completedThisWeek.forEach((t) => {
+      const d = dayNames[new Date(t.completedAt).getDay()];
+      dayBuckets[d] = (dayBuckets[d] || 0) + 1;
+    });
+    const peakDay = Object.entries(dayBuckets).sort((a, b) => b[1] - a[1])[0];
+
+    // Skip patterns
+    const skipHistory = _getSkipHistory();
+    const weekSkips = skipHistory.filter((s) => s.ts > Date.now() - 7 * 86400000);
+    const skipsByTask = {};
+    weekSkips.forEach((s) => {
+      if (!skipsByTask[s.title]) skipsByTask[s.title] = 0;
+      skipsByTask[s.title]++;
+    });
+    const mostSkipped = Object.entries(skipsByTask).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    // Average completion time (creation → done)
+    const completionTimes = completedThisWeek
+      .filter((t) => t.createdAt)
+      .map((t) => Math.floor((new Date(t.completedAt).getTime() - new Date(t.createdAt).getTime()) / 86400000));
+    const avgCompletionDays = completionTimes.length
+      ? Math.round((completionTimes.reduce((s, d) => s + d, 0) / completionTimes.length) * 10) / 10
+      : null;
+
+    return {
+      tasksCompleted: completedThisWeek.length,
+      peakTime: peakTime && peakTime[1] > 0 ? peakTime[0] : null,
+      peakTimeCount: peakTime ? peakTime[1] : 0,
+      peakDay: peakDay && peakDay[1] > 0 ? peakDay[0] : null,
+      peakDayCount: peakDay ? peakDay[1] : 0,
+      totalSkips: weekSkips.length,
+      mostSkipped,
+      avgCompletionDays,
+      totalActive: data.tasks.filter((t) => t.status !== 'done' && !t.archived).length,
     };
   }
 
@@ -1179,6 +1320,8 @@ RULES:
     generateBoardNarrative,
     sendBoardReply,
     getNextRecommendation,
+    trackFocusSkip,
+    getWeeklyLearnings,
     PROACTIVE_PATTERNS,
   };
 }
