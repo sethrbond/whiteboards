@@ -9,7 +9,7 @@ import { MAX_TEMPLATES } from './templates.js';
 /**
  * Factory function to create settings functions.
  * @param {Object} deps - Dependencies from the main app
- * @returns {{ openSettings, deleteAIMemory, exportData, importData, editProjectBackground, saveProjectBackground, openNewProject, saveNewProject, openEditProject, saveEditProject, openEditTemplate, saveEditTemplate }}
+ * @returns {{ openSettings, deleteAIMemory, exportData, importData, editProjectBackground, saveProjectBackground, openNewProject, saveNewProject, openEditProject, saveEditProject, openEditTemplate, saveEditTemplate, syncCalendar }}
  */
 export function createSettings(deps) {
   const {
@@ -47,7 +47,70 @@ export function createSettings(deps) {
     updateTemplate,
     getStorageUsage,
     cleanupStorage: _cleanupStorage,
+    userKey,
   } = deps;
+
+  function _getCalendarUrl() {
+    try { return localStorage.getItem(userKey('calendar_ics_url')) || ''; } catch { return ''; }
+  }
+
+  function _parseICSEvents(icsText) {
+    const today = todayStr();
+    const todayNoDash = today.replace(/-/g, '');
+    const events = [];
+    const blocks = icsText.split('BEGIN:VEVENT');
+    for (let i = 1; i < blocks.length; i++) {
+      const block = blocks[i].split('END:VEVENT')[0];
+      // Extract DTSTART and DTEND (handle both date-time and date-only formats)
+      const startMatch = block.match(/DTSTART[^:]*:(\d{8}T?\d{0,6})/);
+      const endMatch = block.match(/DTEND[^:]*:(\d{8}T?\d{0,6})/);
+      const summaryMatch = block.match(/SUMMARY[^:]*:(.*)/);
+      if (!startMatch) continue;
+      const startStr = startMatch[1];
+      const startDate = startStr.slice(0, 8);
+      // Only include today's events
+      if (startDate !== todayNoDash) continue;
+      // Parse times (if available)
+      let startTime = '00:00';
+      let endTime = '23:59';
+      if (startStr.length >= 13) {
+        startTime = startStr.slice(9, 11) + ':' + startStr.slice(11, 13);
+      }
+      if (endMatch && endMatch[1].length >= 13) {
+        endTime = endMatch[1].slice(9, 11) + ':' + endMatch[1].slice(11, 13);
+      }
+      const title = summaryMatch ? summaryMatch[1].replace(/\\,/g, ',').replace(/\\n/g, ' ').trim() : 'Event';
+      events.push({ start: startTime, end: endTime, title });
+    }
+    return events;
+  }
+
+  async function syncCalendar() {
+    const urlInput = $('#fCalendarUrl');
+    const statusEl = $('#calSyncStatus');
+    const url = urlInput ? urlInput.value.trim() : '';
+    if (!url) {
+      if (statusEl) statusEl.textContent = 'Please enter a calendar URL';
+      return { ok: false, error: 'No URL' };
+    }
+    // Save URL
+    localStorage.setItem(userKey('calendar_ics_url'), url);
+    if (statusEl) statusEl.textContent = 'Syncing...';
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const text = await resp.text();
+      const events = _parseICSEvents(text);
+      localStorage.setItem(userKey('calendar_events'), JSON.stringify(events));
+      if (statusEl) statusEl.textContent = `Synced ${events.length} event${events.length !== 1 ? 's' : ''} for today`;
+      showToast(`Calendar synced: ${events.length} event${events.length !== 1 ? 's' : ''} today`);
+      return { ok: true, count: events.length };
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Sync failed: ' + (err.message || 'unknown error');
+      showToast('Calendar sync failed', true);
+      return { ok: false, error: err.message };
+    }
+  }
 
   function _buildStorageHTML() {
     if (typeof getStorageUsage !== 'function') return '';
@@ -188,6 +251,13 @@ export function createSettings(deps) {
     ${renderNotificationSettings ? renderNotificationSettings() : ''}
     ${_buildTemplatesHTML()}
     ${_buildStorageHTML()}
+    <div style="margin-bottom:16px">
+      <label class="form-label">Calendar Integration <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+      <p style="font-size:11px;color:var(--text3);margin-bottom:8px">Paste a public .ics calendar URL (Google Calendar: Settings &rarr; calendar &rarr; Public address in iCal format) to sync today's events. Helps the Focus Card suggest tasks that fit your schedule.</p>
+      <input class="form-input" id="fCalendarUrl" type="url" value="${esc(_getCalendarUrl())}" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" style="font-size:12px;margin-bottom:8px">
+      <button class="btn btn-sm" data-action="sync-calendar">Sync Calendar</button>
+      <span id="calSyncStatus" style="font-size:11px;color:var(--text3);margin-left:8px"></span>
+    </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
       <button class="btn btn-sm" data-action="export-data">Export JSON</button>
       <button class="btn btn-sm" data-action="export-calendar">Export to Calendar (.ics)</button>
@@ -477,5 +547,6 @@ export function createSettings(deps) {
     saveEditProject,
     openEditTemplate,
     saveEditTemplate,
+    syncCalendar,
   };
 }

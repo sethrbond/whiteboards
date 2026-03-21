@@ -1039,6 +1039,64 @@ RULES:
     }
   }
 
+  function _getCalendarEvents() {
+    try {
+      const raw = localStorage.getItem(userKey('calendar_events'));
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      // Only return events that have valid start/end times
+      return parsed.filter((e) => e && e.start && e.end);
+    } catch { return []; }
+  }
+
+  function _getCalendarContext(events) {
+    if (!events.length) return null;
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+
+    // Parse event times to minutes
+    const parsed = events.map((e) => {
+      const [sh, sm] = e.start.split(':').map(Number);
+      const [eh, em] = e.end.split(':').map(Number);
+      return { start: sh * 60 + (sm || 0), end: eh * 60 + (em || 0), title: e.title || 'meeting' };
+    }).sort((a, b) => a.start - b.start);
+
+    // Check if currently in a meeting
+    const currentMeeting = parsed.find((e) => nowMins >= e.start && nowMins < e.end);
+
+    // Find next upcoming meeting
+    const nextMeeting = parsed.find((e) => e.start > nowMins);
+    const minsUntilNext = nextMeeting ? nextMeeting.start - nowMins : null;
+
+    // Find the next free gap of 2+ hours
+    let freeGapMins = null;
+    if (!currentMeeting) {
+      // Currently free — how long until next meeting?
+      if (nextMeeting) {
+        freeGapMins = nextMeeting.start - nowMins;
+      } else {
+        // No more meetings today — treat as large free block
+        freeGapMins = (18 * 60) - nowMins; // until 6pm
+      }
+    } else {
+      // In a meeting — find gap after it ends
+      const afterCurrent = parsed.filter((e) => e.start >= currentMeeting.end);
+      if (afterCurrent.length) {
+        freeGapMins = afterCurrent[0].start - currentMeeting.end;
+      } else {
+        freeGapMins = (18 * 60) - currentMeeting.end;
+      }
+    }
+
+    return {
+      inMeeting: !!currentMeeting,
+      nextMeeting,
+      minsUntilNext,
+      freeGapMins: Math.max(0, freeGapMins || 0),
+    };
+  }
+
   function getNextRecommendation(skippedIds = []) {
     const data = getData();
     const today = todayStr();
@@ -1046,6 +1104,10 @@ RULES:
     const dayOfWeek = new Date().getDay();
     const active = data.tasks.filter((t) => t.status !== 'done' && !t.archived && !skippedIds.includes(t.id));
     if (!active.length) return null;
+
+    // ── v10: CALENDAR AWARENESS ──
+    const calendarEvents = _getCalendarEvents();
+    const calCtx = _getCalendarContext(calendarEvents);
 
     // Load learned patterns
     const memories = typeof deps.getAIMemory === 'function' ? deps.getAIMemory() : [];
@@ -1185,6 +1247,32 @@ RULES:
           if (matchedType && timesSkipped >= 2) {
             score += 20; // Push through procrastination
             reasons.push(`you tend to put off ${matchedType} tasks`);
+          }
+        }
+
+        // ── v10: CALENDAR-AWARE SCORING ──
+        if (calCtx) {
+          const est = t.estimatedMinutes || 0;
+
+          if (calCtx.inMeeting && est > 0 && est <= 5) {
+            // During a meeting — boost micro-tasks (between-meeting filler)
+            score += 15;
+            reasons.push('quick task between meetings');
+          }
+
+          if (calCtx.minsUntilNext !== null && calCtx.minsUntilNext < 30 && est > 0 && est <= 20) {
+            // Next meeting soon — boost quick tasks that fit
+            const nextTitle = calCtx.nextMeeting ? calCtx.nextMeeting.title : 'meeting';
+            const nextTime = calCtx.nextMeeting ? `${Math.floor(calCtx.nextMeeting.start / 60)}:${String(calCtx.nextMeeting.start % 60).padStart(2, '0')}` : '';
+            score += 20;
+            reasons.push(`fits before your ${nextTime ? nextTime + ' ' : ''}${nextTitle}`);
+          }
+
+          if (calCtx.freeGapMins >= 120 && est >= 60) {
+            // Large free block ahead — boost deep work
+            const gapHours = Math.floor(calCtx.freeGapMins / 60);
+            score += 15;
+            reasons.push(`${gapHours}-hour free block${calCtx.nextMeeting ? ' before your ' + (calCtx.nextMeeting.title || 'next meeting') : ''}`);
           }
         }
 
