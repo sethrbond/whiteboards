@@ -134,6 +134,29 @@ export function createSync(deps) {
             Object.assign(settings, safeSettings);
             localStorage.setItem(userKey(SETTINGS_KEY), JSON.stringify(settings));
           }
+          // Load pre-computed daily plan from cloud (v7: AI plans overnight)
+          if (row.daily_plan && row.daily_plan.date) {
+            const planDate = row.daily_plan.date;
+            const today = new Date().toISOString().slice(0, 10);
+            if (planDate === today) {
+              const planKey = userKey('whiteboard_plan_' + today);
+              const existingPlan = localStorage.getItem(planKey);
+              // Only apply cloud plan if no local plan exists yet
+              if (!existingPlan) {
+                const planData = row.daily_plan.blocks
+                  ? { blocks: row.daily_plan.blocks }
+                  : row.daily_plan.tasks || [];
+                localStorage.setItem(planKey, JSON.stringify(planData));
+                if (row.daily_plan.narrative) {
+                  localStorage.setItem(userKey('whiteboard_narrative_' + today), row.daily_plan.narrative);
+                }
+                // Store follow-ups for Focus Card
+                if (row.daily_plan.followUps && row.daily_plan.followUps.length) {
+                  localStorage.setItem(userKey('whiteboard_followups_' + today), JSON.stringify(row.daily_plan.followUps));
+                }
+              }
+            }
+          }
           try {
             setSuppressCloudSync(true);
             saveData(data);

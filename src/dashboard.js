@@ -1373,7 +1373,21 @@ export function createDashboard(deps) {
     const borderColor =
       t.priority === 'urgent' ? 'var(--red)' : t.priority === 'important' ? 'var(--orange)' : 'var(--accent)';
 
-    let html = `<div class="focus-card" style="position:relative;padding:28px 24px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-left:4px solid ${borderColor};border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,0.04)">`;
+    let html = '';
+
+    // v7: Show AI follow-up alerts (generated overnight)
+    try {
+      const followUps = JSON.parse(localStorage.getItem(userKey('whiteboard_followups_' + todayStr())) || '[]');
+      followUps.forEach((fu) => {
+        html += `<div style="padding:12px 16px;margin-bottom:12px;background:rgba(var(--orange-rgb,245,158,11),0.06);border:1px solid rgba(var(--orange-rgb,245,158,11),0.15);border-radius:var(--radius);font-size:13px;color:var(--text2);display:flex;align-items:center;gap:10px">
+          <span style="font-size:16px">\u26a0</span>
+          <span style="flex:1">${esc(fu.message)}</span>
+          ${fu.taskId ? `<button class="btn btn-sm" data-action="focus-talk" data-task-id="${fu.taskId}" style="flex-shrink:0;font-size:11px;color:var(--accent)">Talk about this</button>` : ''}
+        </div>`;
+      });
+    } catch { /* */ }
+
+    html += `<div class="focus-card" style="position:relative;padding:28px 24px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-left:4px solid ${borderColor};border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,0.04)">`;
 
     // Top line — subtle context
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
