@@ -440,18 +440,17 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('Drop everything here');
+      expect(html).toContain('Brain dump everything');
       expect(html).toContain('onboardDump');
       expect(html).toContain('data-action="onboard-process"');
     });
 
-    it('shows skip option and attach files link in onboarding', () => {
+    it('shows attach files link in onboarding', () => {
       deps.getData.mockReturnValue({ tasks: [], projects: [] });
       deps.activeTasks.mockReturnValue([]);
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('onboard-skip');
       expect(html).toContain('attach files');
     });
 
@@ -2395,7 +2394,7 @@ describe('dashboard.js — additional coverage', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('Drop everything here');
+      expect(html).toContain('Brain dump everything');
       expect(html).toContain('onboardDump');
       expect(html).toContain('data-action="onboard-process"');
     });

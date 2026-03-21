@@ -89,6 +89,8 @@ export function createActions(deps) {
     saveProjectBackground,
     // Auth
     showAuthFromLanding,
+    enterGuestMode,
+    showSignUpNudge,
     handleAuth,
     toggleAuthMode,
     showForgotPassword,
@@ -193,6 +195,21 @@ export function createActions(deps) {
       // Landing page
       case 'auth-landing':
         showAuthFromLanding();
+        break;
+      case 'try-guest':
+        if (typeof enterGuestMode === 'function') enterGuestMode();
+        break;
+      case 'guest-signup':
+        // Close nudge modal, hide app UI, show auth signup screen
+        closeModal();
+        document.querySelector('.sidebar').style.display = 'none';
+        document.querySelector('.main').style.display = 'none';
+        document.getElementById('chatToggle').style.display = 'none';
+        showAuthFromLanding();
+        break;
+      case 'guest-signup-dismiss':
+        localStorage.setItem('wb_signup_nudge_dismissed', '1');
+        closeModal();
         break;
       case 'auth-landing-login':
         showAuthFromLanding('login');
@@ -854,6 +871,10 @@ export function createActions(deps) {
         break;
       case 'apply-dump-results':
         applyDumpResults();
+        // After brainstorm completes in guest mode, show sign-up nudge
+        if (typeof showSignUpNudge === 'function') {
+          setTimeout(() => showSignUpNudge(), 800);
+        }
         break;
       // Conversational brainstorm actions
       case 'brainstorm-approve-theme': {

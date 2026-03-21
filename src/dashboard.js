@@ -53,6 +53,8 @@ export function createDashboard(deps) {
     attachListeners,
     // Brainstorm module
     getBrainstormModule,
+    // Guest mode
+    isGuestMode,
     // Proactive module
     getAIStatusItems: _getAIStatusItems,
     getSmartNudges,
@@ -287,6 +289,21 @@ export function createDashboard(deps) {
       </div>`;
       })
       .join('');
+
+    // Guest mode: show sign-up link at bottom of sidebar
+    const _guestSignup = document.getElementById('guestSignupSidebar');
+    if (typeof isGuestMode === 'function' && isGuestMode()) {
+      if (!_guestSignup) {
+        const _el = document.createElement('div');
+        _el.id = 'guestSignupSidebar';
+        _el.style.cssText = 'padding:12px 16px;margin-top:auto;border-top:1px solid var(--border);font-size:12px;color:var(--text3)';
+        _el.innerHTML = '<div style="margin-bottom:6px;font-size:11px;color:var(--text3)">Guest mode</div><button class="btn btn-sm" data-action="guest-signup" style="width:100%;font-size:12px;padding:6px 12px">Sign up to save your work</button>';
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.appendChild(_el);
+      }
+    } else if (_guestSignup) {
+      _guestSignup.remove();
+    }
   }
 
   function _renderProjectHeader(p) {
@@ -1491,15 +1508,22 @@ export function createDashboard(deps) {
     const data = getData();
     const active = activeTasks();
 
-    // First-time onboarding — teach by doing
+    // First-time onboarding — compelling hero with brainstorm textarea
     if (data.tasks.length === 0 && data.projects.length <= 1) {
-      return `<div style="max-width:520px;margin:40px auto">
-        <div style="font-size:20px;font-weight:600;margin-bottom:6px;color:var(--text)">Drop everything here.</div>
-        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:20px">Meeting notes, plans, ideas, to-do lists, a PDF \u2014 paste it all in. AI reads it and creates organized tasks and boards for you.</p>
-        <textarea id="onboardDump" aria-label="Brain dump — paste notes, ideas, plans" style="width:100%;min-height:140px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:14px;color:var(--text);font-family:inherit;resize:vertical;outline:none;line-height:1.6;box-sizing:border-box" placeholder="Paste meeting notes, write your thoughts, list everything on your mind..."></textarea>
-        <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-          <button class="btn btn-primary" data-action="onboard-process" style="padding:10px 20px">Organize this \u2192</button>
-          <span style="font-size:12px;color:var(--text3)">or <span style="color:var(--accent);cursor:pointer" data-action="go-dump">attach files</span> \u00b7 <span style="color:var(--accent);cursor:pointer" data-action="onboard-skip">skip, I'll add tasks manually</span></span>
+      const _guest = typeof isGuestMode === 'function' && isGuestMode();
+      const _guestBadge = _guest
+        ? '<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background:var(--accent-dim);font-size:11px;color:var(--accent);margin-bottom:16px"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>Guest mode — your data is saved locally</div>'
+        : '';
+      return `<div style="max-width:560px;margin:32px auto;text-align:center">
+        ${_guestBadge}
+        <h1 style="font-size:26px;font-weight:700;color:var(--text);margin:0 0 8px;line-height:1.3">Brain dump everything.<br>AI handles the rest.</h1>
+        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:24px;max-width:440px;margin-left:auto;margin-right:auto">Paste meeting notes, speak your thoughts, or just type. AI organizes it into tasks and tells you what to do first.</p>
+        <div style="text-align:left">
+          <textarea id="onboardDump" aria-label="Brain dump — paste notes, ideas, plans" style="width:100%;min-height:160px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:14px;color:var(--text);font-family:inherit;resize:vertical;outline:none;line-height:1.6;box-sizing:border-box" placeholder="Example: Finish the Q2 report by Friday, call dentist, pick up groceries, prep slides for Monday's meeting, reply to Sarah's email about the project timeline..."></textarea>
+          <div style="display:flex;gap:12px;margin-top:14px;align-items:center">
+            <button class="btn btn-primary" data-action="onboard-process" style="padding:12px 24px;font-size:14px;font-weight:600">Organize this &rarr;</button>
+            <span style="font-size:12px;color:var(--text3)">or <span style="color:var(--accent);cursor:pointer" data-action="go-dump">attach files</span></span>
+          </div>
         </div>
       </div>`;
     }

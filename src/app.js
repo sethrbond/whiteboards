@@ -1045,6 +1045,8 @@ const _auth = createAuth({
   hasAI,
   processDump: (...args) => processDump(...args),
   processDumpManual: (...args) => processDumpManual(...args),
+  getGuestMode: () => guestMode,
+  setGuestMode: (v) => { guestMode = v; },
   getData: () => data,
   getCurrentUser: () => currentUser,
   setCurrentUser: (u) => {
@@ -1128,6 +1130,8 @@ const signOut = async () => {
 };
 const showFeatureTips = _auth.showFeatureTips;
 const showOnboardingExperience = _auth.showOnboardingExperience;
+const enterGuestMode = _auth.enterGuestMode;
+const showSignUpNudge = _auth.showSignUpNudge;
 
 // ============================================================
 // PROACTIVE AI
@@ -1300,6 +1304,7 @@ const _dashboard = createDashboard({
   renderBulkBar,
   attachListeners,
   getBrainstormModule: () => _loadBrainstorm(),
+  isGuestMode: () => guestMode,
   getAIStatusItems,
   getSmartFeedItems,
   getSmartNudges,
@@ -1471,6 +1476,8 @@ createActions({
   saveEditTemplate,
   applyTemplateToQuickAdd,
   showAuthFromLanding,
+  enterGuestMode,
+  showSignUpNudge,
   handleAuth,
   toggleAuthMode,
   showForgotPassword,
@@ -1585,6 +1592,8 @@ createActions({
 exposeWindowAPI(
   {
     showAuthFromLanding,
+    enterGuestMode,
+    showSignUpNudge,
     handleAuth,
     toggleAuthMode,
     signOut,

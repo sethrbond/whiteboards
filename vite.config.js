@@ -11,10 +11,22 @@ export default defineConfig({
     assetsInlineLimit: 8192,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['@supabase/supabase-js'],
+        manualChunks(id) {
+          // Vendor: Supabase client
+          if (id.includes('node_modules/@supabase')) return 'vendor';
+          // AI: AI caller + context builder (large, changes independently from app logic)
+          if (id.includes('/ai-context.js') || (id.includes('/ai.js') && !id.includes('ui-'))) return 'ai';
+          // Proactive: all proactive sub-modules (~2800 lines, only needed post-init)
+          if (id.includes('/proactive')) return 'proactive';
+          // Chat: standalone module, only active when chat panel is opened
+          if (id.includes('/chat.js') && !id.includes('__tests__')) return 'chat';
         },
         chunkFileNames(chunkInfo) {
+          // Named manual chunks and lazy chunks get clean predictable names
+          const namedChunks = ['vendor', 'ai', 'proactive', 'chat'];
+          if (namedChunks.includes(chunkInfo.name)) {
+            return `assets/${chunkInfo.name}-[hash].js`;
+          }
           const lazyChunks = {
             brainstorm: 'brainstorm',
             'weekly-review': 'weekly-review',

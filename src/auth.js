@@ -28,6 +28,8 @@ export function createAuth(deps) {
     hasAI: _hasAI,
     processDump: _processDump,
     processDumpManual: _processDumpManual,
+    getGuestMode,
+    setGuestMode,
     // Getters
     getData,
     getCurrentUser,
@@ -172,11 +174,32 @@ export function createAuth(deps) {
       if (event === 'SIGNED_IN' && session) {
         if (authInitialized) return; // already loaded via getSession
         authInitialized = true;
+        // Migrate guest data: if user was in guest mode, preserve their localStorage tasks
+        const wasGuest = getGuestMode();
+        const guestData = wasGuest ? getData() : null;
+        setGuestMode(false);
         setCurrentUser(session.user);
-        setData(loadData());
+        if (wasGuest && guestData && (guestData.tasks.length > 0 || guestData.projects.length > 1)) {
+          // Re-save guest data under the new user key so it persists
+          setData(guestData);
+        } else {
+          setData(loadData());
+        }
         setSettings(loadSettings());
         loadFromCloud()
-          .then(() => showApp())
+          .then(() => {
+            // If migrating from guest, merge guest tasks into cloud data
+            if (wasGuest && guestData && guestData.tasks.length > 0) {
+              const currentData = getData();
+              const existingIds = new Set(currentData.tasks.map(t => t.id));
+              const newTasks = guestData.tasks.filter(t => !existingIds.has(t.id));
+              if (newTasks.length > 0) {
+                currentData.tasks.push(...newTasks);
+                setData(currentData);
+              }
+            }
+            showApp();
+          })
           .catch((e) => {
             console.error('Cloud load failed:', e);
             showToast('Could not load cloud data', true);
@@ -712,8 +735,60 @@ export function createAuth(deps) {
     }
   }
 
+  /**
+   * Enter guest mode — show the app without authentication.
+   * Data is stored in localStorage only (no cloud sync).
+   */
+  function enterGuestMode() {
+    _dismissSplash();
+    setGuestMode(true);
+    setCurrentUser(null);
+    setData(loadData());
+    setSettings(loadSettings());
+    // Show the app UI
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'none';
+    document.getElementById('authScreen').style.display = 'none';
+    const sidebarEl = document.querySelector('.sidebar');
+    sidebarEl.style.display = '';
+    document.querySelector('.main').style.display = '';
+    // Hide chat toggle in guest mode (no AI chat without auth)
+    document.getElementById('chatToggle').style.display = '';
+    ensureLifeProject();
+    // Default to dashboard — the onboarding hero will show since there are no tasks
+    setCurrentView('dashboard');
+    render();
+  }
+
+  /**
+   * Show a gentle sign-up nudge after brainstorm completes in guest mode.
+   * Non-blocking — user can dismiss and keep using the app.
+   */
+  function showSignUpNudge() {
+    if (!getGuestMode()) return;
+    if (localStorage.getItem('wb_signup_nudge_dismissed')) return;
+    const root = document.getElementById('modalRoot');
+    if (!root) return;
+    root.innerHTML = `<div class="modal-overlay" data-action="close-modal" data-click-self="true">
+      <div class="modal" style="max-width:420px;text-align:center;padding:32px" aria-labelledby="modal-title-signup-nudge">
+        <div style="font-size:32px;margin-bottom:12px" aria-hidden="true">&#x2728;</div>
+        <h2 id="modal-title-signup-nudge" style="font-size:18px;font-weight:600;margin:0 0 8px">Your tasks are ready!</h2>
+        <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:24px">
+          Sign up to sync across devices, get daily AI briefings, and never lose your work.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-primary" data-action="guest-signup" style="padding:12px 24px;font-size:14px">Create free account</button>
+          <button class="btn" data-action="guest-signup-dismiss" style="font-size:13px;color:var(--text3)">Maybe later</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:16px">Your tasks are saved locally and will be migrated to your account.</p>
+      </div>
+    </div>`;
+  }
+
   return {
     showAuthFromLanding,
+    enterGuestMode,
+    showSignUpNudge,
     initAuth,
     handleAuth,
     toggleAuthMode,

@@ -21,6 +21,8 @@ function makeDeps(overrides = {}) {
     hasAI: vi.fn(() => false),
     processDump: vi.fn(async () => {}),
     processDumpManual: vi.fn(),
+    getGuestMode: vi.fn(() => false),
+    setGuestMode: vi.fn(),
     getData: vi.fn(() => ({ tasks: [], projects: [] })),
     getCurrentUser: vi.fn(() => null),
     setCurrentUser: vi.fn(),
