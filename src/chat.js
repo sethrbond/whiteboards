@@ -308,8 +308,9 @@ RULES:
     typingEl.className = 'chat-msg ai';
     typingEl.innerHTML =
       '<div class="chat-bubble ai"><span class="chat-typing"><div class="chat-typing-dots"><span></span><span></span><span></span></div></span></div>';
+    typingEl.setAttribute('data-copy-ready', '1'); // skip until final content
     chatMsgs.appendChild(typingEl);
-    chatMsgs.scrollTop = chatMsgs.scrollHeight; _addCopyButtons();
+    chatMsgs.scrollTop = chatMsgs.scrollHeight;
 
     const chatAbort = new AbortController();
     const chatTimeout = setTimeout(() => chatAbort.abort(), 180000);
@@ -408,8 +409,10 @@ RULES:
         const formatted = esc(cleanReply)
           .replace(/\n/g, '<br>')
           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        typingEl.removeAttribute('data-copy-ready');
         typingEl.innerHTML = `${formatted}${applied ? `<div style="font-size:10px;color:var(--text3);margin-top:4px">\u2726 ${applied} action${applied > 1 ? 's' : ''} applied</div>` : ''}${insightHtml}<span class="chat-ts">${chatTimeStr()}</span>`;
       } else if (applied) {
+        typingEl.removeAttribute('data-copy-ready');
         typingEl.innerHTML = `Done. <span style="font-size:10px;color:var(--text3)">\u2726 ${applied} action${applied > 1 ? 's' : ''} applied</span>${insightHtml}<span class="chat-ts">${chatTimeStr()}</span>`;
       }
       chatMsgs.scrollTop = chatMsgs.scrollHeight; _addCopyButtons();
@@ -420,7 +423,9 @@ RULES:
           : err instanceof TypeError && !err.status
             ? 'No internet connection — AI features unavailable'
             : err.message;
+      typingEl.removeAttribute('data-copy-ready');
       typingEl.innerHTML = `<span style="color:var(--red)">Error: ${esc(errMsg)}</span>`;
+      _addCopyButtons();
     } finally {
       clearTimeout(chatTimeout);
       _chatSending = false;
