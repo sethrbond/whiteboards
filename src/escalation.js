@@ -140,7 +140,8 @@ export function createEscalation(deps) {
     const planKey = userKey('whiteboard_plan_' + todayStr());
     let plan;
     try {
-      plan = JSON.parse(localStorage.getItem(planKey) || '[]');
+      const raw = JSON.parse(localStorage.getItem(planKey) || '[]');
+      plan = Array.isArray(raw) ? raw : (raw && raw.blocks ? raw.blocks.flatMap((b) => b.tasks || []) : []);
     } catch (_e) {
       return null;
     }
