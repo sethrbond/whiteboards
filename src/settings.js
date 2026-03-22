@@ -239,10 +239,11 @@ export function createSettings(deps) {
     <div class="form-group"><label class="form-label">Claude API Key <span style="color:var(--text3);font-weight:400">(optional)</span></label><div style="position:relative"><input class="form-input" id="fApiKey" type="password" value="${esc(settings.apiKey)}" placeholder="Leave blank to use shared AI" aria-label="Claude API Key" style="font-family:monospace;padding-right:40px"><button type="button" data-action="toggle-api-key-vis" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:10px;cursor:pointer;padding:4px">show</button></div></div>
     <p style="font-size:11px;color:var(--text3);margin-bottom:16px">Free AI included (shared quota). Add your own key from <a href="https://console.anthropic.com" target="_blank" rel="noopener" style="color:var(--accent)">console.anthropic.com</a> \u2192 API Keys \u2192 Create Key for unlimited personal use. Your key stays on your device and is sent securely through our proxy.</p>
     <div class="form-group"><label class="form-label">AI Model</label><select class="form-input" id="fAiModel" aria-label="AI Model">
-      <option value="claude-haiku-4-5-20251001"${settings.aiModel === 'claude-haiku-4-5-20251001' || !settings.aiModel ? ' selected' : ''}>Haiku (fast, good for most tasks)</option>
-      <option value="claude-sonnet-4-5-20250514"${settings.aiModel === 'claude-sonnet-4-5-20250514' ? ' selected' : ''}>Sonnet 4.5 (smarter, better for complex tasks)</option>
-      <option value="claude-sonnet-4-6-20250627"${settings.aiModel === 'claude-sonnet-4-6-20250627' ? ' selected' : ''}>Sonnet 4.6 (latest, best quality)</option>
-    </select></div>
+      <option value="claude-haiku-4-5-20251001"${settings.aiModel === 'claude-haiku-4-5-20251001' || !settings.aiModel ? ' selected' : ''}>Haiku 4.5 \u2014 fast, good for most tasks</option>
+      <option value="claude-sonnet-4-5-20241022"${settings.aiModel === 'claude-sonnet-4-5-20241022' ? ' selected' : ''}>Sonnet 4.5 \u2014 smarter, handles bulk operations</option>
+      <option value="claude-sonnet-4-5-20250514"${settings.aiModel === 'claude-sonnet-4-5-20250514' ? ' selected' : ''}>Sonnet 4.5 (May) \u2014 latest Sonnet</option>
+      <option value="claude-sonnet-4-6-20250627"${settings.aiModel === 'claude-sonnet-4-6-20250627' ? ' selected' : ''}>Sonnet 4.6 \u2014 best quality (requires own API key)</option>
+    </select><p style="font-size:10px;color:var(--text3);margin-top:4px">Sonnet is smarter but uses more quota. Use Haiku for daily tasks, switch to Sonnet for big brainstorms.</p></div>
 
     <div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">

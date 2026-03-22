@@ -244,7 +244,7 @@
     <button class="chat-chip" data-action="chat-chip" data-text="Summarize my week">Summarize my week</button>
   </div>
   <div class="chat-input-row">
-    <textarea class="chat-input" id="chatInput" rows="1" placeholder="Ask about a project, task, or anything..." aria-label="Chat message" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,window.innerHeight*0.33)+'px'"></textarea>
+    <textarea class="chat-input" id="chatInput" rows="1" placeholder="Ask about a project, task, or anything..." aria-label="Chat message" oninput="this.style.height='40px';var h=Math.min(this.scrollHeight,window.innerHeight*0.33);this.style.height=h+'px';this.style.overflowY=this.scrollHeight>window.innerHeight*0.33?'auto':'hidden'"></textarea>
     <button class="chat-send" data-action="send-chat">Send</button>
   </div>
 </div>
