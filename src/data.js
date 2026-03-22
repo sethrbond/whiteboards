@@ -624,7 +624,9 @@ export function createDataLayer(deps) {
     if (!Array.isArray(parsed.tasks)) parsed.tasks = [];
     if (!Array.isArray(parsed.projects)) parsed.projects = [];
     parsed = migrateData(parsed);
-    data = parsed;
+    // Mutate in-place so all getData() references stay valid
+    Object.keys(data).forEach((k) => delete data[k]);
+    Object.assign(data, parsed);
     saveData(data);
     _persistUndoStack();
     getRender()();
@@ -842,8 +844,10 @@ export function createDataLayer(deps) {
     return data;
   }
   function setData(d) {
-    data = d;
-    _dataVersion++; // Invalidate render memoization caches
+    // Mutate in-place so all getData() references stay valid
+    Object.keys(data).forEach((k) => delete data[k]);
+    Object.assign(data, d);
+    _dataVersion++;
   }
   function getSettings() {
     return settings;
