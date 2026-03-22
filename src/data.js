@@ -794,9 +794,17 @@ export function createDataLayer(deps) {
         count++;
       }
     });
-    if (count) {
+    // Purge archived tasks older than 90 days to prevent localStorage bloat
+    const purgeCutoff = Date.now() - 90 * MS_PER_DAY;
+    const before = data.tasks.length;
+    data.tasks = data.tasks.filter(
+      (t) => !t.archived || !t.archivedAt || new Date(t.archivedAt).getTime() > purgeCutoff,
+    );
+    const purged = before - data.tasks.length;
+    if (count || purged) {
       saveData(data);
-      getShowToast()(count + ' old task' + (count > 1 ? 's' : '') + ' auto-archived');
+      if (count) getShowToast()(count + ' old task' + (count > 1 ? 's' : '') + ' auto-archived');
+      if (purged) console.log(`[cleanup] Purged ${purged} archived tasks older than 90 days`);
     }
   }
 
@@ -804,6 +812,8 @@ export function createDataLayer(deps) {
     const t = findTask(id);
     if (t) {
       t.archived = false;
+      delete t.archivedAt;
+      if (t.status === 'done' && !t.completedAt) t.status = 'todo';
       saveData(data);
       getRender()();
       getShowToast()('Task restored');

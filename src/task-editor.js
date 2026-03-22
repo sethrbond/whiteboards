@@ -462,7 +462,7 @@ export function createTaskEditor(deps) {
     }
 
     // "move to X" — find matching project
-    const moveMatch = lower.match(/^(?:move|move to|board)\s+(.+)/);
+    const moveMatch = lower.match(/^(?:move to|move|board)\s+(.+)/);
     if (moveMatch) {
       const target = moveMatch[1].toLowerCase();
       const proj = data.projects.find((p) => p.name.toLowerCase().includes(target));

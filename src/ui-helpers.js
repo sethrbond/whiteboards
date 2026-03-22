@@ -262,7 +262,7 @@ export function createUIHelpers(deps) {
     if (!t.blockedBy || !t.blockedBy.length) return false;
     return t.blockedBy.some((id) => {
       const dep = findTask(id);
-      return dep && dep.status !== 'done';
+      return dep && !dep.archived && dep.status !== 'done';
     });
   }
 
