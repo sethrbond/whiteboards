@@ -50,7 +50,7 @@ export function createAICaller(config) {
     const ep = getAIEndpoint();
 
     const doCall = async (signal) => {
-      const body = { model: s.aiModel || 'claude-haiku-4-5-20251001', max_tokens: maxTokens };
+      const body = { model: s.aiModel || 'claude-haiku-4-5', max_tokens: maxTokens };
       if (temperature !== undefined) body.temperature = temperature;
       if (system) body.system = system;
       body.messages = messages || [{ role: 'user', content: prompt }];
