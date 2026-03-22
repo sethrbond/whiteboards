@@ -1256,7 +1256,7 @@ function showFollowUpToast(suggestions) {
   const s = suggestions[0];
   const el = document.createElement('div');
   el.style.cssText =
-    'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text2);padding:14px 20px;border-radius:var(--radius);font-size:13px;z-index:9999;max-width:480px;text-align:center;box-shadow:var(--shadow);line-height:1.5;animation:toastIn 0.3s ease';
+    'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);color:var(--text2);padding:14px 20px;border-radius:var(--radius);font-size:13px;z-index:9999;max-width:480px;text-align:center;box-shadow:var(--shadow-lg);line-height:1.5;animation:toastIn 0.3s ease;backdrop-filter:blur(8px)';
   let html = '<span style="color:var(--accent);margin-right:6px">\u2726</span>';
   html += esc(s.text);
   if (suggestions.length > 1)
