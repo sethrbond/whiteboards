@@ -10,6 +10,7 @@ import {
   MS_PER_DAY,
   MAX_DUMP_INPUT_CHARS,
   MAX_BRAINSTORM_INPUT_CHARS,
+  AI_REQUEST_TIMEOUT_MS,
 } from './constants.js';
 import { esc } from './utils.js';
 import { todayStr } from './dates.js';
@@ -578,7 +579,7 @@ export function createBrainstorm(deps) {
     if (_convState === 'ANALYZING') {
       html += `<div style="display:flex;align-items:center;gap:8px;padding:16px 0">
         <div class="spinner"></div>
-        <span style="font-size:13px;color:var(--text2)">Reading your input and identifying themes...</span>
+        <span style="font-size:13px;color:var(--text2)">Reading your input and identifying themes... <span data-dump-elapsed style="color:var(--text3);font-size:11px"></span></span>
         <button class="btn btn-sm" style="margin-left:auto;font-size:10px;color:var(--red);border-color:var(--red)" data-action="cancel-dump">Cancel</button>
       </div>`;
     } else if (_convState === 'THEME_REVIEW' || _convState === 'CLARIFYING') {
@@ -1004,9 +1005,21 @@ For updates: { "action": "update", "id": "existing_task_id", "updateFields": { "
 
     pushUndo('Brainstorm');
     dumpAbort = new AbortController();
+    const dumpTimeout = setTimeout(() => dumpAbort.abort(), AI_REQUEST_TIMEOUT_MS);
 
     // Switch to conversation view — update the modal directly
     _refreshConversationUI();
+
+    // Elapsed timer so user knows it's still working
+    const _startTime = Date.now();
+    const _timerEl = () => document.querySelector('[data-dump-elapsed]');
+    const _elapsedInterval = setInterval(() => {
+      const el = _timerEl();
+      if (el) {
+        const secs = Math.floor((Date.now() - _startTime) / 1000);
+        el.textContent = secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
+      }
+    }, 1000);
 
     try {
       const { existingCompact, taskNote, projectCompact } = _buildDumpContext();
@@ -1094,7 +1107,7 @@ ${text}${getDumpAttachmentText()}`;
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        showToast('Cancelled. Your data was not changed.', false, false);
+        showToast('Timed out or cancelled. Your data was not changed.', false, false);
         undo();
         _resetConvState();
         _dumpInProgress = false;
@@ -1107,9 +1120,9 @@ ${text}${getDumpAttachmentText()}`;
       _dumpInProgress = false;
       render();
     } finally {
+      clearInterval(_elapsedInterval);
+      clearTimeout(dumpTimeout);
       dumpAbort = null;
-      // Safety net: ensure _dumpInProgress is never stuck true
-      // (it's set false in catch blocks, but also here as final guarantee)
       if (_convState === 'IDLE') _dumpInProgress = false;
     }
   }

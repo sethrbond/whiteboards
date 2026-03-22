@@ -694,6 +694,9 @@ async function processDump(...args) {
 async function processDumpManual(...args) {
   return (await _loadBrainstorm()).processDumpManual(...args);
 }
+function isDumpInProgress() {
+  return _brainstormMod ? _brainstormMod.isDumpInProgress() : false;
+}
 async function cancelDump() {
   return (await _loadBrainstorm()).cancelDump();
 }
@@ -1493,6 +1496,7 @@ createActions({
   calToday,
   processDump: (...args) => processDump(...args),
   cancelDump: (...args) => cancelDump(...args),
+  isDumpInProgress,
   applyDumpResults: (...args) => applyDumpResults(...args),
   submitClarify: (...args) => submitClarify(...args),
   skipClarify: (...args) => skipClarify(...args),

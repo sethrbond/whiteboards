@@ -71,6 +71,7 @@ export function createActions(deps) {
     // Brainstorm
     processDump,
     cancelDump,
+    isDumpInProgress,
     applyDumpResults,
     submitClarify,
     skipClarify,
@@ -543,10 +544,12 @@ export function createActions(deps) {
         if (window._nextTip) window._nextTip();
         break;
       // Modal close (generic)
-      case 'close-modal':
-        cancelDump(); // abort brainstorm if running
+      case 'close-modal': {
+        if (isDumpInProgress && isDumpInProgress() && !confirm('Brainstorm is still working — discard progress?')) break;
+        cancelDump();
         closeModal();
         break;
+      }
       case 'close-edit-modal':
         if (deps.guardedCloseEditModal) deps.guardedCloseEditModal();
         else closeModal();

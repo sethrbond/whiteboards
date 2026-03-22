@@ -637,7 +637,7 @@ describe('brainstorm.js — createBrainstorm()', () => {
 
     await bs.processDump(true);
     expect(deps.undo).toHaveBeenCalled();
-    expect(deps.showToast).toHaveBeenCalledWith(expect.stringContaining('Cancelled'), false, false);
+    expect(deps.showToast).toHaveBeenCalledWith(expect.stringContaining('cancelled'), false, false);
     expect(bs.isDumpInProgress()).toBe(false);
 
     vi.unstubAllGlobals();
