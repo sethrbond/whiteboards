@@ -38,7 +38,7 @@ export function createProactivePlanning(deps) {
   async function planMyDay() {
     if (!hasAI()) return;
     const data = getData();
-    const active = data.tasks.filter((t) => t.status !== 'done');
+    const active = data.tasks.filter((t) => t.status !== 'done' && !t.archived);
     if (active.length === 0) {
       showToast('No active tasks to plan — add some tasks first');
       return;

@@ -831,7 +831,7 @@ async function _loadWeeklyReview() {
     if (!_weeklyReviewMod) {
       const { createWeeklyReview } = await import('./weekly-review.js');
       _weeklyReviewMod = createWeeklyReview({
-        data,
+        getData: () => data,
         userKey,
         activeTasks,
         projectTasks,
@@ -1168,6 +1168,7 @@ const resendVerification = _auth.resendVerification;
 const _origSignOut = _auth.signOut;
 const signOut = async () => {
   stopEscalationLoop();
+  if (_proactiveChatTimer) { clearTimeout(_proactiveChatTimer); _proactiveChatTimer = null; }
   return _origSignOut();
 };
 const showFeatureTips = _auth.showFeatureTips;

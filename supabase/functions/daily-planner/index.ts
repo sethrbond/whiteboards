@@ -21,7 +21,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-const CRON_SECRET = Deno.env.get('CRON_SECRET') || ''
+const CRON_SECRET = Deno.env.get('CRON_SECRET')
 const MODEL = 'claude-sonnet-4-5-20250514'
 
 serve(async (req: Request) => {
@@ -32,7 +32,7 @@ serve(async (req: Request) => {
   if (!authorized && req.method === 'POST') {
     try {
       const body = await req.clone().json()
-      if (body.secret && body.secret === CRON_SECRET) authorized = true
+      if (CRON_SECRET && body.secret && body.secret === CRON_SECRET) authorized = true
     } catch { /* */ }
   }
 

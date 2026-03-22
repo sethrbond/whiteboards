@@ -54,7 +54,7 @@ function makeDeps(overrides = {}) {
     store,
     todayISO,
     deps: {
-      data: store,
+      getData: () => store,
       userKey: (k) => 'test_' + k,
       activeTasks: vi.fn((pid) => {
         const tasks = pid ? store.tasks.filter((t) => t.project === pid) : store.tasks;

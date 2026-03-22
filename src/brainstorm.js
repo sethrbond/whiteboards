@@ -689,7 +689,7 @@ export function createBrainstorm(deps) {
             const sLower = s.toLowerCase();
             const tLower = (t.title || '').toLowerCase();
             // Direct mention of task title, or generic skip
-            return tLower && sLower.includes(tLower.slice(0, 20)) || sLower === 'skip' || sLower === 'remove' || sLower === 'not needed';
+            return (tLower && sLower.includes(tLower.slice(0, 20)));
           });
         });
         const skippedCount = beforeCount - tasks.length;

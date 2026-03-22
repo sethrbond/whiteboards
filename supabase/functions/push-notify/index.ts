@@ -17,7 +17,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')
-const CRON_SECRET = Deno.env.get('CRON_SECRET') || ''
+const CRON_SECRET = Deno.env.get('CRON_SECRET')
 
 // Web Push requires these for VAPID auth
 const VAPID_SUBJECT = 'mailto:hello@whiteboards.dev'
@@ -29,7 +29,7 @@ serve(async (req: Request) => {
   if (!authorized) {
     try {
       const body = await req.clone().json()
-      if (body.secret === CRON_SECRET) authorized = true
+      if (CRON_SECRET && body.secret && body.secret === CRON_SECRET) authorized = true
     } catch { /* */ }
   }
   if (!authorized) return new Response('Unauthorized', { status: 401 })

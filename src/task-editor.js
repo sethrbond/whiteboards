@@ -324,7 +324,7 @@ export function createTaskEditor(deps) {
     const data = getData();
     const existing = [...document.querySelectorAll('#fBlockedBy [data-dep]')].map((e) => e.dataset.dep);
     const matches = data.tasks
-      .filter((t) => t.id !== excludeId && !existing.includes(t.id) && t.title.toLowerCase().includes(q))
+      .filter((t) => t.id !== excludeId && !t.archived && !existing.includes(t.id) && t.title.toLowerCase().includes(q))
       .slice(0, 5);
     el.innerHTML = matches
       .map(
@@ -858,6 +858,8 @@ ONLY return JSON.`;
 
   function saveEditTask(id) {
     _editSnapshot = null;
+    const title = ($('#fTitle').value || '').trim();
+    if (!title) { showToast('Title cannot be empty', true); return; }
     const tags = [...document.querySelectorAll('#fTagPicker .tag-chip.selected')]
       .map((el) => el.dataset.tag)
       .filter(Boolean);
@@ -866,7 +868,7 @@ ONLY return JSON.`;
       .filter(Boolean);
     const estimatedMinutes = parseInt($('#fEstimate').value) || 0;
     updateTask(id, {
-      title: $('#fTitle').value.trim(),
+      title,
       notes: $('#fNotes').value.trim(),
       status: $('#fStatus').value,
       priority: $('#fPriority').value,

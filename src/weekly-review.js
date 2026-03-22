@@ -8,7 +8,7 @@ import { MS_PER_DAY } from './constants.js';
 
 export function createWeeklyReview(deps) {
   const {
-    data,
+    getData,
     userKey,
     activeTasks,
     projectTasks,
@@ -27,6 +27,7 @@ export function createWeeklyReview(deps) {
   } = deps;
 
   function renderWeeklyReview() {
+    const data = getData();
     const now = new Date();
     const day = now.getDay();
     const mon = new Date(now);
@@ -231,6 +232,7 @@ export function createWeeklyReview(deps) {
 
   async function generateWeeklyReview() {
     if (!hasAI()) return;
+    const data = getData();
     const btn = document.getElementById('reviewBtn');
     const body = document.getElementById('reviewBody');
     if (btn) btn.innerHTML = '<div class="spinner"></div> Thinking...';

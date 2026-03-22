@@ -800,7 +800,8 @@ RULES:
     if (cachedPlan) {
       try {
         const plan = JSON.parse(cachedPlan);
-        planTaskIds = new Set(plan.map((p) => p.id));
+        const planItems = Array.isArray(plan) ? plan : (plan.blocks ? plan.blocks.flatMap((b) => b.tasks || []) : []);
+        planTaskIds = new Set(planItems.map((p) => p.id));
       } catch (_e) {
         console.warn('proactive log parse failed:', _e.message || _e);
       }
