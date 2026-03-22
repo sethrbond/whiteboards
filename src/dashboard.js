@@ -737,9 +737,12 @@ export function createDashboard(deps) {
           {
             const _reviewResult = renderWeeklyReview();
             if (_reviewResult && typeof _reviewResult.then === 'function') {
-              c.innerHTML = '';
+              c.innerHTML = '<div style="padding:24px;color:var(--text3)">Loading review...</div>';
               _reviewResult.then((html) => {
                 c.innerHTML = html;
+              }).catch((err) => {
+                console.error('Weekly review failed:', err);
+                c.innerHTML = `<div style="padding:24px;color:var(--red)">Weekly review failed to load. Try refreshing the page.</div>`;
               });
             } else {
               c.innerHTML = _reviewResult;
