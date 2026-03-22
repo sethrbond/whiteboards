@@ -101,7 +101,7 @@ export function createCalendar(deps) {
     // Build date->tasks map
     const tasksByDate = {};
     data.tasks.forEach((t) => {
-      if (!t.dueDate) return;
+      if (!t.dueDate || t.archived) return;
       if (!tasksByDate[t.dueDate]) tasksByDate[t.dueDate] = [];
       tasksByDate[t.dueDate].push(t);
     });

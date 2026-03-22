@@ -460,6 +460,7 @@ export function createDataLayer(deps) {
     if (!t) return;
     pushUndo('Delete task: ' + t.title);
     // Archive instead of permanently deleting — user can recover from archive
+    t._preArchiveStatus = t.status;
     t.archived = true;
     t.archivedAt = new Date().toISOString();
     t.status = 'done';
@@ -790,6 +791,7 @@ export function createDataLayer(deps) {
     data.tasks.forEach(function (t) {
       if (t.status === 'done' && t.completedAt && !t.archived && new Date(t.completedAt).getTime() < cutoff) {
         t.archived = true;
+        t.archivedAt = t.completedAt;
         count++;
       }
     });
@@ -812,7 +814,11 @@ export function createDataLayer(deps) {
     if (t) {
       t.archived = false;
       delete t.archivedAt;
-      if (t.status === 'done' && !t.completedAt) t.status = 'todo';
+      if (t._preArchiveStatus && t._preArchiveStatus !== 'done') {
+        t.status = t._preArchiveStatus;
+        delete t.completedAt;
+      }
+      delete t._preArchiveStatus;
       saveData(data);
       getRender()();
       getShowToast()('Task restored');
