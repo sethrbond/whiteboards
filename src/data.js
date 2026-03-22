@@ -458,13 +458,19 @@ export function createDataLayer(deps) {
     const t = findTask(id);
     pushUndo('Delete task' + (t ? ': ' + t.title : ''));
     if (getExpandedTask && getExpandedTask() === id && setExpandedTask) setExpandedTask(null);
-    data.tasks = data.tasks.filter((x) => x.id !== id);
+    // Archive instead of permanently deleting — user can recover from archive
+    if (t) {
+      t.archived = true;
+      t.archivedAt = new Date().toISOString();
+      t.status = 'done';
+      if (!t.completedAt) t.completedAt = t.archivedAt;
+    }
     // Clean up orphaned blockedBy references
     data.tasks.forEach((x) => {
       if (x.blockedBy) x.blockedBy = x.blockedBy.filter((bid) => bid !== id);
     });
     saveData(data);
-    if (!silent) showUndoToast('Task deleted');
+    if (!silent) showUndoToast('Task moved to archive');
   }
 
   function _findSubtaskRecursive(subtasks, subtaskId) {

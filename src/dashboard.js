@@ -191,7 +191,8 @@ export function createDashboard(deps) {
     const _dv = sortTasksDeps.getDataVersion();
     const _bsMod = getBrainstormModule();
     const _dumpInProgress = _bsMod && typeof _bsMod.isDumpInProgress === 'function' && _bsMod.isDumpInProgress();
-    const sidebarState = getCurrentView() + '|' + (getCurrentProject() || '') + '|' + _dv + '|' + _dumpInProgress;
+    const _dataVer = sortTasksDeps && sortTasksDeps.getDataVersion ? sortTasksDeps.getDataVersion() : '';
+    const sidebarState = getCurrentView() + '|' + (getCurrentProject() || '') + '|' + _dv + '|' + _dumpInProgress + '|' + _dataVer;
     if (sidebarState === _lastSidebarState) return;
     _lastSidebarState = sidebarState;
 
@@ -492,7 +493,7 @@ export function createDashboard(deps) {
         </div>
         <div class="wb-card-title${isDone ? ' done-text' : ''}">${esc(t.title)}</div>
         ${t.notes ? `<div class="wb-card-notes">${esc(t.notes.slice(0, 80))}${t.notes.length > 80 ? '...' : ''}</div>` : ''}
-        <div class="wb-card-meta">${dueDateStr}${estStr}${subtaskStr}</div>
+        <div class="wb-card-meta">${dueDateStr}${estStr}${subtaskStr}${t.attachments && t.attachments.length > 0 ? `<span class="wb-card-est" title="${t.attachments.length} attachment${t.attachments.length > 1 ? 's' : ''}">📎${t.attachments.length}</span>` : ''}</div>
       </div>`;
     }
 
