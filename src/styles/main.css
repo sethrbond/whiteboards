@@ -6163,6 +6163,10 @@ h3.section-title {
   font-size: 10px;
   color: var(--text3);
 }
+/* Expanded tasks break out of grid to full width */
+.wb-grid > .task-expanded {
+  grid-column: 1 / -1;
+}
 @media (max-width: 768px) {
   .wb-grid {
     grid-template-columns: 1fr;
