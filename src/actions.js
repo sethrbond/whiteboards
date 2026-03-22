@@ -1020,6 +1020,8 @@ export function createActions(deps) {
       case 'save-settings': {
         const s = getSettings();
         s.apiKey = $('#fApiKey').value.trim();
+        const _modelSelect = document.getElementById('fAiModel');
+        if (_modelSelect) s.aiModel = _modelSelect.value;
         saveSettings(s);
         closeModal();
         showToast('Saved');
