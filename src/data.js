@@ -406,21 +406,50 @@ export function createDataLayer(deps) {
         }
       }
     }
-    // If completing a task that's in today's plan, refresh the plan
-    if (u.status === 'done') {
-      const planKey = userKey('whiteboard_plan_' + todayStr());
-      const cachedPlan = localStorage.getItem(planKey);
-      if (cachedPlan) {
-        try {
-          const plan = JSON.parse(cachedPlan);
-          const entry = plan.find((p) => p.id === id);
-          if (entry && !entry.completedInPlan) {
-            entry.completedInPlan = true;
-            if (!getBatchMode()) localStorage.setItem(planKey, JSON.stringify(plan));
+    // Sync task changes with today's plan
+    const planKey = userKey('whiteboard_plan_' + todayStr());
+    const cachedPlan = localStorage.getItem(planKey);
+    if (cachedPlan && !getBatchMode()) {
+      try {
+        const raw = JSON.parse(cachedPlan);
+
+        // Handle blocks format
+        if (raw && raw.blocks) {
+          let changed = false;
+          if (u.status === 'done') {
+            raw.blocks.forEach((b) => {
+              if (!b.tasks) return;
+              const entry = b.tasks.find((p) => p.id === id);
+              if (entry && !entry.completedInPlan) { entry.completedInPlan = true; changed = true; }
+            });
           }
-        } catch (e) {
-          console.warn('Plan cache update failed:', e);
+          // Remove from plan if deferred to future
+          if (u.dueDate && u.dueDate > todayStr()) {
+            raw.blocks.forEach((b) => {
+              if (!b.tasks) return;
+              const before = b.tasks.length;
+              b.tasks = b.tasks.filter((p) => p.id !== id);
+              if (b.tasks.length < before) changed = true;
+            });
+          }
+          if (changed) localStorage.setItem(planKey, JSON.stringify(raw));
+        } else if (Array.isArray(raw)) {
+          // Handle flat format
+          let plan = raw;
+          let changed = false;
+          if (u.status === 'done') {
+            const entry = plan.find((p) => p.id === id);
+            if (entry && !entry.completedInPlan) { entry.completedInPlan = true; changed = true; }
+          }
+          if (u.dueDate && u.dueDate > todayStr()) {
+            const before = plan.length;
+            plan = plan.filter((p) => p.id !== id);
+            if (plan.length < before) changed = true;
+          }
+          if (changed) localStorage.setItem(planKey, JSON.stringify(plan));
         }
+      } catch (e) {
+        console.warn('Plan cache update failed:', e);
       }
     }
   }
