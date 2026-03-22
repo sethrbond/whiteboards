@@ -133,7 +133,9 @@ describe('proactive-nudges.js — createProactiveNudges()', () => {
   });
 
   it('returns positive nudge for completed tasks this week', () => {
-    const completedAt = '2026-03-14T10:00:00Z';
+    const now = new Date();
+    // Ensure completedAt is earlier today so it's always within "this week"
+    const completedAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0).toISOString();
     deps.getData.mockReturnValue({
       tasks: [{ id: 't1', title: 'Done', status: 'done', completedAt, createdAt: completedAt }],
       projects: [],

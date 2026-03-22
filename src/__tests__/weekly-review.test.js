@@ -366,7 +366,7 @@ describe('weekly-review.js', () => {
     it('calls callAI with correct options', async () => {
       await review.generateWeeklyReview();
       const opts = deps.callAI.mock.calls[0][1];
-      expect(opts.maxTokens).toBe(4096);
+      expect(opts.maxTokens).toBe(16384);
       expect(opts.temperature).toBe(0.3);
     });
 

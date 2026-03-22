@@ -188,11 +188,10 @@ export function createDashboard(deps) {
 
   function renderSidebar() {
     // --- Memoization: skip if nothing affecting the sidebar changed ---
-    const _dv = sortTasksDeps.getDataVersion();
+    const _dv = sortTasksDeps && sortTasksDeps.getDataVersion ? sortTasksDeps.getDataVersion() : '';
     const _bsMod = getBrainstormModule();
     const _dumpInProgress = _bsMod && typeof _bsMod.isDumpInProgress === 'function' && _bsMod.isDumpInProgress();
-    const _dataVer = sortTasksDeps && sortTasksDeps.getDataVersion ? sortTasksDeps.getDataVersion() : '';
-    const sidebarState = getCurrentView() + '|' + (getCurrentProject() || '') + '|' + _dv + '|' + _dumpInProgress + '|' + _dataVer;
+    const sidebarState = getCurrentView() + '|' + (getCurrentProject() || '') + '|' + _dv + '|' + _dumpInProgress;
     if (sidebarState === _lastSidebarState) return;
     _lastSidebarState = sidebarState;
 
