@@ -649,38 +649,63 @@ export function createBrainstorm(deps) {
 
   function approveAllThemes() {
     // Collect all clarify answers and enrich tasks before applying
-    // Collect clarify answers and check for "already tracked" / "skip" signals
-    const skipPatterns = /already track|already have|already covered|don't need|dont need|skip|remove|not needed|duplicate/i;
+    // Collect clarify answers — enrich task notes with user's answers
+    const skipPatterns = /already track|already have|already covered|don't need|dont need|skip this|remove this|not needed|duplicate|covered by/i;
     const inputs = document.querySelectorAll('.conv-clarify-input');
-    const themeSkipSignals = {};
+    const skipAnswersByTheme = {};
     inputs.forEach((inp) => {
       if (!inp.value.trim()) return;
       const themeIdx = parseInt(inp.dataset.themeIdx, 10);
       const answer = inp.value.trim();
-      if (skipPatterns.test(answer)) {
-        themeSkipSignals[themeIdx] = true;
-      }
       const theme = _convThemes[themeIdx];
-      if (theme && !themeSkipSignals[themeIdx]) {
+      if (!theme) return;
+      // If the answer says "already tracked" etc, mark this answer as a skip signal
+      if (skipPatterns.test(answer)) {
+        if (!skipAnswersByTheme[themeIdx]) skipAnswersByTheme[themeIdx] = [];
+        skipAnswersByTheme[themeIdx].push(answer);
+      } else {
+        // Enrich all tasks in this theme with the answer
         (theme.tasks || []).forEach((t) => {
           t.notes = (t.notes || '') + (t.notes ? ' ' : '') + answer;
         });
       }
     });
 
-    // Apply all themes at once (skip themes the user said are already tracked)
+    // Apply all themes — filter out tasks that match skip answers
     _convState = 'APPLYING';
     _refreshConversationUI();
 
     _convThemes.forEach((theme, idx) => {
-      if (themeSkipSignals[idx]) {
-        _convMessages.push({
-          role: 'status',
-          content: `Skipped "${theme.name}" — already tracked`,
+      let tasks = theme.tasks || [];
+      // If user gave skip answers for this theme, try to match and remove specific tasks
+      const skips = skipAnswersByTheme[idx];
+      if (skips && skips.length) {
+        const beforeCount = tasks.length;
+        tasks = tasks.filter((t) => {
+          // Check if any skip answer references this task's title
+          return !skips.some((s) => {
+            const sLower = s.toLowerCase();
+            const tLower = (t.title || '').toLowerCase();
+            // Direct mention of task title, or generic skip
+            return tLower && sLower.includes(tLower.slice(0, 20)) || sLower === 'skip' || sLower === 'remove' || sLower === 'not needed';
+          });
         });
-        return;
+        const skippedCount = beforeCount - tasks.length;
+        if (skippedCount > 0) {
+          _convMessages.push({
+            role: 'status',
+            content: `Skipped ${skippedCount} task${skippedCount > 1 ? 's' : ''} in "${theme.name}" — already tracked`,
+          });
+        }
+        // If ALL tasks were skipped via generic "skip"/"remove", skip remaining too
+        if (tasks.length === beforeCount && skips.some((s) => /^(skip|remove|not needed|already track|duplicate)/i.test(s))) {
+          _convMessages.push({
+            role: 'status',
+            content: `Skipped "${theme.name}" — already tracked`,
+          });
+          return;
+        }
       }
-      const tasks = theme.tasks || [];
       _applyThemeTasks(theme, tasks);
       _convMessages.push({
         role: 'status',
