@@ -23,8 +23,8 @@ const RATE_LIMIT_DAY = 300     // max requests per IP per rolling day
 const MAX_MESSAGES = 20        // max messages in a conversation
 const MAX_SYSTEM_CHARS = 16000  // max system prompt length
 const MAX_MESSAGE_CHARS = 60000 // max single message length (chunked brainstorm needs room)
-const MAX_TOKENS_NORMAL = 16384 // max_tokens cap for non-streaming (brainstorm needs 16k)
-const MAX_TOKENS_STREAM = 8192  // max_tokens cap for streaming
+const MAX_TOKENS_NORMAL = 16384 // max_tokens cap for non-streaming
+const MAX_TOKENS_STREAM = 16384 // max_tokens cap for streaming (matched to normal — no reason to limit)
 
 const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * HOUR_MS

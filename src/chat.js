@@ -301,7 +301,7 @@ RULES:
         },
         body: JSON.stringify({
           model: settings.aiModel || 'claude-haiku-4-5-20251001',
-          max_tokens: 8192,
+          max_tokens: 16384,
           system: systemPrompt,
           messages: chatHistory.slice(-MAX_CHAT_HISTORY).map((m) => ({ role: m.role, content: m.content })),
           stream: true,
