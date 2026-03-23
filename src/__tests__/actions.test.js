@@ -1125,15 +1125,17 @@ describe('actions.js — createActions()', () => {
       expect(deps.updateChatChips).toHaveBeenCalled();
     });
 
-    it('Enter on chatInput (without Shift) calls sendChat', () => {
+    it('Double-Enter on chatInput sends (value ends with newline)', () => {
       const chatInput = document.getElementById('chatInput');
-      keydown(chatInput, { key: 'Enter', shiftKey: false });
+      chatInput.value = 'hello\n';
+      keydown(chatInput, { key: 'Enter' });
       expect(deps.sendChat).toHaveBeenCalled();
     });
 
-    it('Shift+Enter on chatInput does not call sendChat', () => {
+    it('Single Enter on chatInput does not send (inserts newline)', () => {
       const chatInput = document.getElementById('chatInput');
-      keydown(chatInput, { key: 'Enter', shiftKey: true });
+      chatInput.value = 'hello';
+      keydown(chatInput, { key: 'Enter' });
       expect(deps.sendChat).not.toHaveBeenCalled();
     });
   });

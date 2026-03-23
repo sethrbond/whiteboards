@@ -1618,9 +1618,15 @@ export function createActions(deps) {
     if (e.target.id === 'chatInput') updateChatChips();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.target.id === 'chatInput' && e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendChat();
+    if (e.target.id === 'chatInput' && e.key === 'Enter') {
+      const val = e.target.value;
+      // Double-Enter (last char is newline) = send; single Enter = newline
+      if (val.endsWith('\n')) {
+        e.preventDefault();
+        e.target.value = val.trimEnd(); // remove trailing newlines before sending
+        sendChat();
+      }
+      // Otherwise, let the default Enter insert a newline in the textarea
     }
   });
 
