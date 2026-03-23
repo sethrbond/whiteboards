@@ -293,9 +293,9 @@ serve(async (req) => {
     }
   }
 
-  // Cap max_tokens based on streaming
+  // Cap max_tokens — users with own API key get higher limits (their bill)
   const isStream = !!stream
-  const tokenCap = isStream ? MAX_TOKENS_STREAM : MAX_TOKENS_NORMAL
+  const tokenCap = userApiKey ? 64000 : (isStream ? MAX_TOKENS_STREAM : MAX_TOKENS_NORMAL)
   let finalMaxTokens = typeof max_tokens === 'number' ? max_tokens : tokenCap
   if (finalMaxTokens > tokenCap) finalMaxTokens = tokenCap
 

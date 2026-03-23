@@ -1055,7 +1055,7 @@ ${text}${getDumpAttachmentText()}`;
         headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01', ..._ep.headers },
         body: JSON.stringify({
           model: settings.aiModel || 'claude-haiku-4-5-20251001',
-          max_tokens: 16384,
+          max_tokens: isLargeInput ? 32768 : 16384,
           temperature: 0.3,
           stream: true,
           system: systemPrompt,
