@@ -1618,15 +1618,17 @@ export function createActions(deps) {
     if (e.target.id === 'chatInput') updateChatChips();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.target.id === 'chatInput' && e.key === 'Enter') {
+    if (e.key !== 'Enter') return;
+    const id = e.target.id;
+    // Double-Enter = submit; single Enter = newline
+    if (id === 'chatInput' || id === 'dumpText') {
       const val = e.target.value;
-      // Double-Enter (last char is newline) = send; single Enter = newline
       if (val.endsWith('\n')) {
         e.preventDefault();
-        e.target.value = val.trimEnd(); // remove trailing newlines before sending
-        sendChat();
+        e.target.value = val.trimEnd();
+        if (id === 'chatInput') sendChat();
+        else processDump();
       }
-      // Otherwise, let the default Enter insert a newline in the textarea
     }
   });
 
