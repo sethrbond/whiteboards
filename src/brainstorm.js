@@ -1127,22 +1127,30 @@ ${text}${getDumpAttachmentText()}`;
         _convCurrentTheme = 0;
         _refreshConversationUI();
       } else {
-        // Fallback to legacy batch flow
+        // Fallback: parseDumpResponse can repair truncated JSON
         const legacyParsed = parseDumpResponse(rawText);
         if (legacyParsed) {
           _convParsedFull = legacyParsed;
-          // Convert to single theme
-          _convThemes = [
-            {
-              name: 'Your brainstorm',
-              narrative: legacyParsed.summary || "Here's what I found in your input.",
-              tasks: legacyParsed.tasks || [],
-              suggestedBoard: null,
-              questions: [],
-            },
-          ];
-          if (legacyParsed.summary) {
-            _convMessages.push({ role: 'ai', content: legacyParsed.summary });
+          // Check if the repaired JSON has themed structure
+          if (legacyParsed.themes && legacyParsed.themes.length > 0) {
+            _convThemes = legacyParsed.themes;
+            if (legacyParsed.opening) {
+              _convMessages.push({ role: 'ai', content: legacyParsed.opening });
+            }
+          } else {
+            // True legacy format with top-level tasks
+            _convThemes = [
+              {
+                name: 'Your brainstorm',
+                narrative: legacyParsed.summary || "Here's what I found in your input.",
+                tasks: legacyParsed.tasks || [],
+                suggestedBoard: null,
+                questions: [],
+              },
+            ];
+            if (legacyParsed.summary) {
+              _convMessages.push({ role: 'ai', content: legacyParsed.summary });
+            }
           }
           _convState = 'THEME_REVIEW';
           _convCurrentTheme = 0;
@@ -1222,6 +1230,32 @@ ${text}${getDumpAttachmentText()}`;
         if (end > 0) {
           const parsed = JSON.parse(cleaned.slice(0, end));
           if (parsed.themes) return parsed;
+        } else if (depth > 0) {
+          // Truncated JSON — append closing brackets to repair
+          let repaired = cleaned;
+          // Close any open string
+          if (inStr) repaired += '"';
+          // Close remaining brackets — need to track both { and [
+          const stack = [];
+          let rInStr = false;
+          let rEscaped = false;
+          for (let i = 0; i < repaired.length; i++) {
+            const ch = repaired[i];
+            if (rEscaped) { rEscaped = false; continue; }
+            if (ch === '\\') { rEscaped = true; continue; }
+            if (ch === '"') { rInStr = !rInStr; continue; }
+            if (rInStr) continue;
+            if (ch === '{' || ch === '[') stack.push(ch);
+            if (ch === '}' || ch === ']') stack.pop();
+          }
+          while (stack.length) {
+            const opener = stack.pop();
+            repaired += opener === '{' ? '}' : ']';
+          }
+          try {
+            const parsed = JSON.parse(repaired);
+            if (parsed.themes) return parsed;
+          } catch { /* repair failed */ }
         }
       } catch {
         // Give up
