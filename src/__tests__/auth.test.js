@@ -711,7 +711,7 @@ describe('auth.js — createAuth()', () => {
 
   // ── showOnboardingExperience ──────────────────────────────────────
   it('showOnboardingExperience does nothing if onboarding already complete', () => {
-    localStorage.setItem('wb_onboarding_complete', '1');
+    localStorage.setItem('user1_wb_onboarding_complete', '1');
     auth.showOnboardingExperience();
     expect(document.getElementById('onbOverlay')).toBeNull();
   });
@@ -794,7 +794,7 @@ describe('auth.js — createAuth()', () => {
     auth.showOnboardingExperience();
     expect(document.getElementById('onbOverlay')).not.toBeNull();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    expect(localStorage.getItem('wb_onboarding_complete')).toBe('1');
+    expect(localStorage.getItem('user1_wb_onboarding_complete')).toBe('1');
   });
 
   // ── showOnboarding ────────────────────────────────────────────────

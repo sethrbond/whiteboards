@@ -30,7 +30,7 @@ const VALID_RECURRENCES = ['daily', 'weekdays', 'weekly', 'monthly', ''];
 /**
  * Factory function to create the data layer.
  * @param {Object} deps - Dependencies from the main app
- * @returns {{ loadData, saveData, _flushSave, loadSettings, saveSettings, validateTaskFields, createTask, createProject, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject, addSubtask, toggleSubtask, pushUndo, undo, showUndoToast, findSimilarTask, findSimilarProject, findTask, getTaskMap, ensureLifeProject, getLifeProjectId, activeTasks, doneTasks, urgentTasks, archivedTasks, projectTasks, applyTagFilter, cleanupArchive, unarchiveTask, deleteArchivedPermanently, _rc, getData, setData, getSettings, setSettings, getDataVersion, setDataVersion, getRenderCache, setRenderCache, getTaskMapState, setTaskMapState, getUndoStack, clearUndoStack, restoreFromBackup, dismissCorruption }}
+ * @returns {{ loadData, saveData, _flushSave, loadSettings, saveSettings, validateTaskFields, createTask, createProject, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject, addSubtask, toggleSubtask, pushUndo, undo, showUndoToast, findSimilarTask, findSimilarProject, findTask, getTaskMap, ensureLifeProject, getLifeProjectId, activeTasks, doneTasks, urgentTasks, archivedTasks, projectTasks, applyTagFilter, applyFilters, addSavedView, updateSavedView, deleteSavedView, getSavedViews, cleanupArchive, unarchiveTask, deleteArchivedPermanently, _rc, getData, setData, getSettings, setSettings, getDataVersion, setDataVersion, getRenderCache, setRenderCache, getTaskMapState, setTaskMapState, getUndoStack, clearUndoStack, restoreFromBackup, dismissCorruption }}
  */
 export function createDataLayer(deps) {
   const {
@@ -54,7 +54,7 @@ export function createDataLayer(deps) {
   } = deps;
 
   // --- Module-local state ---
-  let data = { tasks: [], projects: [] };
+  let data = { tasks: [], projects: [], savedViews: [] };
   let settings = { ...DEFAULT_SETTINGS };
   const undoStack = []; // [{ label, snapshot }] — max 20
   let _renderCache = { version: -1 };
@@ -63,6 +63,7 @@ export function createDataLayer(deps) {
   let _dataVersion = 0;
   let _saveDebounceTimer = null;
   let _quotaWarned = false;
+  let _saveCount = 0;
   let _saveDebounceData = null;
 
   // --- Corruption recovery state ---
@@ -131,6 +132,7 @@ export function createDataLayer(deps) {
       let d = JSON.parse(raw);
       if (d && Array.isArray(d.tasks)) {
         if (!d.projects) d.projects = [];
+        if (!d.savedViews) d.savedViews = [];
         // Pre-migration backup — preserve raw data in case migration corrupts
         if (d._schemaVersion !== CURRENT_SCHEMA_VERSION && raw) {
           try {
@@ -158,7 +160,7 @@ export function createDataLayer(deps) {
         _showCorruptionBanner();
       }
     }
-    return { tasks: [], projects: [] };
+    return { tasks: [], projects: [], savedViews: [] };
   }
 
   // --- Corruption recovery UI ---
@@ -207,7 +209,7 @@ export function createDataLayer(deps) {
   function dismissCorruption() {
     localStorage.removeItem(userKey(STORE_KEY));
     localStorage.removeItem(userKey(STORE_KEY) + '_backup');
-    data = { tasks: [], projects: [] };
+    data = { tasks: [], projects: [], savedViews: [] };
     saveData(data);
     _dismissCorruptionBanner();
     getShowToast()('Starting fresh');
@@ -295,8 +297,9 @@ export function createDataLayer(deps) {
           return false;
         }
       }
-      // Early warning: check storage usage after successful save
-      if (!_quotaWarned) {
+      // Early warning: check storage usage every 10th save (not every save)
+      _saveCount++;
+      if (!_quotaWarned && _saveCount % 10 === 0) {
         try {
           let totalUsed = 0;
           for (let i = 0; i < localStorage.length; i++) {
@@ -794,6 +797,47 @@ export function createDataLayer(deps) {
     return filtered;
   }
 
+  // --- Multi-dimension filter for saved views ---
+  function applyFilters(tasks, filters) {
+    if (!filters) return tasks;
+    let result = tasks;
+    if (filters.status) result = result.filter((t) => t.status === filters.status);
+    if (filters.priority) result = result.filter((t) => t.priority === filters.priority);
+    if (filters.project) result = result.filter((t) => t.project === filters.project);
+    if (filters.tags && filters.tags.length) result = result.filter((t) => filters.tags.every((tag) => (t.tags || []).includes(tag)));
+    if (filters.dueBefore) result = result.filter((t) => t.dueDate && t.dueDate <= filters.dueBefore);
+    if (filters.dueAfter) result = result.filter((t) => t.dueDate && t.dueDate >= filters.dueAfter);
+    if (filters.hasSubtasks === true) result = result.filter((t) => (t.subtasks || []).length > 0);
+    if (filters.hasSubtasks === false) result = result.filter((t) => (t.subtasks || []).length === 0);
+    if (filters.noDate === true) result = result.filter((t) => !t.dueDate);
+    return result;
+  }
+
+  // --- Saved views CRUD ---
+  function addSavedView(view) {
+    if (!data.savedViews) data.savedViews = [];
+    data.savedViews.push(view);
+    saveData(data);
+  }
+
+  function updateSavedView(id, updates) {
+    if (!data.savedViews) return;
+    const sv = data.savedViews.find((v) => v.id === id);
+    if (!sv) return;
+    Object.assign(sv, updates);
+    saveData(data);
+  }
+
+  function deleteSavedView(id) {
+    if (!data.savedViews) return;
+    data.savedViews = data.savedViews.filter((v) => v.id !== id);
+    saveData(data);
+  }
+
+  function getSavedViews() {
+    return data.savedViews || [];
+  }
+
   function projectTasks(pid) {
     return applyTagFilter(data.tasks.filter((t) => t.project === pid && !t.archived));
   }
@@ -1064,6 +1108,12 @@ export function createDataLayer(deps) {
     archivedTasks,
     projectTasks,
     applyTagFilter,
+    applyFilters,
+    // Saved views
+    addSavedView,
+    updateSavedView,
+    deleteSavedView,
+    getSavedViews,
     cleanupArchive,
     autoEscalatePriority,
     unarchiveTask,

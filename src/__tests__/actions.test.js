@@ -359,9 +359,58 @@ describe('actions.js — createActions()', () => {
     });
 
     it('complete-task calls updateTask and render', () => {
-      click(makeActionEl('complete-task', { taskId: 't_5' }));
-      expect(deps.updateTask).toHaveBeenCalledWith('t_5', { status: 'done' });
+      vi.useFakeTimers();
+      try {
+        click(makeActionEl('complete-task', { taskId: 't_5' }));
+        vi.advanceTimersByTime(300);
+        expect(deps.updateTask).toHaveBeenCalledWith('t_5', { status: 'done' });
+        expect(deps.render).toHaveBeenCalled();
+      } finally {
+        vi.runOnlyPendingTimers();
+        vi.useRealTimers();
+      }
+    });
+
+    it('cycle-status cycles todo → in-progress', () => {
+      deps.findTask.mockReturnValue({ id: 't_5', status: 'todo', title: 'Test' });
+      click(makeActionEl('cycle-status', { taskId: 't_5' }));
+      expect(deps.updateTask).toHaveBeenCalledWith('t_5', { status: 'in-progress' });
       expect(deps.render).toHaveBeenCalled();
+      expect(deps.showToast).toHaveBeenCalled();
+    });
+
+    it('cycle-status cycles in-progress → waiting', () => {
+      deps.findTask.mockReturnValue({ id: 't_5', status: 'in-progress', title: 'Test' });
+      click(makeActionEl('cycle-status', { taskId: 't_5' }));
+      expect(deps.updateTask).toHaveBeenCalledWith('t_5', { status: 'waiting' });
+      expect(deps.render).toHaveBeenCalled();
+    });
+
+    it('cycle-status cycles waiting → todo', () => {
+      deps.findTask.mockReturnValue({ id: 't_5', status: 'waiting', title: 'Test' });
+      click(makeActionEl('cycle-status', { taskId: 't_5' }));
+      expect(deps.updateTask).toHaveBeenCalledWith('t_5', { status: 'todo' });
+      expect(deps.render).toHaveBeenCalled();
+    });
+
+    it('cycle-status does nothing when task not found', () => {
+      deps.findTask.mockReturnValue(null);
+      click(makeActionEl('cycle-status', { taskId: 't_missing' }));
+      expect(deps.updateTask).not.toHaveBeenCalled();
+    });
+
+    it('start-task sets status to in-progress', () => {
+      deps.findTask.mockReturnValue({ id: 't_5', status: 'todo', title: 'Test' });
+      click(makeActionEl('start-task', { taskId: 't_5' }));
+      expect(deps.updateTask).toHaveBeenCalledWith('t_5', { status: 'in-progress' });
+      expect(deps.render).toHaveBeenCalled();
+      expect(deps.showToast).toHaveBeenCalled();
+    });
+
+    it('start-task does nothing when task not found', () => {
+      deps.findTask.mockReturnValue(null);
+      click(makeActionEl('start-task', { taskId: 't_missing' }));
+      expect(deps.updateTask).not.toHaveBeenCalled();
     });
 
     it('toggle-expand toggles expanded task', () => {

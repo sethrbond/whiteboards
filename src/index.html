@@ -167,6 +167,8 @@
   </nav>
   <div class="project-list" id="projectList" data-testid="project-list" role="list" aria-label="Board list" style="display:none"></div>
 
+  <div id="savedViewsList" class="nav-section" style="display:none" aria-label="Saved views"></div>
+
   <div class="nav-section nav-secondary" style="padding-top:4px">
     <div class="nav-item" data-view="all-tasks" role="button" tabindex="0">
       <span class="nav-icon" aria-hidden="true">&#9776;</span> <span>All Tasks</span>
@@ -212,6 +214,10 @@
   <button class="bottom-tab" data-action="toggle-chat" aria-label="AI Chat">
     <span class="bottom-tab-icon"><span class="ai-badge" style="font-size:9px;width:20px;height:20px;display:inline-flex">ai</span></span>
     <span class="bottom-tab-label">Chat</span>
+  </button>
+  <button class="bottom-tab" data-action="open-search" aria-label="More">
+    <span class="bottom-tab-icon">&#8943;</span>
+    <span class="bottom-tab-label">More</span>
   </button>
 </nav>
 

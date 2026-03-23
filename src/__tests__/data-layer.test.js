@@ -1140,4 +1140,147 @@ describe('data.js — createDataLayer()', () => {
       expect(dl2.getSettings().apiKey).toBe('');
     });
   });
+
+  // ── Saved views CRUD ──────────────────────────────────────────
+  describe('saved views', () => {
+    it('starts with empty savedViews', () => {
+      expect(dl.getSavedViews()).toEqual([]);
+    });
+
+    it('adds a saved view', () => {
+      dl.addSavedView({ id: 'sv1', name: 'Urgent', filters: { priority: 'urgent' } });
+      expect(dl.getSavedViews().length).toBe(1);
+      expect(dl.getSavedViews()[0].name).toBe('Urgent');
+    });
+
+    it('deletes a saved view', () => {
+      dl.addSavedView({ id: 'sv1', name: 'Urgent', filters: { priority: 'urgent' } });
+      dl.addSavedView({ id: 'sv2', name: 'Waiting', filters: { status: 'waiting' } });
+      dl.deleteSavedView('sv1');
+      expect(dl.getSavedViews().length).toBe(1);
+      expect(dl.getSavedViews()[0].id).toBe('sv2');
+    });
+
+    it('updates a saved view', () => {
+      dl.addSavedView({ id: 'sv1', name: 'Old Name', filters: { priority: 'urgent' } });
+      dl.updateSavedView('sv1', { name: 'New Name' });
+      expect(dl.getSavedViews()[0].name).toBe('New Name');
+    });
+
+    it('initializes savedViews on loadData', () => {
+      localStorage.setItem('user1_taskboard_data', JSON.stringify({
+        _schemaVersion: 1,
+        tasks: [{ id: 't1', title: 'A' }],
+        projects: [],
+      }));
+      const dl2 = createDataLayer(makeDeps());
+      dl2.setData(dl2.loadData());
+      expect(dl2.getSavedViews()).toEqual([]);
+    });
+
+    it('preserves savedViews from storage', () => {
+      localStorage.setItem('user1_taskboard_data', JSON.stringify({
+        _schemaVersion: 1,
+        tasks: [{ id: 't1', title: 'A' }],
+        projects: [],
+        savedViews: [{ id: 'sv1', name: 'Test', filters: { priority: 'urgent' } }],
+      }));
+      const dl2 = createDataLayer(makeDeps());
+      const loaded = dl2.loadData();
+      expect(loaded.savedViews.length).toBe(1);
+      expect(loaded.savedViews[0].name).toBe('Test');
+    });
+  });
+
+  // ── applyFilters — multi-dimension filter ─────────────────────
+  describe('applyFilters', () => {
+    it('filters by status', () => {
+      const tasks = [
+        { status: 'todo', priority: 'normal' },
+        { status: 'waiting', priority: 'normal' },
+        { status: 'in-progress', priority: 'normal' },
+      ];
+      expect(dl.applyFilters(tasks, { status: 'waiting' }).length).toBe(1);
+    });
+
+    it('filters by priority', () => {
+      const tasks = [
+        { priority: 'urgent' },
+        { priority: 'normal' },
+        { priority: 'low' },
+      ];
+      expect(dl.applyFilters(tasks, { priority: 'urgent' }).length).toBe(1);
+    });
+
+    it('filters by project', () => {
+      const tasks = [
+        { project: 'p1' },
+        { project: 'p2' },
+        { project: '' },
+      ];
+      expect(dl.applyFilters(tasks, { project: 'p1' }).length).toBe(1);
+    });
+
+    it('filters by tags (all must match)', () => {
+      const tasks = [
+        { tags: ['work', 'urgent'] },
+        { tags: ['work'] },
+        { tags: ['personal'] },
+      ];
+      expect(dl.applyFilters(tasks, { tags: ['work', 'urgent'] }).length).toBe(1);
+      expect(dl.applyFilters(tasks, { tags: ['work'] }).length).toBe(2);
+    });
+
+    it('filters by dueBefore', () => {
+      const tasks = [
+        { dueDate: '2026-03-10' },
+        { dueDate: '2026-03-20' },
+        { dueDate: '' },
+      ];
+      expect(dl.applyFilters(tasks, { dueBefore: '2026-03-15' }).length).toBe(1);
+    });
+
+    it('filters by dueAfter', () => {
+      const tasks = [
+        { dueDate: '2026-03-10' },
+        { dueDate: '2026-03-20' },
+        { dueDate: '' },
+      ];
+      expect(dl.applyFilters(tasks, { dueAfter: '2026-03-15' }).length).toBe(1);
+    });
+
+    it('filters by hasSubtasks', () => {
+      const tasks = [
+        { subtasks: [{ id: 's1', title: 'Sub' }] },
+        { subtasks: [] },
+        {},
+      ];
+      expect(dl.applyFilters(tasks, { hasSubtasks: true }).length).toBe(1);
+      expect(dl.applyFilters(tasks, { hasSubtasks: false }).length).toBe(2);
+    });
+
+    it('filters by noDate', () => {
+      const tasks = [
+        { dueDate: '2026-03-10' },
+        { dueDate: '' },
+        {},
+      ];
+      expect(dl.applyFilters(tasks, { noDate: true }).length).toBe(2);
+    });
+
+    it('combines multiple filters', () => {
+      const tasks = [
+        { status: 'todo', priority: 'urgent', dueDate: '2026-03-10' },
+        { status: 'todo', priority: 'normal', dueDate: '2026-03-10' },
+        { status: 'waiting', priority: 'urgent', dueDate: '2026-03-10' },
+      ];
+      expect(dl.applyFilters(tasks, { status: 'todo', priority: 'urgent' }).length).toBe(1);
+    });
+
+    it('returns all tasks with empty filters', () => {
+      const tasks = [{ id: '1' }, { id: '2' }];
+      expect(dl.applyFilters(tasks, {}).length).toBe(2);
+      expect(dl.applyFilters(tasks, null).length).toBe(2);
+    });
+  });
 });

@@ -87,6 +87,16 @@ export function createDashboard(deps) {
     getEscalationBanner: _getEscalationBanner,
     getAIMemory,
     extractMemoryInsights,
+    // Saved views / filters
+    applyFilters,
+    addSavedView,
+    deleteSavedView,
+    getSavedViews,
+    getActiveSavedViewId,
+    setActiveSavedViewId,
+    getQuickFilters,
+    setQuickFilters,
+    genId: _genId,
   } = deps;
 
   const TASKS_PER_PAGE = 50;
@@ -135,6 +145,12 @@ export function createDashboard(deps) {
         if (!aIn && bIn) return 1;
         if (aIn && bIn) return planIndex[a.id] - planIndex[b.id];
       }
+      // Manual drag-reorder: respect sortOrder when both tasks have one
+      const aHasSort = a.sortOrder != null;
+      const bHasSort = b.sortOrder != null;
+      if (aHasSort && bHasSort) return a.sortOrder - b.sortOrder;
+      if (aHasSort && !bHasSort) return -1;
+      if (!aHasSort && bHasSort) return 1;
       const sd = (a.status === 'in-progress' ? 0 : 1) - (b.status === 'in-progress' ? 0 : 1);
       if (sd) return sd;
       const pd = po[a.priority] - po[b.priority];
@@ -194,7 +210,7 @@ export function createDashboard(deps) {
     const _dv = sortTasksDeps && sortTasksDeps.getDataVersion ? sortTasksDeps.getDataVersion() : '';
     const _bsMod = getBrainstormModule();
     const _dumpInProgress = _bsMod && typeof _bsMod.isDumpInProgress === 'function' && _bsMod.isDumpInProgress();
-    const sidebarState = getCurrentView() + '|' + (getCurrentProject() || '') + '|' + _dv + '|' + _dumpInProgress;
+    const sidebarState = getCurrentView() + '|' + (getCurrentProject() || '') + '|' + _dv + '|' + _dumpInProgress + '|' + (getActiveSavedViewId ? getActiveSavedViewId() || '' : '');
     if (sidebarState === _lastSidebarState) return;
     _lastSidebarState = sidebarState;
 
@@ -213,6 +229,12 @@ export function createDashboard(deps) {
         (tabView === 'dump' && _cv === 'dump');
       t.classList.toggle('active', isActive);
     });
+
+    // Hide chat tab in guest mode
+    const _chatTab = $('.bottom-tab[data-action="toggle-chat"]');
+    if (_chatTab) {
+      _chatTab.style.display = (typeof isGuestMode === 'function' && isGuestMode()) ? 'none' : '';
+    }
 
     // Brainstorm processing indicator
     const dumpNav = $('.nav-item[data-view="dump"]');
@@ -320,6 +342,33 @@ export function createDashboard(deps) {
         render();
       });
     });
+
+    // Saved views in sidebar
+    const svList = document.getElementById('savedViewsList');
+    if (svList) {
+      const views = getSavedViews();
+      if (views.length > 0) {
+        svList.style.display = '';
+        const activeViewId = getActiveSavedViewId();
+        svList.innerHTML = '<div class="nav-label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:0 16px;margin-bottom:4px">Saved Views</div>' +
+          views.map((v) => {
+            const isActive = currentView === 'saved-view' && activeViewId === v.id;
+            const filterCount = Object.keys(v.filters || {}).filter((k) => {
+              const val = v.filters[k];
+              return val !== '' && val !== undefined && val !== null && !(Array.isArray(val) && val.length === 0);
+            }).length;
+            return `<div class="nav-item ${isActive ? 'active' : ''}" data-action="open-saved-view" data-view-id="${v.id}" role="button" tabindex="0" style="padding:6px 16px;font-size:12px">
+              <span class="nav-icon" aria-hidden="true" style="font-size:10px">&#9683;</span>
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.name)}</span>
+              <span style="font-size:10px;color:var(--text3)">${filterCount}</span>
+              <button class="btn btn-sm" data-action="delete-saved-view" data-view-id="${v.id}" style="padding:0 4px;font-size:10px;color:var(--text3);background:none;border:none;margin-left:4px;opacity:0.5" title="Delete view" aria-label="Delete saved view ${esc(v.name)}">&times;</button>
+            </div>`;
+          }).join('');
+      } else {
+        svList.style.display = 'none';
+        svList.innerHTML = '';
+      }
+    }
 
     // Guest mode: show sign-up link at bottom of sidebar
     const _guestSignup = document.getElementById('guestSignupSidebar');
@@ -495,8 +544,10 @@ export function createDashboard(deps) {
     const doNow = active.filter(
       (t) => t.status === 'in-progress' || (t.dueDate && t.dueDate <= today) || t.priority === 'urgent',
     );
-    const thisWeek = active.filter((t) => !doNow.includes(t) && t.dueDate && t.dueDate > today && t.dueDate <= weekEnd);
-    const later = active.filter((t) => !doNow.includes(t) && !thisWeek.includes(t));
+    const doNowIds = new Set(doNow.map((t) => t.id));
+    const thisWeek = active.filter((t) => !doNowIds.has(t.id) && t.dueDate && t.dueDate > today && t.dueDate <= weekEnd);
+    const thisWeekIds = new Set(thisWeek.map((t) => t.id));
+    const later = active.filter((t) => !doNowIds.has(t.id) && !thisWeekIds.has(t.id));
 
     // Board narrative (cached) with inline reply
     const narrativeKey = userKey('whiteboard_board_narrative_' + p.id);
@@ -529,7 +580,7 @@ export function createDashboard(deps) {
       const subtaskStr = t.subtasks && t.subtasks.length
         ? `<span class="wb-card-est">${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length}</span>`
         : '';
-      return `<div class="wb-card${isDone ? ' done' : ''}" data-task="${t.id}" data-expandable="true" role="listitem" style="border-top:3px solid ${borderColor}">
+      return `<div class="wb-card${isDone ? ' done' : ''}" data-task="${t.id}" data-expandable="true" draggable="true" role="listitem" style="border-top:3px solid ${borderColor}">
         <div class="wb-card-actions">
           ${!isDone ? `<button class="task-action-btn" title="Defer" data-action="defer-task" data-task-id="${t.id}">\u21b7</button>` : ''}
           <button class="task-action-btn" title="Edit" data-action="edit-task" data-task-id="${t.id}">\u270e</button>
@@ -544,19 +595,19 @@ export function createDashboard(deps) {
     // Do Now
     if (doNow.length > 0) {
       html += `<div class="wb-section"><div class="section-header"><h3 class="section-title">Do Now</h3><div class="section-count">${doNow.length}</div><div class="section-line"></div></div>`;
-      html += `<div class="wb-grid">${sortTasks(doNow).map(_wbCard).join('')}</div></div>`;
+      html += `<div class="wb-grid" data-section="doNow" data-project="${p.id}">${sortTasks(doNow).map(_wbCard).join('')}</div></div>`;
     }
 
     // This Week
     if (thisWeek.length > 0) {
       html += `<div class="wb-section"><div class="section-header"><h3 class="section-title">This Week</h3><div class="section-count">${thisWeek.length}</div><div class="section-line"></div></div>`;
-      html += `<div class="wb-grid">${sortTasks(thisWeek).map(_wbCard).join('')}</div></div>`;
+      html += `<div class="wb-grid" data-section="thisWeek" data-project="${p.id}">${sortTasks(thisWeek).map(_wbCard).join('')}</div></div>`;
     }
 
     // Later
     if (later.length > 0) {
       html += `<div class="wb-section"><div class="section-header"><h3 class="section-title" style="color:var(--text3)">Later</h3><div class="section-count">${later.length}</div><div class="section-line"></div></div>`;
-      html += `<div class="wb-grid">${sortTasks(later).map(_wbCard).join('')}</div></div>`;
+      html += `<div class="wb-grid" data-section="later" data-project="${p.id}">${sortTasks(later).map(_wbCard).join('')}</div></div>`;
     }
 
     if (active.length === 0 && done.length === 0) {
@@ -574,7 +625,94 @@ export function createDashboard(deps) {
       }
       html += `</div>`;
     }
+
+    // Attach drag-and-drop reorder handlers after render
+    setTimeout(function () {
+      _attachListDragReorder(p.id);
+    }, 0);
+
     return html;
+  }
+
+  /**
+   * Attach drag-and-drop reorder handlers to wb-grid sections for a project.
+   * Only allows reordering within the same section (same wb-grid container).
+   */
+  function _attachListDragReorder(projectId) {
+    const grids = document.querySelectorAll(`.wb-grid[data-project="${projectId}"][data-section]`);
+    grids.forEach(function (grid) {
+      const cards = grid.querySelectorAll('.wb-card[data-task]');
+      cards.forEach(function (card) {
+        card.addEventListener('dragstart', function (e) {
+          e.dataTransfer.setData('text/plain', card.dataset.task);
+          e.dataTransfer.setData('application/x-wb-section', grid.dataset.section);
+          e.dataTransfer.effectAllowed = 'move';
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', function () {
+          card.classList.remove('dragging');
+          // Clean up all drop indicators
+          grid.querySelectorAll('.wb-card').forEach(function (c) {
+            c.classList.remove('drag-over-before', 'drag-over-after');
+          });
+        });
+        card.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          // Only show indicator if dragging within the same section
+          const sourceSection = e.dataTransfer.types.includes('application/x-wb-section');
+          if (!sourceSection) return;
+          // Determine if cursor is in top or bottom half
+          const rect = card.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          grid.querySelectorAll('.wb-card').forEach(function (c) {
+            c.classList.remove('drag-over-before', 'drag-over-after');
+          });
+          if (e.clientY < midY) {
+            card.classList.add('drag-over-before');
+          } else {
+            card.classList.add('drag-over-after');
+          }
+        });
+        card.addEventListener('dragleave', function () {
+          card.classList.remove('drag-over-before', 'drag-over-after');
+        });
+        card.addEventListener('drop', function (e) {
+          e.preventDefault();
+          card.classList.remove('drag-over-before', 'drag-over-after');
+          const draggedId = e.dataTransfer.getData('text/plain');
+          const sourceSection = e.dataTransfer.getData('application/x-wb-section');
+          const targetId = card.dataset.task;
+
+          // Only allow reorder within the same section
+          if (!draggedId || draggedId === targetId || sourceSection !== grid.dataset.section) return;
+
+          // Get ordered task IDs from the current DOM
+          const orderedIds = Array.from(grid.querySelectorAll('.wb-card[data-task]')).map(function (c) {
+            return c.dataset.task;
+          });
+
+          // Remove dragged from list
+          const fromIdx = orderedIds.indexOf(draggedId);
+          if (fromIdx < 0) return;
+          orderedIds.splice(fromIdx, 1);
+
+          // Insert at target position
+          const toIdx = orderedIds.indexOf(targetId);
+          if (toIdx < 0) return;
+          const rect = card.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          const insertIdx = e.clientY < midY ? toIdx : toIdx + 1;
+          orderedIds.splice(insertIdx, 0, draggedId);
+
+          // Assign sortOrder values: use index * 1000 to leave room for future insertions
+          orderedIds.forEach(function (id, i) {
+            updateTask(id, { sortOrder: i * 1000 });
+          });
+          render();
+        });
+      });
+    });
   }
 
   function renderProject(p) {
@@ -613,7 +751,6 @@ export function createDashboard(deps) {
   }
 
   function renderBoardsGrid(data) {
-    const active = activeTasks();
     const projects = data.projects || [];
     if (projects.length === 0) {
       return `<div class="empty" style="padding:40px 0;text-align:center">
@@ -626,16 +763,33 @@ export function createDashboard(deps) {
         </div>
       </div>`;
     }
+    // Single-pass: build per-project active/done/overdue counts to avoid O(projects x tasks)
+    const today = todayStr();
+    const activeByProject = new Map();
+    const overdueByProject = new Map();
+    const doneByProject = new Map();
+    for (const t of data.tasks) {
+      if (!t.project || t.archived) continue;
+      if (t.status === 'done') {
+        doneByProject.set(t.project, (doneByProject.get(t.project) || 0) + 1);
+      } else {
+        activeByProject.set(t.project, (activeByProject.get(t.project) || 0) + 1);
+        if (t.dueDate && t.dueDate < today) {
+          overdueByProject.set(t.project, (overdueByProject.get(t.project) || 0) + 1);
+        }
+      }
+    }
+
     let html = '<div class="project-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">';
     projects.forEach((p) => {
-      const pTasks = active.filter((t) => t.project === p.id);
-      const overdue = pTasks.filter((t) => t.dueDate && t.dueDate < todayStr());
-      const done = data.tasks.filter((t) => t.project === p.id && t.status === 'done' && !t.archived);
+      const activeCount = activeByProject.get(p.id) || 0;
+      const overdueCount = overdueByProject.get(p.id) || 0;
+      const doneCount = doneByProject.get(p.id) || 0;
       html += `<div class="project-grid-card" data-project="${esc(p.id)}" style="padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all 0.15s;border-left:3px solid ${p.color || 'var(--accent)'}">
         <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">${esc(p.name)}</div>
         ${p.description ? `<div style="font-size:12px;color:var(--text3);margin-bottom:8px">${esc(p.description)}</div>` : ''}
         <div style="font-size:11px;color:var(--text3)">
-          ${pTasks.length} active${done.length ? ' \u00b7 ' + done.length + ' done' : ''}${overdue.length ? ' \u00b7 <span style="color:var(--red)">' + overdue.length + ' overdue</span>' : ''}
+          ${activeCount} active${doneCount ? ' \u00b7 ' + doneCount + ' done' : ''}${overdueCount ? ' \u00b7 <span style="color:var(--red)">' + overdueCount + ' overdue</span>' : ''}
         </div>
       </div>`;
     });
@@ -703,6 +857,55 @@ export function createDashboard(deps) {
     }
   }
 
+  // --- Quick filters & filter bar helpers ---
+  function _hasActiveFilters(filters) {
+    if (!filters) return false;
+    return Object.keys(filters).some((k) => {
+      const v = filters[k];
+      return v !== '' && v !== undefined && v !== null && v !== false && !(Array.isArray(v) && v.length === 0);
+    });
+  }
+
+  function _renderQuickFilters(activeFilters) {
+    const today = todayStr();
+    const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const isUrgent = activeFilters.priority === 'urgent';
+    const isDueWeek = activeFilters.dueBefore === weekEnd && !activeFilters.dueAfter;
+    const isWaiting = activeFilters.status === 'waiting';
+    const isNoDate = activeFilters.noDate === true;
+    return `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" class="quick-filters">
+      <button class="btn btn-sm ${isUrgent ? 'btn-primary' : ''}" data-action="quick-filter" data-filter="urgent" style="font-size:11px;padding:4px 10px;border-radius:20px">Urgent</button>
+      <button class="btn btn-sm ${isDueWeek ? 'btn-primary' : ''}" data-action="quick-filter" data-filter="due-week" style="font-size:11px;padding:4px 10px;border-radius:20px">Due this week</button>
+      <button class="btn btn-sm ${isWaiting ? 'btn-primary' : ''}" data-action="quick-filter" data-filter="waiting" style="font-size:11px;padding:4px 10px;border-radius:20px">Waiting on</button>
+      <button class="btn btn-sm ${isNoDate ? 'btn-primary' : ''}" data-action="quick-filter" data-filter="no-date" style="font-size:11px;padding:4px 10px;border-radius:20px">No date</button>
+    </div>`;
+  }
+
+  function _renderFilterChips(filters) {
+    if (!_hasActiveFilters(filters)) return '';
+    const chips = [];
+    if (filters.status) chips.push({ label: 'Status: ' + filters.status, key: 'status' });
+    if (filters.priority) chips.push({ label: 'Priority: ' + filters.priority, key: 'priority' });
+    if (filters.project) {
+      const data = getData();
+      const proj = (data.projects || []).find((p) => p.id === filters.project);
+      chips.push({ label: 'Board: ' + (proj ? proj.name : filters.project), key: 'project' });
+    }
+    if (filters.tags && filters.tags.length) filters.tags.forEach((tag) => chips.push({ label: 'Tag: ' + tag, key: 'tag:' + tag }));
+    if (filters.dueBefore) chips.push({ label: 'Due before: ' + filters.dueBefore, key: 'dueBefore' });
+    if (filters.dueAfter) chips.push({ label: 'Due after: ' + filters.dueAfter, key: 'dueAfter' });
+    if (filters.hasSubtasks === true) chips.push({ label: 'Has subtasks', key: 'hasSubtasks' });
+    if (filters.hasSubtasks === false) chips.push({ label: 'No subtasks', key: 'hasSubtasks' });
+    if (filters.noDate === true) chips.push({ label: 'No due date', key: 'noDate' });
+    return `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center" class="filter-chips">
+      ${chips.map((ch) => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:var(--accent-dim);color:var(--accent);font-size:11px">
+        ${esc(ch.label)}
+        <button data-action="remove-filter-chip" data-chip-key="${esc(ch.key)}" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;padding:0;line-height:1" title="Remove filter" aria-label="Remove ${esc(ch.label)}">&times;</button>
+      </span>`).join('')}
+      <button data-action="clear-all-filters" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:2px 6px">Clear all</button>
+    </div>`;
+  }
+
   function _renderNow() {
     const data = getData();
     const currentView = getCurrentView();
@@ -734,6 +937,10 @@ export function createDashboard(deps) {
       '|' +
       getSectionShowCount('dash') +
       '|' +
+      (getSectionShowCount('all-tasks') || '') +
+      '|' +
+      (getSectionShowCount('completed') || '') +
+      '|' +
       getArchiveShowCount() +
       '|' +
       (getExpandedTask() || '') +
@@ -746,7 +953,11 @@ export function createDashboard(deps) {
       '|' +
       (getNudgeFilter ? getNudgeFilter() : '') +
       '|' +
-      (currentView === 'calendar' ? Date.now() : ''); // calendar always re-renders (offset changes)
+      (getActiveSavedViewId ? getActiveSavedViewId() || '' : '') +
+      '|' +
+      (getQuickFilters ? JSON.stringify(getQuickFilters()) : '') +
+      '|' +
+      (currentView === 'calendar' ? new Date().toISOString().slice(0, 10) : ''); // calendar re-renders once per day (not every tick)
     if (contentState === _lastContentState) {
       return;
     }
@@ -770,9 +981,23 @@ export function createDashboard(deps) {
           _renderNowProjectView(c, ha, data);
           break;
         case 'dump':
-          // Brainstorm opens as modal — redirect back to current view
-          openBrainstormModal();
-          return;
+          $('#viewTitle').textContent = 'Capture';
+          $('#viewSub').textContent = 'Write everything on your mind — AI will do the rest';
+          ha.innerHTML = '';
+          {
+            const dumpResult = renderDump();
+            const renderInline = (dumpHtml) => {
+              c.innerHTML = `<div style="max-width:640px;margin:0 auto;padding:8px 0">${dumpHtml}</div>`;
+              initDumpDropZone();
+            };
+            if (dumpResult && typeof dumpResult.then === 'function') {
+              c.innerHTML = '<div style="padding:24px;color:var(--text3)">Loading capture...</div>';
+              dumpResult.then(renderInline);
+            } else {
+              renderInline(dumpResult);
+            }
+          }
+          break;
         case 'calendar':
           $('#viewTitle').textContent = 'Calendar';
           $('#viewSub').textContent = '';
@@ -800,17 +1025,45 @@ export function createDashboard(deps) {
           break;
         case 'all-tasks': {
           $('#viewTitle').textContent = 'All Tasks';
-          const allActive = activeTasks();
-          $('#viewSub').textContent = `${allActive.length} active tasks`;
-          ha.innerHTML = '';
-          let atHtml = '';
-          const sorted = sortTasks(allActive);
-          sorted.forEach((t) => {
-            atHtml += renderTaskRow(t, true);
-          });
-          if (!sorted.length)
-            atHtml = '<div style="text-align:center;padding:40px;color:var(--text3)">No active tasks</div>';
+          const qf = getQuickFilters();
+          const hasFilters = _hasActiveFilters(qf);
+          let allBase = activeTasks();
+          if (hasFilters) allBase = applyFilters(allBase, qf);
+          $('#viewSub').textContent = `${allBase.length} active tasks`;
+          ha.innerHTML = hasFilters
+            ? '<button class="btn btn-sm" data-action="save-current-filter" style="font-size:11px;color:var(--accent)">Save view</button>'
+            : '';
+          let atHtml = _renderQuickFilters(qf);
+          atHtml += _renderFilterChips(qf);
+          const sorted = sortTasks(allBase);
+          if (!sorted.length) {
+            atHtml += '<div style="text-align:center;padding:40px;color:var(--text3)">No tasks match these filters</div>';
+          } else {
+            atHtml += renderTaskSlice(sorted, 'all-tasks', (t) => renderTaskRow(t, true));
+          }
           c.innerHTML = atHtml;
+          break;
+        }
+        case 'saved-view': {
+          const svId = getActiveSavedViewId();
+          const sv = (getSavedViews() || []).find((v) => v.id === svId);
+          if (!sv) {
+            setView('all-tasks');
+            return;
+          }
+          $('#viewTitle').textContent = sv.name;
+          let svBase = data.tasks.filter((t) => !t.archived);
+          svBase = applyFilters(svBase, sv.filters);
+          $('#viewSub').textContent = `${svBase.length} tasks`;
+          ha.innerHTML = '<button class="btn btn-sm" data-action="delete-saved-view" data-view-id="' + svId + '" style="font-size:11px;color:var(--red)">Delete view</button>';
+          let svHtml = _renderFilterChips(sv.filters);
+          const svSorted = sortTasks(svBase);
+          svSorted.forEach((t) => {
+            svHtml += renderTaskRow(t, true);
+          });
+          if (!svSorted.length)
+            svHtml += '<div style="text-align:center;padding:40px;color:var(--text3)">No tasks match this view</div>';
+          c.innerHTML = svHtml;
           break;
         }
         case 'completed': {
@@ -823,13 +1076,11 @@ export function createDashboard(deps) {
             const bD = b.completedAt || '0';
             return bD.localeCompare(aD); // newest first
           });
-          let compHtml = '';
-          byDate.forEach((t) => {
-            compHtml += renderTaskRow(t, true);
-          });
-          if (!byDate.length)
-            compHtml = '<div style="text-align:center;padding:40px;color:var(--text3)">No completed tasks yet</div>';
-          c.innerHTML = compHtml;
+          if (!byDate.length) {
+            c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)">No completed tasks yet</div>';
+          } else {
+            c.innerHTML = renderTaskSlice(byDate, 'completed', (t) => renderTaskRow(t, true));
+          }
           break;
         }
         case 'archive':
@@ -1029,10 +1280,10 @@ export function createDashboard(deps) {
     const val = e.target.value.trim();
     if (!val) return;
 
-    // Shift+Enter → open brainstorm modal with the text
+    // Shift+Enter → navigate to capture view with the text
     if (e.shiftKey) {
       e.target.value = '';
-      openBrainstormModal();
+      setView('dump');
       setTimeout(() => {
         const dt = document.getElementById('dumpText');
         if (dt) {
@@ -1328,6 +1579,7 @@ export function createDashboard(deps) {
     return `<div style="display:flex;gap:8px;margin-top:12px;align-items:center">
       <button data-action="replan-day" class="briefing-generate" style="color:var(--accent);font-size:11px">\u21bb Replan</button>
       <button data-action="add-to-plan" class="briefing-generate" style="font-size:11px">+ Add to plan</button>
+      <button data-action="share-plan" class="briefing-generate" style="font-size:11px">\u2197 Share</button>
     </div>`;
   }
 
@@ -1496,6 +1748,135 @@ export function createDashboard(deps) {
     </div>`;
   }
 
+  // ── Share helpers ───────────────────────────────────────────────
+
+  function _statusIcon(status) {
+    if (status === 'done') return '\u2713';
+    if (status === 'in-progress') return '\u25d0';
+    if (status === 'waiting') return '\u23f8';
+    return '\u25cb';
+  }
+
+  async function _shareText(text) {
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        // User cancelled or share failed — fall through to clipboard
+        if (err.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Plan copied to clipboard');
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast('Plan copied to clipboard');
+    }
+  }
+
+  function shareTodaysPlan() {
+    const today = todayStr();
+    const planKey = userKey('whiteboard_plan_' + today);
+    const narrativeKey = userKey('whiteboard_narrative_' + today);
+    const cachedPlan = localStorage.getItem(planKey);
+    const cachedNarrative = localStorage.getItem(narrativeKey);
+    if (!cachedPlan) {
+      showToast('No plan to share — plan your day first');
+      return;
+    }
+
+    const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    let lines = [`My plan for ${dateLabel}`, ''];
+
+    if (cachedNarrative) {
+      lines.push(cachedNarrative, '');
+    }
+
+    let totalRemaining = 0;
+
+    try {
+      const raw = JSON.parse(cachedPlan);
+      if (raw && raw.blocks) {
+        // Time-blocked format
+        raw.blocks.forEach((block) => {
+          if (block.isBreak) {
+            lines.push(`${block.time || ''}  ${block.label || 'Break'}`);
+            return;
+          }
+          const blockHeader = [block.time, block.label, block.projectName].filter(Boolean).join(' \u2014 ');
+          lines.push(blockHeader);
+          (block.tasks || []).forEach((p) => {
+            const t = findTask(p.id);
+            if (!t) return;
+            const icon = _statusIcon(t.status);
+            const est = t.estimatedMinutes ? ` (~${t.estimatedMinutes}m)` : '';
+            lines.push(`  ${icon} ${t.title}${est}`);
+            if (t.status !== 'done') totalRemaining += t.estimatedMinutes || 0;
+          });
+          lines.push('');
+        });
+      } else {
+        // Flat format
+        const plan = Array.isArray(raw) ? raw : [];
+        plan.forEach((p) => {
+          const t = findTask(p.id);
+          if (!t) return;
+          const icon = _statusIcon(t.status);
+          const est = t.estimatedMinutes ? ` (~${t.estimatedMinutes}m)` : '';
+          lines.push(`${icon} ${t.title}${est}`);
+          if (t.status !== 'done') totalRemaining += t.estimatedMinutes || 0;
+        });
+        lines.push('');
+      }
+    } catch {
+      showToast('Could not read plan data', true);
+      return;
+    }
+
+    if (totalRemaining > 0) {
+      const hours = Math.round((totalRemaining / 60) * 10) / 10;
+      lines.push(`~${hours}h remaining`);
+    }
+
+    _shareText(lines.join('\n').trim());
+  }
+
+  function shareFocusRecommendation(taskId) {
+    const t = findTask(taskId);
+    if (!t) {
+      showToast('Task not found');
+      return;
+    }
+    const data = getData();
+    const proj = data.projects.find((p) => p.id === t.project);
+    const projName = proj ? proj.name : '';
+
+    let lines = ['Currently working on:', ''];
+    lines.push(t.title);
+    if (projName) lines.push(`Board: ${projName}`);
+    if (t.dueDate) {
+      const d = new Date(t.dueDate + 'T12:00:00');
+      lines.push(`Due: ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`);
+    }
+    if (t.estimatedMinutes) lines.push(`Estimate: ~${t.estimatedMinutes}m`);
+    if (t.subtasks && t.subtasks.length) {
+      const done = t.subtasks.filter((s) => s.done).length;
+      lines.push(`Progress: ${done}/${t.subtasks.length} subtasks`);
+    }
+
+    _shareText(lines.join('\n').trim());
+  }
+
   // ── Focus Card: "What should I do right now?" ────────────────────
   let _focusSkippedIds = [];
 
@@ -1534,7 +1915,19 @@ export function createDashboard(deps) {
       });
     } catch { /* */ }
 
+    // First-time tooltip for the focus card
+    const _focusTipKey = userKey('wb_focus_tip_seen');
+    const _showFocusTip = !localStorage.getItem(_focusTipKey);
+
     html += `<div class="focus-card" style="position:relative;padding:28px 24px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-left:4px solid ${borderColor};border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,0.04)">`;
+
+    if (_showFocusTip) {
+      html += `<div id="focusTip" style="position:absolute;top:-44px;left:16px;right:16px;background:var(--accent);color:#fff;font-size:12px;line-height:1.5;padding:8px 14px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.12);z-index:10;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span>This is your AI recommendation — what to do next and why.</span>
+        <span data-action="dismiss-focus-tip" style="cursor:pointer;opacity:0.8;flex-shrink:0;font-weight:600">&times;</span>
+        <div style="position:absolute;bottom:-6px;left:24px;width:12px;height:12px;background:var(--accent);transform:rotate(45deg)"></div>
+      </div>`;
+    }
 
     // Top line — subtle context
     html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -1572,6 +1965,7 @@ export function createDashboard(deps) {
       <button class="btn btn-primary btn-sm" data-action="focus-start" data-task-id="${t.id}" style="padding:8px 20px;font-size:13px">Let's do it</button>
       <button class="btn btn-sm" data-action="focus-skip" data-task-id="${t.id}" style="color:var(--text3);font-size:13px">Not now</button>
       <button class="btn btn-sm" data-action="focus-talk" data-task-id="${t.id}" style="color:var(--accent);font-size:13px">\u2726 Talk to me about this</button>
+      <button class="btn btn-sm" data-action="share-focus" data-task-id="${t.id}" style="color:var(--text3);font-size:13px">\u2197 Share</button>
     </div>`;
 
     // "After this" peek
@@ -1587,7 +1981,7 @@ export function createDashboard(deps) {
     const data = getData();
     const active = activeTasks();
 
-    // First-time onboarding — compelling hero with brainstorm textarea
+    // First-time onboarding — welcoming hero with brainstorm textarea front-and-center
     if (data.tasks.length === 0 && data.projects.length <= 1) {
       const _guest = typeof isGuestMode === 'function' && isGuestMode();
       const _guestBadge = _guest
@@ -1595,13 +1989,14 @@ export function createDashboard(deps) {
         : '';
       return `<div style="max-width:560px;margin:32px auto;text-align:center">
         ${_guestBadge}
-        <h1 style="font-size:26px;font-weight:700;color:var(--text);margin:0 0 8px;line-height:1.3">Brain dump everything.<br>AI handles the rest.</h1>
-        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:24px;max-width:440px;margin-left:auto;margin-right:auto">Paste meeting notes, speak your thoughts, or just type. AI organizes it into tasks and tells you what to do first.</p>
+        <h1 style="font-size:26px;font-weight:700;color:var(--text);margin:0 0 8px;line-height:1.3">Welcome! What's on your mind?</h1>
+        <p style="font-size:14px;color:var(--text3);line-height:1.6;margin-bottom:24px;max-width:440px;margin-left:auto;margin-right:auto">Paste your to-do list, brain dump, or just type what you're working on. AI organizes it into tasks and tells you what to do first.</p>
         <div style="text-align:left">
           <textarea id="onboardDump" aria-label="Brain dump — paste notes, ideas, plans" style="width:100%;min-height:160px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:14px;color:var(--text);font-family:inherit;resize:vertical;outline:none;line-height:1.6;box-sizing:border-box" placeholder="Example: Finish the Q2 report by Friday, call dentist, pick up groceries, prep slides for Monday's meeting, reply to Sarah's email about the project timeline..."></textarea>
-          <div style="display:flex;gap:12px;margin-top:14px;align-items:center">
+          <div style="display:flex;gap:12px;margin-top:14px;align-items:center;flex-wrap:wrap">
             <button class="btn btn-primary" data-action="onboard-process" style="padding:12px 24px;font-size:14px;font-weight:600">Organize this &rarr;</button>
             <span style="font-size:12px;color:var(--text3)">or <span style="color:var(--accent);cursor:pointer" data-action="go-dump">attach files</span></span>
+            <span style="font-size:12px;color:var(--text3);margin-left:auto;cursor:pointer" data-action="onboard-skip">Skip for now</span>
           </div>
         </div>
       </div>`;
@@ -1715,6 +2110,8 @@ export function createDashboard(deps) {
     renderMemoryInsightsCard,
     invalidateRenderMemo,
     openBrainstormModal,
+    shareTodaysPlan,
+    shareFocusRecommendation,
     _addFocusSkip: (id) => { _focusSkippedIds.push(id); },
     _resetFocusSkips: () => { _focusSkippedIds = []; },
   };

@@ -263,6 +263,24 @@ export function createCommandPalette(deps) {
         },
       },
       {
+        icon: '\u{1F4C5}',
+        label: 'Calendar',
+        hint: '',
+        action: () => {
+          closeModal();
+          setView('calendar');
+        },
+      },
+      {
+        icon: '\u2630',
+        label: 'All Tasks',
+        hint: '',
+        action: () => {
+          closeModal();
+          setView('all-tasks');
+        },
+      },
+      {
         icon: '\u2605',
         label: 'Weekly Review',
         hint: 'W',

@@ -286,10 +286,31 @@ export function createChat(deps) {
     const settings = getSettings();
     // Build system prompt and truncate to stay under API limit (16K chars)
     const MAX_SYSTEM_CHARS = 15000;
+
+    // If in task-work mode, inject focused task context into the system prompt
+    let taskWorkPreamble = '';
+    if (_taskWorkId) {
+      const twTask = findTask(_taskWorkId);
+      if (twTask) {
+        const twData = getData();
+        const twProj = twData.projects.find((p) => p.id === twTask.project);
+        const twSubtasks = twTask.subtasks?.length
+          ? '\nSubtasks:\n' + twTask.subtasks.map((s) => (s.done ? '\u2713' : '\u25CB') + ' ' + s.title + (s.notes ? ' (' + s.notes + ')' : '')).join('\n')
+          : '';
+        taskWorkPreamble = `\nYou are in TASK-WORK MODE — focused on helping the user complete a specific task. You have permission to CREATE subtasks, UPDATE notes with drafted content, ADD related tasks, and SPLIT tasks.
+
+FOCUSED TASK: "${twTask.title}"
+Priority: ${twTask.priority} | Status: ${twTask.status}${twTask.dueDate ? ' | Due: ' + twTask.dueDate : ''}
+${twTask.notes ? 'Notes: ' + twTask.notes : ''}${twProj ? '\nProject: ' + twProj.name : ''}${twSubtasks}
+
+After each response, proactively suggest the next step and offer to create it as a subtask.\n\n`;
+      }
+    }
+
     const preamble = `${AI_PERSONA}
 
 ${AI_ACTIONS_SPEC}
-
+${taskWorkPreamble}
 BEHAVIOR:
 - If they want something done → DO IT immediately with actions. Brief confirmation only.
 - If they're thinking/unsure → Help them clarify before creating tasks.
@@ -411,6 +432,7 @@ RULES:
       const reply = fullText;
       chatHistory.push({ role: 'assistant', content: reply, ts: Date.now() });
       saveChatHistory();
+      if (_taskWorkId) _saveTaskWorkHistory(_taskWorkId);
       incrementAIInteraction();
 
       const { applied, insights } = await executeAIActions(reply);
@@ -537,7 +559,7 @@ Be curious, not prescriptive. 2-3 sentences. Ask a real question.`;
       : '';
     const projBg = proj?.background ? '\nProject background:\n' + proj.background.slice(0, 500) : '';
 
-    const taskWorkPrompt = `You are helping the user work on a specific task. Your job is to help them actually COMPLETE it, not just organize it.
+    const taskWorkPrompt = `You are an agentic productivity partner helping the user actually DO a specific task — not just organize it. You have permission and are expected to take action: CREATE subtasks, UPDATE task notes with drafted content, ADD related tasks, and SPLIT tasks when appropriate.
 
 TASK: "${t.title}"
 Priority: ${t.priority}${t.priorityReason ? ' (' + t.priorityReason + ')' : ''}
@@ -547,16 +569,21 @@ ${t.notes ? 'Notes: ' + t.notes : ''}
 ${proj ? 'Project: ' + proj.name + (proj.description ? ' - ' + proj.description : '') : ''}${projBg}${subtaskInfo}${depInfo}
 ${t.estimatedMinutes ? 'Estimated: ' + t.estimatedMinutes + ' minutes' : ''}
 
-YOUR APPROACH:
-1. Think through what's actually needed to DO this task — not just track it
-2. Research using your knowledge: dates, deadlines, costs, best practices, processes
-3. Create SPECIFIC, actionable next steps. Not "research X" but "Search [specific site] for [specific criteria]"
-4. Draft content if needed: emails, messages, search criteria, checklists
-5. Generate useful links/URLs where possible
-6. Save findings as subtask notes so nothing is lost
+MODES YOU CAN HELP WITH:
+- **Break this down**: Decompose into concrete subtasks with notes/context on each
+- **Draft content**: Write emails, messages, outlines, checklists — save them into task/subtask notes
+- **Research**: Provide best practices, processes, costs, timelines, and specific recommendations
+- **Think through it**: Brainstorm, unblock, identify risks, challenge assumptions
 
-Be specific, practical, and proactive. Lead with what you'd do RIGHT NOW if this were your task.
-Use actions to create subtasks, update notes, etc.
+YOUR APPROACH:
+1. Assess what's actually needed to COMPLETE this task — not just track it
+2. Take action immediately: create subtasks, update notes with drafted content, add related tasks
+3. Be SPECIFIC: not "research X" but "Here are the 3 options for X with pros/cons" saved as subtask notes
+4. After each action, proactively suggest the logical next step and offer to create it as a subtask
+5. Draft real content (emails, plans, checklists) and save it into task/subtask notes so nothing is lost
+6. If the task is too vague, ask ONE clarifying question then proceed with your best interpretation
+
+IMPORTANT: After helping, ALWAYS suggest 1-2 concrete next steps and offer to create them. Example: "Want me to create a subtask for [specific next step]?"
 
 ${AI_ACTIONS_SPEC}`;
 
@@ -602,7 +629,7 @@ ${AI_ACTIONS_SPEC}`;
 
       try {
         const reply = await callAI(
-          `${taskWorkPrompt}\n\nHelp me work on this task. Research what's needed, create specific actionable steps, and tell me what to do first.`,
+          `${taskWorkPrompt}\n\nThe user just opened "Work on this with me" for this task. Start by briefly assessing what this task needs, then offer: "I can help you: **break this down** into steps, **draft content** (emails, plans, outlines), **research** what's needed, or just **think through it** together. What do you need?" — then immediately take the most obvious helpful action (e.g., if the task has no subtasks, suggest a breakdown). Be concise.`,
           { maxTokens: 16384, temperature: 0.3 },
         );
 

@@ -441,18 +441,20 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('Brain dump everything');
+      expect(html).toContain('Welcome');
       expect(html).toContain('onboardDump');
       expect(html).toContain('data-action="onboard-process"');
     });
 
-    it('shows attach files link in onboarding', () => {
+    it('shows attach files and skip links in onboarding', () => {
       deps.getData.mockReturnValue({ tasks: [], projects: [] });
       deps.activeTasks.mockReturnValue([]);
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
       expect(html).toContain('attach files');
+      expect(html).toContain('data-action="onboard-skip"');
+      expect(html).toContain('Skip for now');
     });
 
     it('shows clean greeting without badge noise', () => {
@@ -897,12 +899,8 @@ describe('dashboard.js — createDashboard()', () => {
       expect(deps.setView).toHaveBeenCalledWith('dashboard');
     });
 
-    it('renders dump view as brainstorm modal', () => {
+    it('renders dump view inline', () => {
       setupDomForRenderNow();
-      // Add modalRoot for brainstorm modal
-      const modalRoot = document.createElement('div');
-      modalRoot.id = 'modalRoot';
-      document.body.appendChild(modalRoot);
       deps.getData.mockReturnValue({ tasks: [], projects: [] });
       deps.getCurrentView.mockReturnValue('dump');
       deps.activeTasks.mockReturnValue([]);
@@ -916,8 +914,9 @@ describe('dashboard.js — createDashboard()', () => {
       dashboard = createDashboard(deps);
 
       dashboard._renderNow();
-      // Dump view opens brainstorm modal (local function)
-      expect(modalRoot.innerHTML).toContain('Brainstorm');
+      // Dump view renders inline in the content area
+      const content = document.getElementById('content');
+      expect(content.innerHTML).toContain('brainstorm');
     });
 
     it('renders review view', () => {
@@ -2167,9 +2166,9 @@ describe('dashboard.js — additional coverage', () => {
     });
   });
 
-  // ── _renderNow dump view redirects to dashboard (brainstorm is now modal) ──
+  // ── _renderNow dump view renders inline capture ──
   describe('_renderNow dump view async', () => {
-    it('dump view redirects to dashboard and opens brainstorm modal', () => {
+    it('dump view renders capture inline', () => {
       document.body.innerHTML = `
         <div id="projectList"></div>
         <div id="archiveBadge"></div>
@@ -2186,7 +2185,7 @@ describe('dashboard.js — additional coverage', () => {
       deps.getCurrentView.mockReturnValue('dump');
       deps.activeTasks.mockReturnValue([]);
       deps.archivedTasks.mockReturnValue([]);
-      deps.renderDump.mockReturnValue('<div>dump content</div>');
+      deps.renderDump.mockReturnValue('<div>brainstorm content</div>');
       deps.getBrainstormModule.mockReturnValue({
         isDumpInProgress: () => false,
         getDumpHistory: () => [],
@@ -2194,11 +2193,10 @@ describe('dashboard.js — additional coverage', () => {
       });
       dashboard = createDashboard(deps);
 
-      deps.renderDump.mockReturnValue('<div>brainstorm</div>');
       dashboard._renderNow();
-      // Dump view opens brainstorm modal (local function)
-      const modal = document.getElementById('modalRoot');
-      expect(modal.innerHTML).toContain('Brainstorm');
+      // Dump view renders inline in the content area
+      const content = document.getElementById('content');
+      expect(content.innerHTML).toContain('brainstorm content');
     });
   });
 
@@ -2396,7 +2394,7 @@ describe('dashboard.js — additional coverage', () => {
       dashboard = createDashboard(deps);
 
       const html = dashboard.renderDashboard();
-      expect(html).toContain('Brain dump everything');
+      expect(html).toContain('Welcome');
       expect(html).toContain('onboardDump');
       expect(html).toContain('data-action="onboard-process"');
     });

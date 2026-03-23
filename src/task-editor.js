@@ -141,11 +141,14 @@ export function createTaskEditor(deps) {
     </div>
     <div class="task-tags">
       ${proj ? `<span class="tag tag-project" style="border-left:2px solid ${proj.color};padding-left:6px">${esc(proj.name)}</span>` : ''}
+      ${!isDone ? `<span class="status-pill status-pill--${t.status || 'todo'}" data-action="cycle-status" data-task-id="${t.id}" role="button" tabindex="0" title="Click to change status">${t.status === 'in-progress' ? '\u25b6 Active' : t.status === 'waiting' ? '\u23f8 Waiting' : '\u25cb To Do'}</span>` : ''}
       ${t.dueDate ? `<span class="tag tag-date${t.status !== 'done' && t.dueDate < todayStr() ? ' overdue' : ''}" style="font-size:10px">${fmtDate(t.dueDate)}</span>` : ''}
       ${t.recurrence ? `<span class="tag" style="font-size:10px;color:var(--text3)">\u21bb ${t.recurrence}</span>` : ''}
       ${t.estimatedMinutes ? `<span style="font-size:10px;color:var(--text3)">${fmtEstimate(t.estimatedMinutes)}</span>` : ''}
     </div>
     <div class="task-actions">
+      ${!isDone && hasAI() ? `<button class="task-action-btn" title="Break this down with AI" aria-label="Break down task" data-action="breakdown-task" data-task-id="${t.id}" style="font-size:11px">\u2726</button>` : ''}
+      ${!isDone && t.status !== 'in-progress' ? `<button class="task-action-btn" title="Start working" aria-label="Start task" data-action="start-task" data-task-id="${t.id}">\u25b6</button>` : ''}
       ${!isDone ? `<button class="task-action-btn" title="Defer to tomorrow" aria-label="Defer task" data-action="defer-task" data-task-id="${t.id}">\u21b7</button>` : ''}
       <button class="task-action-btn" title="Edit" aria-label="Edit task" data-action="edit-task" data-task-id="${t.id}">\u270e</button>
       ${!isDone ? `<button class="task-action-btn" title="Done" aria-label="Mark task done" data-action="complete-task" data-task-id="${t.id}">\u2713</button>` : ''}
@@ -229,7 +232,8 @@ export function createTaskEditor(deps) {
       <input class="task-cmd" data-cmd="${t.id}" placeholder="done, defer, urgent, due friday, move to [board], or ask anything..." aria-label="Task command input" data-keydown-action="run-task-cmd" data-task-id="${t.id}" style="flex:1">
       <button class="btn btn-sm btn-ghost" data-action="attach-task-file" data-task-id="${t.id}" style="white-space:nowrap;flex-shrink:0" title="Attach file">📎 Attach</button>
       <input type="file" data-onchange-action="task-file-selected" data-task-id="${t.id}" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.jpg,.jpeg,.png,.gif,.zip" style="display:none" class="task-file-input">
-      ${!isDone ? `<button class="btn btn-sm" data-action="task-work" data-task-id="${t.id}" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);flex-shrink:0">\u2726 Help me work on this</button>` : ''}
+      ${!isDone && hasAI() ? `<button class="btn btn-sm btn-ghost" data-action="breakdown-task" data-task-id="${t.id}" style="white-space:nowrap;flex-shrink:0">\u2726 Break down</button>` : ''}
+      ${!isDone ? `<button class="btn btn-sm" data-action="task-work" data-task-id="${t.id}" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);flex-shrink:0">\u2726 Work on this with me</button>` : ''}
     </div>
   </div>`;
     return html;

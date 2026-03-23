@@ -226,7 +226,8 @@ select:focus-visible {
   padding: 24px 0;
   overscroll-behavior: contain;
   contain: layout style;
-  will-change: transform;
+  will-change: width, min-width;
+  overflow: hidden;
 }
 
 .sidebar-logo {
@@ -497,7 +498,7 @@ select:focus-visible {
   flex: 1;
   overflow-y: auto;
   padding: 28px 36px;
-  animation: contentFade 0.15s ease-out;
+  animation: contentFade 0.2s ease-out;
   overscroll-behavior: contain;
   contain: layout style;
 }
@@ -506,6 +507,19 @@ select:focus-visible {
   from {
     opacity: 0;
     transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.content.view-switching {
+  animation: viewTransition 0.2s ease-out;
+}
+@keyframes viewTransition {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -854,6 +868,20 @@ h3.section-title {
 .task-row:hover {
   background: var(--surface2);
 }
+.task-row.task-completing {
+  animation: taskCompleteDone 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes taskCompleteDone {
+  0% {
+    background: transparent;
+  }
+  30% {
+    background: rgba(34, 197, 94, 0.15);
+  }
+  100% {
+    background: transparent;
+  }
+}
 
 .task-row .task-actions {
   display: flex;
@@ -1055,6 +1083,34 @@ h3.section-title {
   border-radius: 4px;
   font-weight: 600;
   letter-spacing: 0.3px;
+}
+
+/* Status pill on collapsed task rows */
+.status-pill {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.1s;
+  white-space: nowrap;
+}
+.status-pill:hover {
+  opacity: 0.8;
+}
+.status-pill--todo {
+  background: rgba(168, 162, 158, 0.12);
+  color: var(--text3);
+}
+.status-pill--in-progress {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--blue);
+}
+.status-pill--waiting {
+  background: rgba(234, 179, 8, 0.12);
+  color: #ca8a04;
 }
 
 .tag-urgent {
@@ -1626,16 +1682,23 @@ h3.section-title {
   align-items: center;
   justify-content: center;
   z-index: var(--z-modal);
-  animation: fadeIn 0.12s;
+  animation: modalOverlayIn 0.2s ease-out;
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   transition: opacity 0.15s;
   will-change: opacity;
 }
 
-@keyframes fadeIn {
+@keyframes modalOverlayIn {
   from {
     opacity: 0;
+    -webkit-backdrop-filter: blur(0);
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
   }
 }
 
@@ -1647,7 +1710,7 @@ h3.section-title {
   max-height: 85vh;
   overflow-y: auto;
   padding: 28px;
-  animation: slideUp 0.2s;
+  animation: modalContentIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--shadow-lg);
   transition:
     transform 0.15s,
@@ -1656,10 +1719,14 @@ h3.section-title {
   contain: layout style;
 }
 
-@keyframes slideUp {
+@keyframes modalContentIn {
   from {
-    transform: translateY(8px);
     opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -1762,7 +1829,7 @@ h3.section-title {
 
 .toast.leaving {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateX(40px);
 }
 .toast.error {
   border-color: var(--red);
@@ -2760,7 +2827,10 @@ h3.section-title {
   gap: 8px;
 }
 .kanban-card.dragging {
-  opacity: 0.4;
+  opacity: 0.6;
+  transform: rotate(2deg) scale(1.03);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 .kanban-col.drag-over {
   border-color: var(--accent);
@@ -2918,7 +2988,17 @@ h3.section-title {
     padding: 20px !important;
   }
   .kanban {
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    gap: 12px !important;
+    padding-bottom: 8px;
+  }
+  .kanban-col {
+    min-width: 75vw;
+    flex-shrink: 0;
+    scroll-snap-align: start;
   }
   .cal-cell {
     min-height: 60px;
@@ -5581,17 +5661,25 @@ h3.section-title {
   .task-check.done,
   .task-check.haptic,
   .task-row.task-new,
+  .task-row.task-completing,
   .streak-animate,
   .toast,
   .pull-spinner,
-  .modal {
+  .modal,
+  .modal-overlay,
+  .content,
+  .content.view-switching {
     animation: none !important;
   }
   .stat-card:hover,
   .project-grid-card:hover,
   .briefing-card:hover,
-  .today-card:hover {
+  .today-card:hover,
+  .kanban-card.dragging {
     transform: none !important;
+  }
+  .sidebar {
+    transition: none !important;
   }
 }
 
@@ -6178,6 +6266,23 @@ h3.section-title {
 /* Expanded tasks break out of grid to full width */
 .wb-grid > .task-expanded {
   grid-column: 1 / -1;
+}
+/* ── Drag-to-reorder in list view ──────────────────────────────── */
+.wb-card.dragging {
+  opacity: 0.35;
+  transform: scale(0.97);
+}
+.wb-card.drag-over-before {
+  box-shadow: 0 -3px 0 0 var(--accent);
+}
+.wb-card.drag-over-after {
+  box-shadow: 0 3px 0 0 var(--accent);
+}
+.wb-card[draggable='true'] {
+  cursor: grab;
+}
+.wb-card[draggable='true']:active {
+  cursor: grabbing;
 }
 @media (max-width: 768px) {
   .wb-grid {

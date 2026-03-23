@@ -441,8 +441,8 @@ export function createAIContext(deps) {
   // --- Context Builder ---
 
   // Render a single active task line
-  function _renderActiveTask(t, data, notesCap) {
-    const proj = data.projects.find((p) => p.id === t.project);
+  function _renderActiveTask(t, data, notesCap, projectMap) {
+    const proj = projectMap ? projectMap.get(t.project) : data.projects.find((p) => p.id === t.project);
     return `  - [${t.priority}${t.status === 'waiting' ? '/WAITING' : ''}${t.status === 'in-progress' ? '/WIP' : ''}${isBlocked(t) ? '/BLOCKED' : ''}] <task>${t.title}</task>${proj ? ' {' + proj.name + '}' : ''}${t.dueDate ? ' due:' + t.dueDate : ''}${t.notes ? ' — <notes>' + t.notes.slice(0, notesCap) + '</notes>' : ''}${t.subtasks?.length ? ' [' + t.subtasks.filter((s) => s.done).length + '/' + t.subtasks.length + ' sub]' : ''}${
       t.blockedBy?.length
         ? ' [blocked by: ' +
@@ -458,7 +458,7 @@ export function createAIContext(deps) {
   }
 
   // Render active tasks section with configurable notes cap, age filter, and priority filter
-  function _buildActiveTasksSection(data, opts = {}) {
+  function _buildActiveTasksSection(data, opts = {}, projectMap) {
     const { notesCap = 300, maxAgeDays = null, dropLowPriority = false } = opts;
     let allActiveTasks = data.tasks
       .filter((t) => t.status !== 'done')
@@ -482,13 +482,13 @@ export function createAIContext(deps) {
     if (allActiveTasks.length > 100)
       s += `  (showing 100 of ${allActiveTasks.length} — ${allActiveTasks.length - 100} older tasks omitted)\n`;
     cappedTasks.forEach((t) => {
-      s += _renderActiveTask(t, data, effectiveNotesCap);
+      s += _renderActiveTask(t, data, effectiveNotesCap, projectMap);
     });
     return s;
   }
 
   // Render completed tasks section
-  function _buildCompletedTasksSection(data, notesCap = 200) {
+  function _buildCompletedTasksSection(data, notesCap = 200, projectMap) {
     const allDoneTasks = data.tasks
       .filter((t) => t.status === 'done')
       .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
@@ -496,7 +496,7 @@ export function createAIContext(deps) {
     const cappedDone = allDoneTasks.slice(0, 50);
     let s = `\nCOMPLETED TASKS (${allDoneTasks.length} total${allDoneTasks.length > 50 ? ', showing 50 most recent' : ''}):\n`;
     cappedDone.forEach((t) => {
-      const proj = data.projects.find((p) => p.id === t.project);
+      const proj = projectMap ? projectMap.get(t.project) : data.projects.find((p) => p.id === t.project);
       s += `  - \u2713 <task>${t.title}</task>${proj ? ' {' + proj.name + '}' : ''}${t.completedAt ? ' (done ' + t.completedAt.slice(0, 10) + ')' : ''}${t.notes ? ' — <notes>' + t.notes.slice(0, notesCap) + '</notes>' : ''}\n`;
     });
     return s;
@@ -506,11 +506,13 @@ export function createAIContext(deps) {
     const data = getData();
     const today = todayStr();
     const hour = new Date().getHours();
+    // O(1) project lookup map — avoids O(n) find() per task
+    const projectMap = new Map(data.projects.map((p) => [p.id, p]));
 
     if (detail === 'minimal') {
       const active = data.tasks.filter((t) => t.status !== 'done');
       const overdue = active.filter((t) => t.dueDate && t.dueDate < today);
-      const proj = projectId ? data.projects.find((p) => p.id === projectId) : null;
+      const proj = projectId ? projectMap.get(projectId) : null;
       return `Today: ${today} (${new Date().toLocaleDateString('en-US', { weekday: 'long' })}), ${hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}. ${active.length} active tasks, ${overdue.length} overdue.${proj ? ' Project: ' + proj.name + '.' : ''}`;
     }
 
@@ -622,7 +624,7 @@ export function createAIContext(deps) {
     let completedTasksSection = '';
 
     if (scope === 'project' && projectId) {
-      const p = data.projects.find((x) => x.id === projectId);
+      const p = projectMap.get(projectId);
       if (p) {
         const tasks = projectTasks(p.id);
         const active = tasks.filter((t) => t.status !== 'done');
@@ -648,8 +650,8 @@ export function createAIContext(deps) {
         const urg = active.filter((t) => t.priority === 'urgent' || (t.dueDate && t.dueDate <= today));
         boardsSection += `  ${p.name}: ${active.length} active${urg.length ? ', ' + urg.length + ' urgent' : ''}, ${done.length} done${p.description ? ' — ' + p.description.slice(0, 80) : ''}\n`;
       });
-      activeTasksSection = _buildActiveTasksSection(data);
-      completedTasksSection = _buildCompletedTasksSection(data);
+      activeTasksSection = _buildActiveTasksSection(data, {}, projectMap);
+      completedTasksSection = _buildCompletedTasksSection(data, 200, projectMap);
     }
 
     // --- Assemble with smart truncation ---
@@ -673,8 +675,8 @@ export function createAIContext(deps) {
     }
 
     // Strategy 1: Truncate per-task notes to 50 chars
-    activeTasksSection = _buildActiveTasksSection(data, { notesCap: 50 });
-    completedTasksSection = _buildCompletedTasksSection(data, 50);
+    activeTasksSection = _buildActiveTasksSection(data, { notesCap: 50 }, projectMap);
+    completedTasksSection = _buildCompletedTasksSection(data, 50, projectMap);
     total = fixedLen + activeTasksSection.length + completedTasksSection.length;
     if (total <= budget) {
       return fixedSections + activeTasksSection + completedTasksSection;
@@ -688,14 +690,14 @@ export function createAIContext(deps) {
     }
 
     // Strategy 3: Drop tasks older than 30 days (notes still capped at 50)
-    activeTasksSection = _buildActiveTasksSection(data, { notesCap: 50, maxAgeDays: 30 });
+    activeTasksSection = _buildActiveTasksSection(data, { notesCap: 50, maxAgeDays: 30 }, projectMap);
     total = fixedLen + activeTasksSection.length;
     if (total <= budget) {
       return fixedSections + activeTasksSection;
     }
 
     // Strategy 4: Also drop low-priority tasks
-    activeTasksSection = _buildActiveTasksSection(data, { notesCap: 50, maxAgeDays: 30, dropLowPriority: true });
+    activeTasksSection = _buildActiveTasksSection(data, { notesCap: 50, maxAgeDays: 30, dropLowPriority: true }, projectMap);
     total = fixedLen + activeTasksSection.length;
     if (total <= budget) {
       return fixedSections + activeTasksSection;

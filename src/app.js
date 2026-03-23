@@ -118,6 +118,8 @@ const TASKS_PER_PAGE = 50;
 const _sectionShowCount = {};
 let _archiveShowCount = 50;
 let _todayBriefingExpanded = false;
+let _activeSavedViewId = null;
+let _quickFilters = {}; // { status, priority, project, tags, dueBefore, dueAfter, hasSubtasks, noDate }
 // eslint-disable-next-line prefer-const
 let _renderNow;
 let kbIdx = -1;
@@ -242,6 +244,11 @@ const unarchiveTask = (id) => _dataLayer.unarchiveTask(id);
 const deleteArchivedPermanently = () => _dataLayer.deleteArchivedPermanently();
 const restoreFromBackup = () => _dataLayer.restoreFromBackup();
 const dismissCorruption = () => _dataLayer.dismissCorruption();
+const applyFilters = (tasks, filters) => _dataLayer.applyFilters(tasks, filters);
+const addSavedView = (view) => _dataLayer.addSavedView(view);
+const updateSavedView = (id, updates) => _dataLayer.updateSavedView(id, updates);
+const deleteSavedView = (id) => _dataLayer.deleteSavedView(id);
+const getSavedViews = () => _dataLayer.getSavedViews();
 let data = _dataLayer.getData();
 let settings = _dataLayer.getSettings();
 
@@ -330,14 +337,29 @@ const $$ = (s) => document.querySelectorAll(s);
 function setView(view, projectId = null) {
   currentView = view;
   currentProject = projectId;
+  // Clear quick filters when leaving all-tasks
+  if (view !== 'all-tasks') _quickFilters = {};
+  // Clear saved view when leaving saved-view
+  if (view !== 'saved-view') _activeSavedViewId = null;
   try {
-    localStorage.setItem(userKey('wb_current_view'), view);
+    localStorage.setItem(userKey('wb_current_view'), view === 'saved-view' ? 'all-tasks' : view);
     if (projectId) localStorage.setItem(userKey('wb_current_project'), projectId);
     else localStorage.removeItem(userKey('wb_current_project'));
   } catch (_) {}
+  // Reset pagination for list views when navigating away
+  delete _sectionShowCount['all-tasks'];
+  delete _sectionShowCount['completed'];
   expandedTask = null;
   _chat.setChatContext(null);
   closeMobileSidebar();
+  // Trigger view transition animation on content area
+  const _contentEl = $('#content');
+  if (_contentEl) {
+    _contentEl.classList.remove('view-switching');
+    // Force reflow so removing+adding the class restarts the animation
+    void _contentEl.offsetWidth;
+    _contentEl.classList.add('view-switching');
+  }
   render();
   const viewNames = {
     dashboard: 'Dashboard',
@@ -357,9 +379,18 @@ function render() {
     _renderRAF = null;
     if (typeof _renderNow === 'function') _renderNow();
     if (typeof _maybeEscalationOnRender === 'function') _maybeEscalationOnRender();
-    // Trigger feature tips after first brainstorm (deferred from onboarding)
+    // Trigger feature tips + auto-plan after first brainstorm (deferred from onboarding)
     if (localStorage.getItem(userKey('wb_show_tips_after_brainstorm')) === '1') {
       localStorage.removeItem(userKey('wb_show_tips_after_brainstorm'));
+      // Auto-generate the first day plan after onboarding brainstorm
+      setTimeout(() => {
+        if (typeof planMyDay === 'function' && data.tasks.length > 0) {
+          const planKey = userKey('whiteboard_plan_' + todayStr());
+          if (!localStorage.getItem(planKey)) {
+            planMyDay();
+          }
+        }
+      }, 1500);
       setTimeout(() => {
         if (_auth && _auth.showOnboardingExperience) _auth.showOnboardingExperience();
       }, 800);
@@ -1398,6 +1429,16 @@ const _dashboard = createDashboard({
   parseQuickInput,
   handleSlashCommand,
   aiEnhanceTask,
+  // Saved views / filters
+  applyFilters,
+  addSavedView,
+  deleteSavedView,
+  getSavedViews,
+  getActiveSavedViewId: () => _activeSavedViewId,
+  setActiveSavedViewId: (v) => { _activeSavedViewId = v; },
+  getQuickFilters: () => _quickFilters,
+  setQuickFilters: (v) => { _quickFilters = v; },
+  genId: () => { const bytes = new Uint8Array(8); crypto.getRandomValues(bytes); return 'sv_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join(''); },
   getEscalationBanner: () => (typeof renderEscalationBanner === 'function' ? renderEscalationBanner() : ''),
   getAIMemory: () => (typeof getAIMemory === 'function' ? getAIMemory() : []),
   extractMemoryInsights: (...args) =>
@@ -1587,9 +1628,20 @@ createActions({
   handleEscalationAction,
   trackNudgeInteraction,
   autoRebalanceWeek: (...args) => autoRebalanceWeek(...args),
+  // Saved views / filters
+  addSavedView,
+  deleteSavedView,
+  getSavedViews,
+  applyFilters,
+  getActiveSavedViewId: () => _activeSavedViewId,
+  setActiveSavedViewId: (v) => { _activeSavedViewId = v; },
+  getQuickFilters: () => _quickFilters,
+  setQuickFilters: (v) => { _quickFilters = v; },
   acceptReschedule,
   skipReschedule,
   acceptAllReschedules,
+  shareTodaysPlan: () => _dashboard.shareTodaysPlan(),
+  shareFocusRecommendation: (id) => _dashboard.shareFocusRecommendation(id),
   getExpandedTask: () => expandedTask,
   setExpandedTask: (v) => {
     expandedTask = v;
@@ -1820,10 +1872,9 @@ startEscalationLoop();
     // Build combined text from shared content
     const parts = [sharedTitle, sharedText, sharedUrl].filter(Boolean);
     const combined = parts.join('\n');
-    // Wait for DOM to be ready, then open brainstorm with pre-filled text
+    // Wait for DOM to be ready, then navigate to capture view with pre-filled text
     setTimeout(() => {
-      _dashboard.openBrainstormModal();
-      // Give modal time to render, then fill textarea
+      setView('dump');
       setTimeout(() => {
         const textarea = document.getElementById('dumpText');
         if (textarea) {
@@ -1834,7 +1885,7 @@ startEscalationLoop();
     }, 300);
   } else if (action === 'brainstorm') {
     setTimeout(() => {
-      _dashboard.openBrainstormModal();
+      setView('dump');
     }, 300);
   } else if (action === 'quick-capture') {
     setTimeout(() => {

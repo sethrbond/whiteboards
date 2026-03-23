@@ -178,6 +178,15 @@ export function createActions(deps) {
     openEditTemplate,
     saveEditTemplate,
     applyTemplateToQuickAdd,
+    // Saved views / filters
+    addSavedView,
+    deleteSavedView,
+    getSavedViews,
+    applyFilters,
+    getActiveSavedViewId,
+    setActiveSavedViewId,
+    getQuickFilters,
+    setQuickFilters,
   } = deps;
 
   // ---- click: nav items + data-action dispatch ----
@@ -185,11 +194,7 @@ export function createActions(deps) {
     // Handle nav items (sidebar) and bottom tabs
     const navView = e.target.closest('.nav-item[data-view]') || e.target.closest('.bottom-tab[data-view]');
     if (navView) {
-      if (navView.dataset.view === 'dump' && typeof deps.openBrainstormModal === 'function') {
-        deps.openBrainstormModal();
-      } else {
-        setView(navView.dataset.view);
-      }
+      setView(navView.dataset.view);
       return;
     }
 
@@ -419,17 +424,68 @@ export function createActions(deps) {
       case 'complete-task': {
         const _cTaskId = actionEl.dataset.taskId;
         const _cTask = findTask(_cTaskId);
-        updateTask(_cTaskId, { status: 'done' });
-        render();
-        if (_cTask) {
-          const _safeTitle = _cTask.title
+        // Flash green on the task row before completing
+        const _cRow = document.querySelector(`.task-row[data-task="${_cTaskId}"]`);
+        if (_cRow) {
+          _cRow.classList.add('task-completing');
+        }
+        // Brief delay so the green flash is visible before re-render removes the row
+        setTimeout(() => {
+          updateTask(_cTaskId, { status: 'done' });
+          render();
+          if (_cTask) {
+            const _safeTitle = _cTask.title
+              .slice(0, 30)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;');
+            showToast(
+              `\u2713 ${_safeTitle}${_cTask.title.length > 30 ? '...' : ''} done \u2014 <span style="color:var(--accent);cursor:pointer;text-decoration:underline" data-action="undo-btn">Undo</span>`,
+              false,
+              true,
+            );
+          }
+        }, 250);
+        break;
+      }
+      case 'cycle-status': {
+        const _csTaskId = actionEl.dataset.taskId;
+        const _csTask = findTask(_csTaskId);
+        if (_csTask) {
+          const _cycle = { todo: 'in-progress', 'in-progress': 'waiting', waiting: 'todo' };
+          const _nextStatus = _cycle[_csTask.status] || 'in-progress';
+          updateTask(_csTaskId, { status: _nextStatus });
+          render();
+          const _csLabels = { 'in-progress': '\u25b6 Active', waiting: '\u23f8 Waiting', todo: '\u25cb To Do' };
+          const _csTitle = _csTask.title
             .slice(0, 30)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
           showToast(
-            `\u2713 ${_safeTitle}${_cTask.title.length > 30 ? '...' : ''} done \u2014 <span style="color:var(--accent);cursor:pointer;text-decoration:underline" data-action="undo-btn">Undo</span>`,
+            `${_csTitle}${_csTask.title.length > 30 ? '...' : ''} \u2192 ${_csLabels[_nextStatus]} \u2014 <span style="color:var(--accent);cursor:pointer;text-decoration:underline" data-action="undo-btn">Undo</span>`,
+            false,
+            true,
+          );
+        }
+        break;
+      }
+      case 'start-task': {
+        const _stTaskId = actionEl.dataset.taskId;
+        const _stTask = findTask(_stTaskId);
+        if (_stTask) {
+          updateTask(_stTaskId, { status: 'in-progress' });
+          render();
+          const _stTitle = _stTask.title
+            .slice(0, 30)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+          showToast(
+            `\u25b6 ${_stTitle}${_stTask.title.length > 30 ? '...' : ''} started \u2014 <span style="color:var(--accent);cursor:pointer;text-decoration:underline" data-action="undo-btn">Undo</span>`,
             false,
             true,
           );
@@ -512,7 +568,7 @@ export function createActions(deps) {
         break;
       }
       case 'onb-skip': {
-        localStorage.setItem('wb_onboarding_complete', '1');
+        localStorage.setItem(userKey('wb_onboarding_complete'), '1');
         const overlay = document.getElementById('onbOverlay');
         if (overlay) {
           overlay.style.opacity = '0';
@@ -523,7 +579,7 @@ export function createActions(deps) {
         break;
       }
       case 'onb-brainstorm': {
-        localStorage.setItem('wb_onboarding_complete', '1');
+        localStorage.setItem(userKey('wb_onboarding_complete'), '1');
         const overlay = document.getElementById('onbOverlay');
         if (overlay) {
           overlay.style.opacity = '0';
@@ -531,12 +587,11 @@ export function createActions(deps) {
             if (overlay.parentNode) overlay.remove();
           }, 300);
         }
-        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-        else setView('dump');
+        setView('dump');
         break;
       }
       case 'onb-explore': {
-        localStorage.setItem('wb_onboarding_complete', '1');
+        localStorage.setItem(userKey('wb_onboarding_complete'), '1');
         const overlay = document.getElementById('onbOverlay');
         if (overlay) {
           overlay.style.opacity = '0';
@@ -884,8 +939,7 @@ export function createActions(deps) {
         (async () => {
           const bm = await getBrainstormModule();
           bm.resetState();
-          if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-          else render();
+          render();
         })();
         break;
       }
@@ -1296,7 +1350,11 @@ export function createActions(deps) {
       }
       // Breakdown actions
       case 'breakdown-task':
-        if (breakdownTask) breakdownTask(actionEl.dataset.taskId);
+        e.stopPropagation();
+        if (breakdownTask) {
+          showToast('Breaking down task...');
+          breakdownTask(actionEl.dataset.taskId);
+        }
         break;
       case 'breakdown-dismiss':
         if (dismissVagueTask) {
@@ -1338,12 +1396,13 @@ export function createActions(deps) {
       case 'onboard-process': {
         const textarea = document.getElementById('onboardDump');
         if (textarea && textarea.value.trim()) {
-          // Open brainstorm modal with the onboard text pre-filled
-          if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
+          const _onboardText = textarea.value.trim();
+          // Navigate to capture view with text pre-filled
+          setView('dump');
           setTimeout(() => {
             const dt = document.getElementById('dumpText');
             if (dt) {
-              dt.value = textarea.value.trim();
+              dt.value = _onboardText;
               dt.focus();
               // Auto-trigger processing
               const processBtn = document.querySelector('[data-action="process-dump"]');
@@ -1355,11 +1414,40 @@ export function createActions(deps) {
         }
         break;
       }
-      case 'onboard-skip':
-        // Create a default "Life" project so the empty check passes and dashboard renders normally
-        showToast('Add tasks with the input below');
+      case 'onboard-skip': {
+        // Create sample tasks so the dashboard isn't empty
+        const _lifeProj = getData().projects.find((p) => p.name === 'Life');
+        const _lifeId = _lifeProj ? _lifeProj.id : '';
+        const _tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const _nextWeek = new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 10);
+        addTask(
+          createTask({
+            title: 'Try the brain dump — paste notes and let AI organize them',
+            priority: 'normal',
+            project: _lifeId,
+          }),
+        );
+        addTask(
+          createTask({
+            title: 'Check out AI chat — ask it to plan your week',
+            priority: 'normal',
+            project: _lifeId,
+            dueDate: _tomorrow,
+          }),
+        );
+        addTask(
+          createTask({
+            title: 'Set up your first project board',
+            priority: 'low',
+            project: _lifeId,
+            dueDate: _nextWeek,
+          }),
+        );
+        localStorage.setItem(userKey('wb_onboarding_done'), 'true');
+        showToast('Added 3 starter tasks to get you going');
         render();
         break;
+      }
       case 'focus-quick-capture': {
         const qc = document.getElementById('quickCapture');
         if (qc) {
@@ -1395,15 +1483,16 @@ export function createActions(deps) {
         break;
       // Dashboard cards (brainstorm links)
       case 'go-dump':
-        if (typeof deps.openBrainstormModal === 'function') {
-          deps.openBrainstormModal();
-        } else {
-          setView('dump');
-        }
+        setView('dump');
         break;
+      case 'dismiss-focus-tip': {
+        localStorage.setItem(userKey('wb_focus_tip_seen'), '1');
+        const _tip = document.getElementById('focusTip');
+        if (_tip) _tip.remove();
+        break;
+      }
       case 'load-dump-history': {
-        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-        else setView('dump');
+        setView('dump');
         const idx = parseInt(actionEl.dataset.dumpIndex, 10);
         setTimeout(async () => {
           const bsMod = typeof deps.getBrainstormModule === 'function' ? await deps.getBrainstormModule() : null;
@@ -1422,8 +1511,7 @@ export function createActions(deps) {
         break;
       }
       case 'go-dump-weekly': {
-        if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-        else setView('dump');
+        setView('dump');
         setTimeout(() => {
           const t = document.getElementById('dumpText');
           if (t) {
@@ -1438,6 +1526,82 @@ export function createActions(deps) {
       case 'resend-verification':
         resendVerification(actionEl.dataset.email);
         break;
+      // --- Saved views / filters ---
+      case 'open-saved-view': {
+        const viewId = actionEl.dataset.viewId;
+        if (viewId && setActiveSavedViewId) {
+          setActiveSavedViewId(viewId);
+          setView('saved-view');
+        }
+        break;
+      }
+      case 'delete-saved-view': {
+        const dvId = actionEl.dataset.viewId;
+        if (dvId && deleteSavedView) {
+          deleteSavedView(dvId);
+          // If we're viewing this saved view, go back to all-tasks
+          if (getActiveSavedViewId && getActiveSavedViewId() === dvId) {
+            setActiveSavedViewId(null);
+            setView('all-tasks');
+          } else {
+            render();
+          }
+        }
+        break;
+      }
+      case 'save-current-filter': {
+        if (!getQuickFilters || !addSavedView) break;
+        const filters = getQuickFilters();
+        const name = prompt('Name this view:');
+        if (!name || !name.trim()) break;
+        const bytes = new Uint8Array(8);
+        crypto.getRandomValues(bytes);
+        const svId = 'sv_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+        addSavedView({ id: svId, name: name.trim(), filters: { ...filters }, createdAt: new Date().toISOString() });
+        showToast('View saved: ' + name.trim());
+        render();
+        break;
+      }
+      case 'quick-filter': {
+        if (!getQuickFilters || !setQuickFilters) break;
+        const filterType = actionEl.dataset.filter;
+        const current = getQuickFilters();
+        const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+        let next = {};
+        if (filterType === 'urgent') {
+          next = current.priority === 'urgent' ? {} : { priority: 'urgent' };
+        } else if (filterType === 'due-week') {
+          next = (current.dueBefore === weekEnd && !current.dueAfter) ? {} : { dueBefore: weekEnd };
+        } else if (filterType === 'waiting') {
+          next = current.status === 'waiting' ? {} : { status: 'waiting' };
+        } else if (filterType === 'no-date') {
+          next = current.noDate === true ? {} : { noDate: true };
+        }
+        setQuickFilters(next);
+        render();
+        break;
+      }
+      case 'remove-filter-chip': {
+        if (!getQuickFilters || !setQuickFilters) break;
+        const chipKey = actionEl.dataset.chipKey;
+        const cf = { ...getQuickFilters() };
+        if (chipKey.startsWith('tag:')) {
+          const tagToRemove = chipKey.slice(4);
+          cf.tags = (cf.tags || []).filter((t) => t !== tagToRemove);
+          if (cf.tags.length === 0) delete cf.tags;
+        } else {
+          delete cf[chipKey];
+        }
+        setQuickFilters(cf);
+        render();
+        break;
+      }
+      case 'clear-all-filters':
+        if (setQuickFilters) {
+          setQuickFilters({});
+          render();
+        }
+        break;
     }
   });
 
@@ -1450,11 +1614,7 @@ export function createActions(deps) {
     const navView = e.target.closest('.nav-item[data-view]');
     if (navView) {
       e.preventDefault();
-      if (navView.dataset.view === 'dump' && typeof deps.openBrainstormModal === 'function') {
-        deps.openBrainstormModal();
-      } else {
-        setView(navView.dataset.view);
-      }
+      setView(navView.dataset.view);
       return;
     }
     const actionEl = e.target.closest('[data-action]');
@@ -1672,8 +1832,7 @@ export function createActions(deps) {
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'd') {
       if (_inFormField) return;
       e.preventDefault();
-      if (typeof deps.openBrainstormModal === 'function') deps.openBrainstormModal();
-      else setView('dump');
+      setView('dump');
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'j') {

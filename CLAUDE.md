@@ -2,6 +2,10 @@
 
 AI-powered personal productivity system with task management, brainstorming, and proactive AI assistance.
 
+## Product Direction
+
+Pivoting from task manager to AI thinking partner — "Your AI chief of staff. Brain dump everything. AI handles the rest." Four phases: conversational brainstorm, narrative dashboard, agentic task assistance, priority explanation.
+
 ## Tech Stack
 
 Vanilla JS, Vite, Supabase (cloud sync + auth), Claude API (AI features).

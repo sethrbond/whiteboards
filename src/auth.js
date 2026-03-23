@@ -391,14 +391,14 @@ export function createAuth(deps) {
   }
 
   function showOnboardingExperience() {
-    if (localStorage.getItem('wb_onboarding_complete')) return;
+    if (localStorage.getItem(userKey('wb_onboarding_complete'))) return;
     const isMac = navigator.platform?.includes('Mac');
     const cmdKey = isMac ? '\u2318' : 'Ctrl';
     let currentScreen = 0;
     const totalScreens = 5;
 
     function dismiss() {
-      localStorage.setItem('wb_onboarding_complete', '1');
+      localStorage.setItem(userKey('wb_onboarding_complete'), '1');
       const overlay = document.getElementById('onbOverlay');
       if (overlay) {
         overlay.style.opacity = '0';
