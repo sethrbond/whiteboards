@@ -532,6 +532,7 @@ export function createDataLayer(deps) {
     } else {
       t.subtasks.push(newSub);
     }
+    t.updatedAt = new Date().toISOString();
     saveData(data);
     getRender()();
   }
@@ -553,6 +554,7 @@ export function createDataLayer(deps) {
     const t = findTask(taskId);
     if (!t || !t.subtasks) return;
     _deleteSubtaskRecursive(t.subtasks, subtaskId);
+    t.updatedAt = new Date().toISOString();
     saveData(data);
     getRender()();
   }
@@ -563,6 +565,7 @@ export function createDataLayer(deps) {
     const s = _findSubtaskRecursive(t.subtasks, subtaskId);
     if (s) {
       s.title = newTitle;
+      t.updatedAt = new Date().toISOString();
       saveData(data);
       getRender()();
     }
@@ -574,6 +577,7 @@ export function createDataLayer(deps) {
     const s = _findSubtaskRecursive(t.subtasks, subtaskId);
     if (s) {
       s.notes = notes;
+      t.updatedAt = new Date().toISOString();
       saveData(data);
     }
   }
@@ -584,6 +588,7 @@ export function createDataLayer(deps) {
     const s = _findSubtaskRecursive(t.subtasks, subtaskId);
     if (s) {
       s.done = !s.done;
+      t.updatedAt = new Date().toISOString();
       saveData(data);
       getRender()();
     }
@@ -952,6 +957,7 @@ export function createDataLayer(deps) {
         delete t.completedAt;
       }
       delete t._preArchiveStatus;
+      t.updatedAt = new Date().toISOString();
       saveData(data);
       getRender()();
       getShowToast()('Task restored');
