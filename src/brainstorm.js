@@ -905,9 +905,11 @@ ${_getTaskExtractionRules()}
 
   function _getTaskExtractionRules() {
     return `- Extract ALL discrete items: things to DO, things already DONE, things IN PROGRESS.
-- COMPLETED WORK matters. Past tense = status "done". Checkmarks [x] = "done".
+- COMPLETED WORK matters. Past tense = status "done". Checkmarks [x] = "done". NEVER skip completed items — create them with status "done".
 - Do NOT create tasks for background info. That goes in boardBackground.
-- A 1-page dump = 3-10 tasks. A 10-page doc = 15-40 tasks.
+- PRESERVE GRANULARITY: If the document lists 27 organizations to vet, create a task per organization (or one parent task with 27 subtasks — one per org). Do NOT collapse "Vet 27 orgs" into "Vet Seattle targets". Each discrete item in a checklist = its own task or subtask.
+- Recurring/compliance items (annual filings, quarterly reviews, monthly reports) should each be separate tasks with appropriate recurrence values.
+- There is NO cap on task count. A detailed 10-page operational document can produce 50-100+ tasks. Extract everything.
 - boardDescription is REQUIRED for every theme — write a real subtitle, not a template.
 - boardBackground is REQUIRED for every theme — fill in ALL sections with REAL content from the input, not placeholders.
 - DUPLICATE DETECTION: Check the existing tasks list carefully. If a task already exists with a similar title or purpose, DO NOT create a new one. If the user says "I already track this" or "this is covered by [existing task]", DO NOT create a task for it — skip it entirely. Never create a task with a note saying "might already be tracked" — either it's new (create it) or it's not (skip it).
@@ -938,7 +940,7 @@ TIME ESTIMATES: ALWAYS estimate. Every task MUST have estimatedMinutes > 0.
 - Large tasks (project planning, major deliverable): 240+ minutes
 - NEVER leave estimatedMinutes as 0. Your best guess is better than nothing.
 
-SUBTASKS: Multi-step processes = ONE task with subtasks, not many separate tasks.
+SUBTASKS: Use subtasks for items that are clearly sub-steps of ONE parent action (e.g., "Set up Digital Vault" with sub-folders as subtasks). But do NOT collapse independent items into subtasks just to reduce count. If 27 organizations each need vetting, that's 27 subtasks under one "Vet partner organizations" task — not 5 regional summary tasks.
 
 DEDUPLICATION: Check existing tasks below. If similar exists, use "action": "update" with the existing ID.
 
