@@ -147,7 +147,7 @@ export function createSync(deps) {
 
           // --- Tombstone-aware merge ---
           const localTombstones = getTombstones ? getTombstones() : [];
-          const cloudTombstones = Array.isArray(row._tombstones) ? row._tombstones : [];
+          const cloudTombstones = Array.isArray(row.settings?._tombstones) ? row.settings._tombstones : (Array.isArray(row._tombstones) ? row._tombstones : []);
           const mergedTombstones = _mergeTombstones(localTombstones, cloudTombstones);
           // MERGE by ID — compare updatedAt timestamps, keep the NEWER version
           const cloudTasks = (row.tasks || []).filter((t) => t && t.id);
@@ -346,6 +346,7 @@ export function createSync(deps) {
           return false;
         }
       }
+      const tombstonesToSync = Array.isArray(tombstones) ? tombstones : [];
       const { data: upsertRow, error } = await sb
         .from('user_data')
         .upsert(
@@ -353,11 +354,9 @@ export function createSync(deps) {
             user_id: currentUser.id,
             tasks: data.tasks,
             projects: data.projects,
-            _tombstones: Array.isArray(tombstones) ? tombstones : [],
-            _tabId: _tabId,
             ai_memory: getAIMemory(),
             ai_memory_archive: getAIMemoryArchive(),
-            settings: { aiModel: settings.aiModel },
+            settings: { aiModel: settings.aiModel, _tombstones: tombstonesToSync, _tabId: _tabId },
           },
           { onConflict: 'user_id' },
         )
@@ -480,7 +479,7 @@ export function createSync(deps) {
               if (!newRow) return;
 
               // Ignore our own writes
-              if (newRow._tabId === _tabId) return;
+              if ((newRow.settings?._tabId || newRow._tabId) === _tabId) return;
 
               // Check if the update is newer than what we know
               if (newRow.updated_at && _lastCloudUpdatedAt) {
@@ -507,7 +506,7 @@ export function createSync(deps) {
     const data = getData();
     const cloudTasks = (newRow.tasks || []).filter((t) => t && t.id);
     const cloudProjects = (newRow.projects || []).filter((p) => p && p.id);
-    const cloudTombstones = Array.isArray(newRow._tombstones) ? newRow._tombstones : [];
+    const cloudTombstones = Array.isArray(newRow.settings?._tombstones) ? newRow.settings._tombstones : (Array.isArray(newRow._tombstones) ? newRow._tombstones : []);
     const localTombstones = getTombstones ? getTombstones() : [];
     const mergedTombstones = _mergeTombstones(localTombstones, cloudTombstones);
 
@@ -648,11 +647,9 @@ export function createSync(deps) {
                 user_id: currentUser.id,
                 tasks: data.tasks,
                 projects: data.projects,
-                _tombstones: Array.isArray(tombstones) ? tombstones : [],
-                _tabId: _tabId,
                 ai_memory: getAIMemory(),
                 ai_memory_archive: getAIMemoryArchive(),
-                settings: { aiModel: settings.aiModel },
+                settings: { aiModel: settings.aiModel, _tombstones: Array.isArray(tombstones) ? tombstones : [], _tabId: _tabId },
               });
               fetch(sb.supabaseUrl + '/rest/v1/user_data?on_conflict=user_id', {
                 method: 'POST',
