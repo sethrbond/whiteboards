@@ -30,7 +30,7 @@ const VALID_RECURRENCES = ['daily', 'weekdays', 'weekly', 'monthly', ''];
 /**
  * Factory function to create the data layer.
  * @param {Object} deps - Dependencies from the main app
- * @returns {{ loadData, saveData, _flushSave, loadSettings, saveSettings, validateTaskFields, createTask, createProject, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject, addSubtask, toggleSubtask, pushUndo, undo, showUndoToast, findSimilarTask, findSimilarProject, findTask, getTaskMap, ensureLifeProject, getLifeProjectId, activeTasks, doneTasks, urgentTasks, archivedTasks, projectTasks, applyTagFilter, applyFilters, addSavedView, updateSavedView, deleteSavedView, getSavedViews, cleanupArchive, unarchiveTask, deleteArchivedPermanently, _rc, getData, setData, getSettings, setSettings, getDataVersion, setDataVersion, getRenderCache, setRenderCache, getTaskMapState, setTaskMapState, getUndoStack, clearUndoStack, restoreFromBackup, dismissCorruption }}
+ * @returns {{ loadData, saveData, _flushSave, loadSettings, saveSettings, validateTaskFields, createTask, createProject, addTask, updateTask, deleteTask, addProject, updateProject, deleteProject, addSubtask, toggleSubtask, pushUndo, undo, showUndoToast, findSimilarTask, findSimilarProject, findTask, getTaskMap, ensureLifeProject, getLifeProjectId, activeTasks, doneTasks, urgentTasks, archivedTasks, projectTasks, applyTagFilter, applyFilters, addSavedView, updateSavedView, deleteSavedView, getSavedViews, cleanupArchive, unarchiveTask, deleteArchivedPermanently, _rc, getData, setData, getSettings, setSettings, getDataVersion, setDataVersion, getRenderCache, setRenderCache, getTaskMapState, setTaskMapState, getUndoStack, clearUndoStack, restoreFromBackup, dismissCorruption, getTombstones, setTombstones }}
  */
 export function createDataLayer(deps) {
   const {
@@ -54,7 +54,7 @@ export function createDataLayer(deps) {
   } = deps;
 
   // --- Module-local state ---
-  let data = { tasks: [], projects: [], savedViews: [] };
+  let data = { tasks: [], projects: [], savedViews: [], _tombstones: [] };
   let settings = { ...DEFAULT_SETTINGS };
   const undoStack = []; // [{ label, snapshot }] — max 20
   let _renderCache = { version: -1 };
@@ -133,6 +133,7 @@ export function createDataLayer(deps) {
       if (d && Array.isArray(d.tasks)) {
         if (!d.projects) d.projects = [];
         if (!d.savedViews) d.savedViews = [];
+        if (!Array.isArray(d._tombstones)) d._tombstones = [];
         // Pre-migration backup — preserve raw data in case migration corrupts
         if (d._schemaVersion !== CURRENT_SCHEMA_VERSION && raw) {
           try {
@@ -160,7 +161,7 @@ export function createDataLayer(deps) {
         _showCorruptionBanner();
       }
     }
-    return { tasks: [], projects: [], savedViews: [] };
+    return { tasks: [], projects: [], savedViews: [], _tombstones: [] };
   }
 
   // --- Corruption recovery UI ---
@@ -209,7 +210,7 @@ export function createDataLayer(deps) {
   function dismissCorruption() {
     localStorage.removeItem(userKey(STORE_KEY));
     localStorage.removeItem(userKey(STORE_KEY) + '_backup');
-    data = { tasks: [], projects: [], savedViews: [] };
+    data = { tasks: [], projects: [], savedViews: [], _tombstones: [] };
     saveData(data);
     _dismissCorruptionBanner();
     getShowToast()('Starting fresh');
@@ -477,6 +478,8 @@ export function createDataLayer(deps) {
     t.updatedAt = new Date().toISOString();
     t.status = 'done';
     if (!t.completedAt) t.completedAt = t.archivedAt;
+    // Record tombstone so sync propagates the deletion across devices
+    _addTombstone(id, 'task');
     // Kill recurrence — deleted means user doesn't want it coming back
     if (t.recurrence) t.recurrence = '';
     // Clean up orphaned blockedBy references
@@ -611,8 +614,11 @@ export function createDataLayer(deps) {
         t._preArchiveStatus = t.status;
         t.status = 'done';
         if (!t.completedAt) t.completedAt = now;
+        _addTombstone(t.id, 'task');
       }
     });
+    // Record tombstone for the project itself
+    _addTombstone(id, 'project');
     data.projects = data.projects.filter((x) => x.id !== id);
     saveData(data);
     const pruneStaleMemories = getPruneStaleMemories();
@@ -885,6 +891,23 @@ export function createDataLayer(deps) {
     if (changed && !getBatchMode()) saveData(data);
   }
 
+  // --- Tombstone helpers ---
+  function _addTombstone(id, type) {
+    if (!Array.isArray(data._tombstones)) data._tombstones = [];
+    // Avoid duplicate tombstones
+    if (!data._tombstones.some((t) => t.id === id)) {
+      data._tombstones.push({ id, type, deletedAt: new Date().toISOString() });
+    }
+  }
+
+  function getTombstones() {
+    return Array.isArray(data._tombstones) ? data._tombstones : [];
+  }
+
+  function setTombstones(tombstones) {
+    data._tombstones = Array.isArray(tombstones) ? tombstones : [];
+  }
+
   function cleanupArchive() {
     const cutoff = Date.now() - ARCHIVE_CLEANUP_DAYS * MS_PER_DAY; // 30 days
     let count = 0;
@@ -902,10 +925,20 @@ export function createDataLayer(deps) {
       (t) => !t.archived || !t.archivedAt || new Date(t.archivedAt).getTime() > purgeCutoff,
     );
     const purged = before - data.tasks.length;
-    if (count || purged) {
+    // Expire tombstones older than 90 days
+    let tombstonePurged = 0;
+    if (Array.isArray(data._tombstones)) {
+      const tsBefore = data._tombstones.length;
+      data._tombstones = data._tombstones.filter(
+        (ts) => ts.deletedAt && new Date(ts.deletedAt).getTime() > purgeCutoff,
+      );
+      tombstonePurged = tsBefore - data._tombstones.length;
+    }
+    if (count || purged || tombstonePurged) {
       saveData(data);
       if (count) getShowToast()(count + ' old task' + (count > 1 ? 's' : '') + ' auto-archived');
       if (purged) console.log(`[cleanup] Purged ${purged} archived tasks older than 90 days`);
+      if (tombstonePurged) console.log(`[cleanup] Expired ${tombstonePurged} old tombstones`);
     }
   }
 
@@ -929,6 +962,10 @@ export function createDataLayer(deps) {
     const { confirmAction } = deps;
     const ok = await confirmAction('Permanently delete all archived tasks?');
     if (!ok) return;
+    // Record tombstones for all archived tasks before removing them
+    data.tasks.forEach(function (t) {
+      if (t.archived) _addTombstone(t.id, 'task');
+    });
     data.tasks = data.tasks.filter(function (t) {
       return !t.archived;
     });
@@ -1136,6 +1173,9 @@ export function createDataLayer(deps) {
     // Corruption recovery
     restoreFromBackup,
     dismissCorruption,
+    // Tombstones
+    getTombstones,
+    setTombstones,
     // Storage monitoring
     getStorageUsage,
     cleanupStorage,

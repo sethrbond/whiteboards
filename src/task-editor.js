@@ -757,6 +757,10 @@ ONLY return JSON.`;
         updates.priority = cls.priority;
         changed = true;
       }
+      if (cls.reason) {
+        updates.priorityReason = cls.reason;
+        changed = true;
+      }
       if (changed) {
         updateTask(task.id, updates);
         const proj = updates.project ? data.projects.find((p) => p.id === updates.project) : null;
@@ -790,6 +794,7 @@ ONLY return JSON.`;
       <div class="form-group"><label class="form-label" for="fStatus">Status</label><select class="form-select" id="fStatus"><option value="todo" ${t.status === 'todo' ? 'selected' : ''}>To Do</option><option value="waiting" ${t.status === 'waiting' ? 'selected' : ''}>Waiting / On Hold</option><option value="in-progress" ${t.status === 'in-progress' ? 'selected' : ''}>In Progress</option><option value="done" ${t.status === 'done' ? 'selected' : ''}>Done</option></select></div>
       <div class="form-group"><label class="form-label" for="fPriority">Priority</label><select class="form-select" id="fPriority"><option value="urgent" ${t.priority === 'urgent' ? 'selected' : ''}>Urgent</option><option value="important" ${t.priority === 'important' ? 'selected' : ''}>Important</option><option value="normal" ${t.priority === 'normal' ? 'selected' : ''}>Normal</option><option value="low" ${t.priority === 'low' ? 'selected' : ''}>Low</option></select></div>
     </div>
+    <div class="form-group"><label class="form-label" for="fPriorityReason">Priority Reason</label><input class="form-input" id="fPriorityReason" value="${esc(t.priorityReason || '')}" placeholder="Why this priority level?" style="font-size:12px"></div>
     </fieldset>
     <fieldset class="form-fieldset"><legend class="sr-only">Dates and Scheduling</legend>
     <div class="form-row">
@@ -836,7 +841,7 @@ ONLY return JSON.`;
     pushModalState('edit-task');
     // Capture snapshot of initial form state for unsaved-changes detection
     _editSnapshot = {};
-    for (const id of ['fTitle', 'fNotes', 'fStatus', 'fPriority', 'fProject', 'fRecurrence', 'fPhase']) {
+    for (const id of ['fTitle', 'fNotes', 'fStatus', 'fPriority', 'fPriorityReason', 'fProject', 'fRecurrence', 'fPhase']) {
       const el = document.getElementById(id);
       _editSnapshot[id] = el ? el.value : '';
     }
@@ -876,6 +881,7 @@ ONLY return JSON.`;
       notes: $('#fNotes').value.trim(),
       status: $('#fStatus').value,
       priority: $('#fPriority').value,
+      priorityReason: ($('#fPriorityReason').value || '').trim(),
       project: $('#fProject').value,
       dueDate: resolveSmartDate('fDue'),
       recurrence: $('#fRecurrence').value,

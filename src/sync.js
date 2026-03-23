@@ -1,12 +1,13 @@
 // ============================================================
 // SYNC MODULE
 // ============================================================
-// Extracted from app.js — handles cloud sync, conflict detection, sync UI
+// Handles cloud sync, conflict detection, tombstone-aware merging,
+// Supabase Realtime subscriptions, and sync status UI.
 
 /**
  * Factory function to create sync functions.
  * @param {Object} deps - Dependencies from the main app
- * @returns {{ loadFromCloud, scheduleSyncToCloud, syncToCloud, updateSyncDot, getSyncStatus, setSyncStatus, getSyncTimer, resetSyncState, setupSyncListeners, destroySyncListeners, getLastCloudUpdatedAt, setLastCloudUpdatedAt, getSyncQueue, resetSyncQueue }}
+ * @returns {{ loadFromCloud, scheduleSyncToCloud, syncToCloud, updateSyncDot, getSyncStatus, setSyncStatus, getSyncTimer, resetSyncState, setupSyncListeners, destroySyncListeners, getLastCloudUpdatedAt, setLastCloudUpdatedAt, getSyncQueue, resetSyncQueue, showSyncFailBanner, clearSyncFailBanner, subscribeRealtime, unsubscribeRealtime, isSyncPending }}
  */
 export function createSync(deps) {
   const {
@@ -27,11 +28,16 @@ export function createSync(deps) {
     saveAIMemory,
     saveAIMemoryArchive,
     setSuppressCloudSync,
+    getTombstones,
+    setTombstones,
   } = deps;
 
   // Module-local state
   // eslint-disable-next-line no-undef
   const _channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('whiteboards_sync') : null;
+
+  // Unique tab ID to distinguish our own writes from other devices
+  const _tabId = 'tab_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now();
 
   if (_channel) {
     _channel.onmessage = (e) => {
@@ -43,6 +49,7 @@ export function createSync(deps) {
             const data = getData();
             data.tasks = freshData.tasks;
             data.projects = freshData.projects;
+            if (Array.isArray(freshData._tombstones)) data._tombstones = freshData._tombstones;
             try {
               setSuppressCloudSync(true);
               saveData(data);
@@ -58,10 +65,13 @@ export function createSync(deps) {
     };
   }
 
-  let syncStatus = 'offline'; // 'synced' | 'syncing' | 'offline'
+  let syncStatus = 'offline'; // 'synced' | 'syncing' | 'pending' | 'offline'
   let syncTimer = null;
   let _lastCloudUpdatedAt = null; // track cloud's updated_at for conflict detection
+  let _lastSyncedAt = null; // timestamp of last successful sync for UI display
   let _syncQueue = Promise.resolve(); // Promise-based queue to prevent concurrent sync/load operations
+  let _syncPending = false; // true when local changes exist but haven't been confirmed in cloud
+  let _realtimeSubscription = null; // Supabase Realtime channel
 
   function withSyncLock(fn) {
     _syncQueue = _syncQueue.then(fn).catch((e) => {
@@ -70,6 +80,29 @@ export function createSync(deps) {
       return undefined;
     });
     return _syncQueue;
+  }
+
+  // --- Tombstone helpers for merge ---
+  function _mergeTombstones(localTombstones, cloudTombstones) {
+    const map = new Map();
+    const local = Array.isArray(localTombstones) ? localTombstones : [];
+    const cloud = Array.isArray(cloudTombstones) ? cloudTombstones : [];
+    for (const ts of local) {
+      if (ts && ts.id) map.set(ts.id, ts);
+    }
+    for (const ts of cloud) {
+      if (ts && ts.id && !map.has(ts.id)) map.set(ts.id, ts);
+    }
+    return Array.from(map.values());
+  }
+
+  function _applyTombstones(tasks, projects, tombstones) {
+    if (!Array.isArray(tombstones) || tombstones.length === 0) return { tasks, projects };
+    const tombstoneIds = new Set(tombstones.map((ts) => ts.id));
+    return {
+      tasks: tasks.filter((t) => !tombstoneIds.has(t.id)),
+      projects: projects.filter((p) => !tombstoneIds.has(p.id)),
+    };
   }
 
   function loadFromCloud() {
@@ -104,10 +137,18 @@ export function createSync(deps) {
             console.warn('[LOAD] Cloud is empty but local has data — keeping local and syncing up.');
             await _doSyncToCloud();
             syncStatus = 'synced';
+            _syncPending = false;
             updateSyncDot();
             render();
+            // Subscribe to realtime after successful load
+            subscribeRealtime();
             return;
           }
+
+          // --- Tombstone-aware merge ---
+          const localTombstones = getTombstones ? getTombstones() : [];
+          const cloudTombstones = Array.isArray(row._tombstones) ? row._tombstones : [];
+          const mergedTombstones = _mergeTombstones(localTombstones, cloudTombstones);
           // MERGE by ID — compare updatedAt timestamps, keep the NEWER version
           const cloudTasks = (row.tasks || []).filter((t) => t && t.id);
           const cloudProjects = (row.projects || []).filter((p) => p && p.id);
@@ -153,6 +194,15 @@ export function createSync(deps) {
             }
             data.projects = mergedProjects;
           }
+          // Apply tombstones: deletion wins over resurrection
+          const cleaned = _applyTombstones(data.tasks, data.projects, mergedTombstones);
+          data.tasks = cleaned.tasks;
+          data.projects = cleaned.projects;
+
+          // Store merged tombstones
+          if (setTombstones) setTombstones(mergedTombstones);
+          data._tombstones = mergedTombstones;
+
           // Migrate cloud data to current schema
           const cloudData = migrateData({
             tasks: data.tasks,
@@ -205,10 +255,14 @@ export function createSync(deps) {
           // Push merged result back to cloud so both sides converge
           await _doSyncToCloud();
           syncStatus = 'synced';
+          _syncPending = false;
         } else {
           // First login — push local data up
           await _doSyncToCloud();
         }
+        _lastSyncedAt = Date.now();
+        // Subscribe to realtime after successful load
+        subscribeRealtime();
       } catch (e) {
         console.error('Cloud load failed:', e);
         syncStatus = 'offline';
@@ -221,7 +275,8 @@ export function createSync(deps) {
   function scheduleSyncToCloud() {
     const currentUser = getCurrentUser();
     if (!currentUser) return;
-    syncStatus = 'syncing';
+    _syncPending = true;
+    syncStatus = 'pending';
     updateSyncDot();
     clearTimeout(syncTimer);
     // Short debounce (500ms) to batch rapid edits, but short enough
@@ -230,9 +285,10 @@ export function createSync(deps) {
   }
 
   // Inner sync logic — called within the sync lock (from withSyncLock or directly from loadFromCloud)
+  // Returns true on success, false on failure
   async function _doSyncToCloud() {
     const currentUser = getCurrentUser();
-    if (!currentUser || !sb) return;
+    if (!currentUser || !sb) return false;
     syncStatus = 'syncing';
     updateSyncDot();
     try {
@@ -250,14 +306,17 @@ export function createSync(deps) {
             showToast('Synced from another device');
             if (loadFromCloud) await loadFromCloud();
             syncStatus = 'synced';
+            _syncPending = false;
             updateSyncDot();
-            return;
+            return true;
           }
         }
       }
-      const data = JSON.parse(localStorage.getItem(userKey(STORE_KEY)) || '{"tasks":[],"projects":[]}');
+      const data = JSON.parse(localStorage.getItem(userKey(STORE_KEY)) || '{"tasks":[],"projects":[],"_tombstones":[]}');
       if (!Array.isArray(data.tasks)) data.tasks = [];
       if (!Array.isArray(data.projects)) data.projects = [];
+      if (!Array.isArray(data._tombstones)) data._tombstones = [];
+      const tombstones = getTombstones ? getTombstones() : data._tombstones;
       const settings = getSettings();
       // Safety: NEVER overwrite cloud with empty data — check cloud first
       if (data.tasks.length === 0 && data.projects.length === 0) {
@@ -273,9 +332,10 @@ export function createSync(deps) {
                 'cloud tasks with empty local data.',
               );
               syncStatus = 'synced';
+              _syncPending = false;
               updateSyncDot();
               showToast('Local data is empty — reload to restore from cloud.', true);
-              return;
+              return false;
             }
           }
         } catch (_e) {
@@ -283,7 +343,7 @@ export function createSync(deps) {
           console.warn('[SYNC] Cloud check failed, refusing to sync empty data.');
           syncStatus = 'synced';
           updateSyncDot();
-          return;
+          return false;
         }
       }
       const { data: upsertRow, error } = await sb
@@ -293,6 +353,8 @@ export function createSync(deps) {
             user_id: currentUser.id,
             tasks: data.tasks,
             projects: data.projects,
+            _tombstones: Array.isArray(tombstones) ? tombstones : [],
+            _tabId: _tabId,
             ai_memory: getAIMemory(),
             ai_memory_archive: getAIMemoryArchive(),
             settings: { aiModel: settings.aiModel },
@@ -305,20 +367,26 @@ export function createSync(deps) {
       // Update our tracked timestamp after successful write
       if (upsertRow && upsertRow.updated_at) _lastCloudUpdatedAt = upsertRow.updated_at;
       syncStatus = 'synced';
+      _syncPending = false;
+      _lastSyncedAt = Date.now();
       if (_channel) _channel.postMessage({ type: 'data_updated', timestamp: Date.now() });
       clearSyncFailBanner();
+      return true;
     } catch (e) {
       console.error('Sync error:', e);
       syncStatus = 'offline';
+      _syncPending = true;
       showSyncFailBanner();
+      return false;
     } finally {
       updateSyncDot();
     }
   }
 
+  // Returns a Promise<boolean> — true on success, false on failure
   function syncToCloud() {
     const currentUser = getCurrentUser();
-    if (!currentUser || !sb) return;
+    if (!currentUser || !sb) return Promise.resolve(false);
     return withSyncLock(() => _doSyncToCloud());
   }
 
@@ -348,6 +416,7 @@ export function createSync(deps) {
     if (banner) banner.remove();
   }
 
+  // --- Enhanced sync status indicator ---
   function updateSyncDot() {
     const currentUser = getCurrentUser();
     const dot = document.getElementById('syncDot');
@@ -356,15 +425,172 @@ export function createSync(deps) {
     if (bar) bar.style.display = currentUser ? 'flex' : 'none';
     if (dot) {
       dot.className = 'sync-dot ' + syncStatus;
-      dot.title =
-        syncStatus === 'synced'
-          ? 'Synced to cloud'
-          : syncStatus === 'syncing'
-            ? 'Syncing...'
-            : 'Offline — using local storage';
+      const titles = {
+        synced: 'Synced to cloud',
+        syncing: 'Syncing...',
+        pending: 'Changes pending sync',
+        offline: 'Offline — using local storage',
+      };
+      let title = titles[syncStatus] || 'Offline — using local storage';
+      // Append "Last synced: X ago" on hover
+      if (_lastSyncedAt) {
+        const agoMs = Date.now() - _lastSyncedAt;
+        const agoSec = Math.floor(agoMs / 1000);
+        let agoStr;
+        if (agoSec < 60) agoStr = 'just now';
+        else if (agoSec < 3600) agoStr = Math.floor(agoSec / 60) + 'm ago';
+        else if (agoSec < 86400) agoStr = Math.floor(agoSec / 3600) + 'h ago';
+        else agoStr = Math.floor(agoSec / 86400) + 'd ago';
+        title += '\nLast synced: ' + agoStr;
+      }
+      dot.title = title;
     }
-    if (label)
-      label.textContent = syncStatus === 'synced' ? 'Synced' : syncStatus === 'syncing' ? 'Syncing...' : 'Offline';
+    if (label) {
+      const labels = {
+        synced: 'Synced',
+        syncing: 'Syncing...',
+        pending: 'Pending',
+        offline: 'Offline',
+      };
+      label.textContent = labels[syncStatus] || 'Offline';
+    }
+  }
+
+  // --- Supabase Realtime subscription ---
+  function subscribeRealtime() {
+    const currentUser = getCurrentUser();
+    if (!currentUser || !sb || _realtimeSubscription) return;
+
+    // Supabase Realtime: subscribe to changes on our user_data row
+    try {
+      const channelName = 'user_data_' + currentUser.id.slice(0, 8);
+      _realtimeSubscription = sb
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'user_data',
+            filter: 'user_id=eq.' + currentUser.id,
+          },
+          async (payload) => {
+            try {
+              const newRow = payload.new;
+              if (!newRow) return;
+
+              // Ignore our own writes
+              if (newRow._tabId === _tabId) return;
+
+              // Check if the update is newer than what we know
+              if (newRow.updated_at && _lastCloudUpdatedAt) {
+                const cloudTime = new Date(newRow.updated_at).getTime();
+                const lastKnown = new Date(_lastCloudUpdatedAt).getTime();
+                if (cloudTime <= lastKnown) return; // not newer
+              }
+
+              // Trigger background merge
+              await _mergeFromRealtime(newRow);
+            } catch (e) {
+              console.warn('Realtime handler error:', e);
+            }
+          },
+        )
+        .subscribe();
+    } catch (e) {
+      console.warn('Realtime subscription failed:', e);
+    }
+  }
+
+  async function _mergeFromRealtime(newRow) {
+    // Load new cloud data and merge with local using same logic
+    const data = getData();
+    const cloudTasks = (newRow.tasks || []).filter((t) => t && t.id);
+    const cloudProjects = (newRow.projects || []).filter((p) => p && p.id);
+    const cloudTombstones = Array.isArray(newRow._tombstones) ? newRow._tombstones : [];
+    const localTombstones = getTombstones ? getTombstones() : [];
+    const mergedTombstones = _mergeTombstones(localTombstones, cloudTombstones);
+
+    // Merge tasks by updatedAt
+    if (cloudTasks.length > 0 || data.tasks.length > 0) {
+      const cloudTaskMap = new Map(cloudTasks.map((t) => [t.id, t]));
+      const localTaskMap = new Map(data.tasks.filter((t) => t && t.id).map((t) => [t.id, t]));
+      const mergedTasks = [];
+      const allTaskIds = new Set([...cloudTaskMap.keys(), ...localTaskMap.keys()]);
+      for (const id of allTaskIds) {
+        const cloud = cloudTaskMap.get(id);
+        const local = localTaskMap.get(id);
+        if (cloud && !local) {
+          mergedTasks.push(cloud);
+        } else if (local && !cloud) {
+          mergedTasks.push(local);
+        } else {
+          const cloudTime = cloud.updatedAt ? new Date(cloud.updatedAt).getTime() : 0;
+          const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
+          mergedTasks.push(localTime >= cloudTime ? local : cloud);
+        }
+      }
+      data.tasks = mergedTasks;
+    }
+
+    // Merge projects by updatedAt
+    if (cloudProjects.length > 0 || data.projects.length > 0) {
+      const cloudProjMap = new Map(cloudProjects.map((p) => [p.id, p]));
+      const localProjMap = new Map(data.projects.filter((p) => p && p.id).map((p) => [p.id, p]));
+      const mergedProjects = [];
+      const allProjIds = new Set([...cloudProjMap.keys(), ...localProjMap.keys()]);
+      for (const id of allProjIds) {
+        const cloud = cloudProjMap.get(id);
+        const local = localProjMap.get(id);
+        if (cloud && !local) {
+          mergedProjects.push(cloud);
+        } else if (local && !cloud) {
+          mergedProjects.push(local);
+        } else {
+          const cloudTime = cloud.updatedAt ? new Date(cloud.updatedAt).getTime() : 0;
+          const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
+          mergedProjects.push(localTime >= cloudTime ? local : cloud);
+        }
+      }
+      data.projects = mergedProjects;
+    }
+
+    // Apply tombstones
+    const cleaned = _applyTombstones(data.tasks, data.projects, mergedTombstones);
+    data.tasks = cleaned.tasks;
+    data.projects = cleaned.projects;
+    data._tombstones = mergedTombstones;
+
+    if (setTombstones) setTombstones(mergedTombstones);
+
+    // Filter corrupt tasks
+    data.tasks = data.tasks.filter((t) => t && t.id && t.title);
+    data.tasks.forEach(validateTaskFields);
+
+    // Update tracked timestamp
+    if (newRow.updated_at) _lastCloudUpdatedAt = newRow.updated_at;
+    _lastSyncedAt = Date.now();
+
+    // Save and render
+    try {
+      setSuppressCloudSync(true);
+      saveData(data);
+    } finally {
+      setSuppressCloudSync(false);
+    }
+    render();
+    showToast('Synced from another device');
+  }
+
+  function unsubscribeRealtime() {
+    if (_realtimeSubscription && sb) {
+      try {
+        sb.removeChannel(_realtimeSubscription);
+      } catch (e) {
+        console.warn('Realtime unsubscribe failed:', e);
+      }
+      _realtimeSubscription = null;
+    }
   }
 
   // Set up event listeners for sync reconnection
@@ -379,7 +605,7 @@ export function createSync(deps) {
       'online',
       () => {
         const currentUser = getCurrentUser();
-        if (currentUser && syncStatus === 'offline') scheduleSyncToCloud();
+        if (currentUser && (syncStatus === 'offline' || _syncPending)) scheduleSyncToCloud();
       },
       { signal },
     );
@@ -388,10 +614,12 @@ export function createSync(deps) {
       'pagehide',
       () => {
         const currentUser = getCurrentUser();
-        if (syncTimer && currentUser) {
+        // Sync on pagehide if there's a pending timer OR _syncPending flag is set
+        if ((syncTimer || _syncPending) && currentUser) {
           clearTimeout(syncTimer);
           const data = getData();
           const settings = getSettings();
+          const tombstones = getTombstones ? getTombstones() : [];
           try {
             localStorage.setItem(userKey(STORE_KEY), JSON.stringify(data));
           } catch (e) {
@@ -420,6 +648,8 @@ export function createSync(deps) {
                 user_id: currentUser.id,
                 tasks: data.tasks,
                 projects: data.projects,
+                _tombstones: Array.isArray(tombstones) ? tombstones : [],
+                _tabId: _tabId,
                 ai_memory: getAIMemory(),
                 ai_memory_archive: getAIMemoryArchive(),
                 settings: { aiModel: settings.aiModel },
@@ -449,8 +679,8 @@ export function createSync(deps) {
       async () => {
         const currentUser = getCurrentUser();
         if (document.hidden || !currentUser || !sb) return;
-        // If offline, try to reconnect
-        if (syncStatus === 'offline') {
+        // If offline or pending, try to reconnect
+        if (syncStatus === 'offline' || _syncPending) {
           scheduleSyncToCloud();
           return;
         }
@@ -475,6 +705,7 @@ export function createSync(deps) {
 
   function destroySyncListeners() {
     if (_channel) _channel.close();
+    unsubscribeRealtime();
     if (_syncListenersAC) {
       _syncListenersAC.abort();
       _syncListenersAC = null;
@@ -498,10 +729,17 @@ export function createSync(deps) {
     _lastCloudUpdatedAt = v;
   }
 
+  function isSyncPending() {
+    return _syncPending;
+  }
+
   // Reset state (used on sign-out)
   function resetSyncState() {
     if (_channel) _channel.close();
+    unsubscribeRealtime();
     _lastCloudUpdatedAt = null;
+    _lastSyncedAt = null;
+    _syncPending = false;
     syncStatus = 'offline';
     clearTimeout(syncTimer);
     syncTimer = null;
@@ -527,5 +765,8 @@ export function createSync(deps) {
     getLastCloudUpdatedAt,
     setLastCloudUpdatedAt,
     resetSyncQueue,
+    subscribeRealtime,
+    unsubscribeRealtime,
+    isSyncPending,
   };
 }

@@ -1,7 +1,7 @@
 // Schema versioning and data migration system
 // Each migration transforms data from version N to N+1
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 const TASK_DEFAULTS = {
   title: '',
@@ -15,6 +15,7 @@ const TASK_DEFAULTS = {
   recurrence: '',
   estimatedMinutes: 0,
   tags: [],
+  priorityReason: '',
   blockedBy: [],
   subtasks: [],
   createdAt: null, // filled dynamically per-task during migration
@@ -74,8 +75,23 @@ function migrateToV2(data) {
   return data;
 }
 
+// Migration from version 2 to version 3:
+// - Add `priorityReason` field to all tasks for AI-generated priority explanations
+function migrateToV3(data) {
+  if (Array.isArray(data.tasks)) {
+    data.tasks = data.tasks.map((task) => {
+      if (task.priorityReason === undefined) {
+        task.priorityReason = '';
+      }
+      return task;
+    });
+  }
+  data._schemaVersion = 3;
+  return data;
+}
+
 // Ordered list of migrations. Index 0 = migration from v0 to v1, etc.
-const migrations = [migrateToV1, migrateToV2];
+const migrations = [migrateToV1, migrateToV2, migrateToV3];
 
 /**
  * Check data._schemaVersion and run any needed migrations sequentially.

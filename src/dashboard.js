@@ -580,7 +580,8 @@ export function createDashboard(deps) {
       const subtaskStr = t.subtasks && t.subtasks.length
         ? `<span class="wb-card-est">${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length}</span>`
         : '';
-      return `<div class="wb-card${isDone ? ' done' : ''}" data-task="${t.id}" data-expandable="true" draggable="true" role="listitem" style="border-top:3px solid ${borderColor}">
+      const isWait = t.status === 'waiting';
+      return `<div class="wb-card${isDone ? ' done' : ''}${isWait ? ' waiting' : ''}" data-task="${t.id}" data-expandable="true" draggable="true" role="listitem" style="border-top:3px solid ${borderColor}">
         <div class="wb-card-actions">
           ${!isDone ? `<button class="task-action-btn" title="Defer" data-action="defer-task" data-task-id="${t.id}">\u21b7</button>` : ''}
           <button class="task-action-btn" title="Edit" data-action="edit-task" data-task-id="${t.id}">\u270e</button>

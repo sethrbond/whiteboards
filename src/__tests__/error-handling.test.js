@@ -133,7 +133,7 @@ describe('task data with missing required fields', () => {
     // migrateData only fills missing/null fields, it does not fix types
     // but non-array updates get reset
     expect(result.tasks[0].title).toBe(123);
-    expect(result._schemaVersion).toBe(2);
+    expect(result._schemaVersion).toBe(3);
   });
 });
 

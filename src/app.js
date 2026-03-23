@@ -275,6 +275,8 @@ const _sync = createSync({
   setSuppressCloudSync: (v) => {
     _suppressCloudSync = v;
   },
+  getTombstones: () => _dataLayer.getTombstones(),
+  setTombstones: (v) => _dataLayer.setTombstones(v),
 });
 const loadFromCloud = _sync.loadFromCloud;
 const scheduleSyncToCloud = _sync.scheduleSyncToCloud;
@@ -1207,6 +1209,7 @@ const _origSignOut = _auth.signOut;
 const signOut = async () => {
   stopEscalationLoop();
   if (_proactiveChatTimer) { clearTimeout(_proactiveChatTimer); _proactiveChatTimer = null; }
+  _sync.unsubscribeRealtime();
   return _origSignOut();
 };
 const showFeatureTips = _auth.showFeatureTips;

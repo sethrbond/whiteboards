@@ -1569,7 +1569,7 @@ describe('task-editor.js — createTaskEditor()', () => {
     expect(deps.render).toHaveBeenCalled();
   });
 
-  it('autoClassifyTask does nothing when AI returns normal priority', async () => {
+  it('autoClassifyTask only saves reason when AI returns normal priority', async () => {
     deps.callAI.mockResolvedValue('{"project":"","priority":"normal","reason":"nothing special"}');
     deps.getData.mockReturnValue({
       tasks: [],
@@ -1577,7 +1577,7 @@ describe('task-editor.js — createTaskEditor()', () => {
     });
     const task = { id: 't_1', title: 'Some task' };
     await editor.autoClassifyTask(task);
-    expect(deps.updateTask).not.toHaveBeenCalled();
+    expect(deps.updateTask).toHaveBeenCalledWith('t_1', { priorityReason: 'nothing special' });
   });
 
   it('autoClassifyTask does nothing when AI returns no response', async () => {
@@ -1603,7 +1603,7 @@ describe('task-editor.js — createTaskEditor()', () => {
     const task = { id: 't_1', title: 'Task' };
     await editor.autoClassifyTask(task);
     // Only priority should be updated, not project
-    expect(deps.updateTask).toHaveBeenCalledWith('t_1', { priority: 'important' });
+    expect(deps.updateTask).toHaveBeenCalledWith('t_1', { priority: 'important', priorityReason: 'test' });
   });
 
   it('autoClassifyTask does nothing when AI returns invalid JSON', async () => {
@@ -1623,7 +1623,7 @@ describe('task-editor.js — createTaskEditor()', () => {
     const task = { id: 't_1', title: 'Task' };
     await editor.autoClassifyTask(task);
     // project changed but priority is normal so only project
-    expect(deps.updateTask).toHaveBeenCalledWith('t_1', { project: 'p_1' });
+    expect(deps.updateTask).toHaveBeenCalledWith('t_1', { project: 'p_1', priorityReason: 'work related' });
   });
 
   it('autoClassifyTask shows project name in toast', async () => {

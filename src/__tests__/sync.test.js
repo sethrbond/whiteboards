@@ -78,6 +78,9 @@ describe('sync.js — createSync()', () => {
       'getLastCloudUpdatedAt',
       'setLastCloudUpdatedAt',
       'resetSyncQueue',
+      'subscribeRealtime',
+      'unsubscribeRealtime',
+      'isSyncPending',
     ];
     keys.forEach((k) => expect(typeof sync[k]).toBe('function'));
   });
@@ -437,10 +440,10 @@ describe('sync.js — createSync()', () => {
     expect(sync.getSyncStatus()).toBe('offline');
   });
 
-  it('scheduleSyncToCloud sets status to syncing when user exists', () => {
+  it('scheduleSyncToCloud sets status to pending when user exists', () => {
     deps.getCurrentUser.mockReturnValue({ id: 'u1' });
     sync.scheduleSyncToCloud();
-    expect(sync.getSyncStatus()).toBe('syncing');
+    expect(sync.getSyncStatus()).toBe('pending');
   });
 
   it('scheduleSyncToCloud debounces — only fires once after 2s', async () => {
@@ -484,16 +487,16 @@ describe('sync.js — createSync()', () => {
   });
 
   // ── syncToCloud ───────────────────────────────────────────────────
-  it('syncToCloud returns early when no user', () => {
+  it('syncToCloud returns resolved promise when no user', async () => {
     deps.getCurrentUser.mockReturnValue(null);
-    const result = sync.syncToCloud();
-    expect(result).toBeUndefined();
+    const result = await sync.syncToCloud();
+    expect(result).toBe(false);
   });
 
-  it('syncToCloud returns early when no sb', () => {
+  it('syncToCloud returns resolved promise when no sb', async () => {
     deps.getCurrentUser.mockReturnValue({ id: 'u1' });
-    const result = sync.syncToCloud();
-    expect(result).toBeUndefined();
+    const result = await sync.syncToCloud();
+    expect(result).toBe(false);
   });
 
   it('syncToCloud upserts data and sets synced status', async () => {
@@ -597,8 +600,8 @@ describe('sync.js — createSync()', () => {
 
     window.dispatchEvent(new Event('online'));
 
-    // Should have set status to syncing (scheduleSyncToCloud was called)
-    expect(sync.getSyncStatus()).toBe('syncing');
+    // Should have set status to pending (scheduleSyncToCloud was called)
+    expect(sync.getSyncStatus()).toBe('pending');
   });
 
   it('setupSyncListeners — online event is ignored when already synced', () => {
@@ -639,7 +642,7 @@ describe('sync.js — createSync()', () => {
 
     // Should not throw
     window.dispatchEvent(new Event('online'));
-    expect(sync.getSyncStatus()).toBe('syncing');
+    expect(sync.getSyncStatus()).toBe('pending');
   });
 
   it('destroySyncListeners removes event listeners', () => {
@@ -757,7 +760,7 @@ describe('sync.js — createSync()', () => {
     Object.defineProperty(document, 'hidden', { value: false, writable: true, configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
 
-    expect(sync.getSyncStatus()).toBe('syncing');
+    expect(sync.getSyncStatus()).toBe('pending');
   });
 
   it('setupSyncListeners — visibilitychange ignores when document is hidden', () => {
