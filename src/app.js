@@ -673,6 +673,7 @@ async function _loadBrainstorm() {
           _batchMode = v;
         },
         saveData: (d) => _dataLayer.saveData(d),
+        syncToCloud,
         openChatWithBrainstormContext: _chat.openChatWithBrainstormContext,
       });
     }

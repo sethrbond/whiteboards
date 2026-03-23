@@ -1402,6 +1402,8 @@ ${text}${getDumpAttachmentText()}`;
     }
 
     if (deps.saveData) deps.saveData(getData());
+    // Force immediate cloud sync — don't rely on 2s debounce
+    if (deps.syncToCloud) deps.syncToCloud();
     render();
   }
 
@@ -1706,6 +1708,7 @@ ${text}${getDumpAttachmentText()}`;
     }
 
     if (deps.saveData) deps.saveData(getData());
+    if (deps.syncToCloud) deps.syncToCloud();
 
     const parts = [];
     if (created) parts.push(`${created} tasks created`);

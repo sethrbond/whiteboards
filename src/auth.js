@@ -713,6 +713,8 @@ export function createAuth(deps) {
 
   async function signOut() {
     try {
+      // Flush pending data to cloud BEFORE purging localStorage
+      try { await getSyncModule().syncToCloud(); } catch (_) { /* best effort */ }
       getSyncModule().resetSyncState();
       getSyncModule().resetSyncQueue();
       await sb.auth.signOut();
