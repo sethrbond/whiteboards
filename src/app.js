@@ -223,6 +223,7 @@ const updateSubtaskNotes = (taskId, subtaskId, notes) => _dataLayer.updateSubtas
 const toggleSubtask = (taskId, subtaskId) => _dataLayer.toggleSubtask(taskId, subtaskId);
 const pushUndo = (label) => _dataLayer.pushUndo(label);
 const undo = () => _dataLayer.undo();
+const redo = () => _dataLayer.redo();
 const showUndoToast = (label) => _dataLayer.showUndoToast(label);
 const findSimilarTask = (title, projectId) => _dataLayer.findSimilarTask(title, projectId);
 const findSimilarProject = (name) => _dataLayer.findSimilarProject(name);
@@ -1464,6 +1465,7 @@ createActions({
   createTask,
   toggleSubtask,
   undo,
+  redo,
   unarchiveTask,
   deleteArchivedPermanently,
   findTask,

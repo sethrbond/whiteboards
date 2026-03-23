@@ -597,12 +597,15 @@ export function createDataLayer(deps) {
     showUndoToast('Board deleted (tasks included)');
   }
 
-  // --- Undo system ---
+  // --- Undo/Redo system ---
+  const redoStack = [];
+
   function pushUndo(label) {
     try {
       const snapshot = JSON.stringify(data);
       undoStack.push({ label, snapshot });
       if (undoStack.length > MAX_UNDO_STACK) undoStack.shift();
+      redoStack.length = 0; // clear redo on new action
       _persistUndoStack();
     } catch (e) {
       console.warn('pushUndo: failed to serialize data, skipping snapshot:', e);
@@ -611,6 +614,10 @@ export function createDataLayer(deps) {
 
   function undo() {
     if (!undoStack.length) return;
+    // Save current state to redo stack before restoring
+    try {
+      redoStack.push({ label: 'Redo', snapshot: JSON.stringify(data) });
+    } catch (_e) { /* best effort */ }
     const entry = undoStack.pop();
     let parsed;
     try {
@@ -618,19 +625,46 @@ export function createDataLayer(deps) {
     } catch (e) {
       console.error('Undo failed — snapshot corrupted:', e);
       getShowToast()('Undo failed — snapshot corrupted', true);
+      redoStack.pop(); // remove the redo we just pushed
       _persistUndoStack();
       return;
     }
     if (!Array.isArray(parsed.tasks)) parsed.tasks = [];
     if (!Array.isArray(parsed.projects)) parsed.projects = [];
     parsed = migrateData(parsed);
-    // Mutate in-place so all getData() references stay valid
     Object.keys(data).forEach((k) => delete data[k]);
     Object.assign(data, parsed);
     saveData(data);
     _persistUndoStack();
     getRender()();
     getShowToast()(`Undone: ${entry.label}`, false, true);
+  }
+
+  function redo() {
+    if (!redoStack.length) return;
+    // Save current state to undo stack before redoing
+    try {
+      undoStack.push({ label: 'Undo', snapshot: JSON.stringify(data) });
+    } catch (_e) { /* best effort */ }
+    const entry = redoStack.pop();
+    let parsed;
+    try {
+      parsed = JSON.parse(entry.snapshot);
+    } catch (e) {
+      console.error('Redo failed:', e);
+      getShowToast()('Redo failed', true);
+      undoStack.pop();
+      return;
+    }
+    if (!Array.isArray(parsed.tasks)) parsed.tasks = [];
+    if (!Array.isArray(parsed.projects)) parsed.projects = [];
+    parsed = migrateData(parsed);
+    Object.keys(data).forEach((k) => delete data[k]);
+    Object.assign(data, parsed);
+    saveData(data);
+    _persistUndoStack();
+    getRender()();
+    getShowToast()('Redone', false, true);
   }
 
   function showUndoToast(label) {
@@ -989,9 +1023,10 @@ export function createDataLayer(deps) {
     renameSubtask,
     updateSubtaskNotes,
     toggleSubtask,
-    // Undo
+    // Undo/Redo
     pushUndo,
     undo,
+    redo,
     showUndoToast,
     // Fuzzy matching
     findSimilarTask,

@@ -33,6 +33,7 @@ export function createActions(deps) {
     createTask,
     toggleSubtask,
     undo,
+    redo,
     unarchiveTask,
     deleteArchivedPermanently,
     restoreFromBackup,
@@ -1647,7 +1648,7 @@ export function createActions(deps) {
     if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
       if (_inFormField) return;
       e.preventDefault();
-      undo();
+      if (e.shiftKey && redo) { redo(); } else { undo(); }
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
